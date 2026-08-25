@@ -1,3 +1,4 @@
+import 'package:build_engine/build_engine.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/core/engine/character_adapter.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
@@ -46,5 +47,17 @@ void main() {
     expect(tomeAdapter.height, 3);
     expect(tomeAdapter.inspect().length, 12);
     expect(tomeAdapter.inspect().firstWhere((c) => c.slotId == '0,0').occupant!.contentId, 'knife');
+  });
+
+  test('expandGrid destroys the old grid\'s placeholder entities (no leak)', () {
+    tomeAdapter.insertItem('knife', '0,0');
+    final oldTome = session.context.tome.tomeOf(session.character)!;
+    final oldPlaceholder = oldTome.container.itemAt(const SlotId('0,0'))!;
+    expect(session.context.entities.isAlive(oldPlaceholder), isTrue);
+
+    tomeAdapter.expandGrid();
+
+    expect(session.context.entities.isAlive(oldPlaceholder), isFalse);
+    expect(session.context.components.get<BuildComponentRef>(oldPlaceholder), isNull);
   });
 }

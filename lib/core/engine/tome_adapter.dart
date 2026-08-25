@@ -119,8 +119,21 @@ class TomeAdapter {
   /// existing Tome" doc comment), and replays every existing placement
   /// back in at the same `row,col` coordinates (still valid, since the
   /// new grid is only ever wider/taller, never smaller).
+  ///
+  /// The old grid's placements are explicitly [TomeService.remove]d
+  /// *before* the new `TomeInstance` is created — `remove` is the only
+  /// path that destroys a placement's placeholder entity and its
+  /// `BuildComponentRef` component (`TomeService.insert` mints both;
+  /// `createTome` just overwrites the `TomeInstance` component and would
+  /// otherwise silently orphan them). This must happen while the old
+  /// `TomeInstance` is still attached — `TomeService.remove` resolves
+  /// via `tomeOf(owner)`, so it has to run before `_defineAndCreate`
+  /// swaps that component out from under it.
   void expandGrid({int addWidth = 1, int addHeight = 0}) {
     final existing = _session.context.tome.inspect(_session.character);
+    for (final placement in existing) {
+      _session.context.tome.remove(_session.character, placement.slot);
+    }
     _defineAndCreate(_width + addWidth, _height + addHeight);
     _width += addWidth;
     _height += addHeight;

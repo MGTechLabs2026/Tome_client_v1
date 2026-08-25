@@ -1,9 +1,10 @@
 import 'package:build_engine/build_engine.dart';
 import 'package:build_engine/combat_plugin.dart';
-import 'package:build_engine/game.dart';
 import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/martial_arts_plugin.dart';
 import 'package:build_engine/physique_plugin.dart';
+// ignore: implementation_imports
+import 'package:build_engine/src/plugins/game/run_events.dart' show TechniqueEvolved;
 import 'package:build_engine/technique_plugin.dart';
 
 /// Bootstraps one `PluginContext` with every plugin the client drives,
@@ -17,14 +18,23 @@ import 'package:build_engine/technique_plugin.dart';
 /// engine's own reference run does.
 ///
 /// Note: `TechniqueEvolved` is defined in build_engine's "game"
-/// composition layer (`package:build_engine/game.dart`,
-/// `src/plugins/game/run_events.dart`), not in `technique_plugin.dart`
-/// — the Technique plugin itself has no such event; `evolveTechnique`
-/// just returns an `EvolutionResult`. Publishing `TechniqueEvolved` is
-/// something a caller does explicitly after resolving an evolution
-/// (mirroring `training_stage.dart`'s own `events.publish(...)` call),
-/// so any later adapter that evolves a technique must publish this same
-/// event class for `EngineSession`'s subscription below to see it.
+/// composition layer (`src/plugins/game/run_events.dart`), not in
+/// `technique_plugin.dart` — the Technique plugin itself has no such
+/// event; `evolveTechnique` just returns an `EvolutionResult`.
+/// Publishing `TechniqueEvolved` is something a caller does explicitly
+/// after resolving an evolution (mirroring `training_stage.dart`'s own
+/// `events.publish(...)` call), so any later adapter that evolves a
+/// technique must publish this same event class for `EngineSession`'s
+/// subscription below to see it.
+///
+/// Imported directly from `src/plugins/game/run_events.dart` rather
+/// than the public `package:build_engine/game.dart` barrel: that barrel
+/// also exports `console_decision_policy.dart`, which pulls in
+/// `dart:io` — a `lib/core/engine/` import (the one place in this app
+/// allowed to import `build_engine`) can't afford that, since this app
+/// targets web among its platforms. `run_events.dart`'s own import
+/// chain (`build_engine.dart` + `run_decision_policy.dart`) is
+/// `dart:io`-free.
 class EngineSession {
   EngineSession(int seed) : rng = RngService(seed) {
     final events = EventBus();

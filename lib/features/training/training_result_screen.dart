@@ -2,6 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/models/game_phase.dart';
+import '../run/run_bloc.dart';
+import '../run/run_event.dart';
 import 'training_bloc.dart';
 
 class TrainingResultScreen extends StatelessWidget {
@@ -20,6 +23,12 @@ class TrainingResultScreen extends StatelessWidget {
             const Text('NEW TECHNIQUE DISCOVERED'),
             Text('Evolved from: ${result.evolvedFromDefinitionId}'),
           ],
+          const Spacer(),
+          FilledButton(
+            onPressed: () =>
+                context.read<RunBloc>().add(const PhaseCompleted(GamePhase.tome)),
+            child: const Text('Back to Tome'),
+          ),
         ]),
       );
     });

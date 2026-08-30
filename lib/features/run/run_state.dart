@@ -11,9 +11,10 @@ class RunState {
 
   final GamePhase phase;
 
-  /// Which fight of the 3-fight run is next (0-based). The run of 3
-  /// fights is client orchestration, not an engine primitive (spec
-  /// §2.1) — incremented here on each return to the Tome after Loot.
+  /// Which bout is next (0-based), which also equals how many bouts have
+  /// been won so far. The run is endless — orchestrated here, not an
+  /// engine primitive (spec §2.1) — so this just keeps climbing;
+  /// incremented on each return to the Tome after Loot.
   final int fightIndex;
 
   /// The item/technique definition id the player picked to train, set

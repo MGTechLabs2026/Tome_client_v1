@@ -22,7 +22,10 @@ class CombatScreen extends StatelessWidget {
   final num enemyHealth;
   final num enemyDamage;
   final String enemyDamageStat;
-  final VoidCallback onFinished;
+
+  /// Fired when the replay finishes, with the fight's outcome — `true`
+  /// if the player won, `false` if they were defeated.
+  final void Function(bool won) onFinished;
   final String playerName;
 
   /// `sparring_partner` -> `Sparring Partner`.
@@ -48,7 +51,7 @@ class CombatScreen extends StatelessWidget {
               )
             : LogReplayCombatPresentation(
                 log: state.log,
-                onFinished: onFinished,
+                onFinished: () => onFinished(state.won ?? true),
                 playerName: playerName,
                 enemyName: _enemyName,
               ),

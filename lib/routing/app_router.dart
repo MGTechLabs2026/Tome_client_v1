@@ -27,10 +27,6 @@ import '../features/tome/tome_screen.dart';
 import '../features/training/training_preparation_screen.dart';
 import '../features/training/training_result_screen.dart';
 
-/// Total fights in one run — the run of N fights is client orchestration,
-/// not an engine primitive (spec §2.1).
-const kFightsPerRun = 3;
-
 String _pathFor(GamePhase phase) => switch (phase) {
       GamePhase.characterCreation => '/character-creation',
       GamePhase.tome => '/tome',
@@ -43,12 +39,20 @@ String _pathFor(GamePhase phase) => switch (phase) {
       GamePhase.runComplete => '/run-complete',
     };
 
-/// Enemy stats for fight [fightIndex] (0-based); the last fight is the boss.
+/// Enemy stats for fight [fightIndex] (0-based). The run is endless: the
+/// first three bouts are hand-set, then the recurring rival scales up
+/// each fight so the gauntlet always eventually ends the player.
 ({String id, num health, num damage, String stat}) _enemyFor(int fightIndex) =>
     switch (fightIndex) {
       0 => (id: 'sparring_partner', health: 12, damage: 2, stat: 'fist'),
       1 => (id: 'street_brawler', health: 20, damage: 3, stat: 'fist'),
-      _ => (id: 'rival_master', health: 32, damage: 4, stat: 'fist'),
+      2 => (id: 'rival_master', health: 32, damage: 4, stat: 'fist'),
+      final n => (
+          id: 'rival_master',
+          health: 32 + (n - 2) * 10,
+          damage: 4 + (n - 2),
+          stat: 'fist',
+        ),
     };
 
 /// Bridges [RunBloc]'s state stream to a [Listenable] so `go_router`'s
@@ -112,21 +116,25 @@ Widget _screenFor(GamePhase phase, BuildContext context, VoidCallback onRestart)
           enemyDamage: enemy.damage,
           enemyDamageStat: enemy.stat,
           playerName: context.read<CharacterAdapter>().currentView().name,
-          onFinished: () => run.add(const PhaseCompleted(GamePhase.loot)),
-        ),
-      );
-    case GamePhase.loot:
-      final lastFight = run.state.fightIndex >= kFightsPerRun - 1;
-      return BlocProvider(
-        create: (_) => LootBloc(context.read<RewardAdapter>()),
-        child: LootScreen(
-          onApplied: () => run.add(PhaseCompleted(
-            lastFight ? GamePhase.runComplete : GamePhase.tome,
+          // Win -> loot then back to the Tome for the next bout. Lose ->
+          // the run is over. The run only ends when the player falls.
+          onFinished: (won) => run.add(PhaseCompleted(
+            won ? GamePhase.loot : GamePhase.runComplete,
           )),
         ),
       );
+    case GamePhase.loot:
+      return BlocProvider(
+        create: (_) => LootBloc(context.read<RewardAdapter>()),
+        child: LootScreen(
+          onApplied: () => run.add(const PhaseCompleted(GamePhase.tome)),
+        ),
+      );
     case GamePhase.runComplete:
-      return RunCompleteScreen(onRestart: onRestart);
+      return RunCompleteScreen(
+        fightsWon: run.state.fightIndex,
+        onRestart: onRestart,
+      );
   }
 }
 

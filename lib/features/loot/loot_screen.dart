@@ -9,7 +9,7 @@ class LootScreen extends StatelessWidget {
   const LootScreen({super.key, this.onApplied});
 
   /// Fired once the chosen loot has been applied — the router uses it to
-  /// advance the run (back to the Tome, or to Run Complete after fight 3).
+  /// send the player back to the Tome for the next bout.
   final VoidCallback? onApplied;
 
   @override

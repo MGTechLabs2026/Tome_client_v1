@@ -24,7 +24,8 @@ Future<void> _pumpUntil(
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('character creation through 3 fights to Run Complete', (tester) async {
+  testWidgets('character creation through an endless gauntlet until the player falls',
+      (tester) async {
     // A real desktop form factor — 800x600 is neither shipped target.
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     tester.view.physicalSize = const Size(1280, 800);
@@ -49,8 +50,11 @@ void main() {
 
     expect(find.text('THE LOOSE RACK'), findsOneWidget);
 
-    // Fight 1 -> Loot -> Tome -> Fight 2 -> Loot -> Tome -> Fight 3 -> Loot -> Run Complete.
-    for (var fight = 1; fight <= 3; fight++) {
+    // Endless: Tome -> Fight -> (win) Loot -> Tome -> ... until a bout is
+    // lost and the run ends on the "YOU FELL" screen. Enemies scale each
+    // bout, so this always terminates; the cap is just a safety net.
+    var gameOver = false;
+    for (var fight = 1; fight <= 30 && !gameOver; fight++) {
       await tester.pumpAndSettle(); // finish the slide-in onto the Tome
       await tester.tap(find.byKey(const Key('startFightButton')));
       await tester.pumpAndSettle(); // Tome -> Combat Prep (both static)
@@ -58,19 +62,31 @@ void main() {
 
       await tester.tap(find.text('Confirm & Fight'));
       await _pumpUntil(
-          tester, () => find.text('+1 Upgrade Point').evaluate().isNotEmpty);
-      expect(find.text('+1 Upgrade Point'), findsOneWidget);
-      await tester.pumpAndSettle(); // settle the Loot screen
+        tester,
+        () =>
+            find.text('+1 Upgrade Point').evaluate().isNotEmpty ||
+            find.text('YOU FELL').evaluate().isNotEmpty,
+      );
 
+      if (find.text('YOU FELL').evaluate().isNotEmpty) {
+        gameOver = true;
+        break;
+      }
+
+      // Won this bout — take the upgrade point and head back to the Tome.
+      await tester.pumpAndSettle(); // settle the Loot screen
       await tester.tap(find.text('+1 Upgrade Point'));
       await _pumpUntil(
         tester,
         () =>
             find.byKey(const Key('startFightButton')).evaluate().isNotEmpty ||
-            find.text('Run Complete!').evaluate().isNotEmpty,
+            find.text('YOU FELL').evaluate().isNotEmpty,
       );
+      gameOver = find.text('YOU FELL').evaluate().isNotEmpty;
     }
 
-    expect(find.text('Run Complete!'), findsOneWidget);
+    expect(gameOver, isTrue, reason: 'the gauntlet should end the player');
+    expect(find.text('YOU FELL'), findsOneWidget);
+    expect(find.text('Start New Run'), findsOneWidget);
   });
 }

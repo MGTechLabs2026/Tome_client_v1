@@ -34,7 +34,8 @@ class _TomeAppState extends State<TomeApp> {
   late EngineSession _session = widget.session ?? _freshSession();
   late RunBloc _runBloc = widget.runBloc;
 
-  EngineSession _freshSession() => EngineSession(DateTime.now().millisecondsSinceEpoch);
+  EngineSession _freshSession() =>
+      EngineSession(DateTime.now().millisecondsSinceEpoch);
 
   void _restart() {
     setState(() {
@@ -59,28 +60,43 @@ class _TomeAppState extends State<TomeApp> {
       key: ValueKey(session),
       providers: [
         RepositoryProvider<EngineSession>.value(value: session),
-        RepositoryProvider<CharacterAdapter>(create: (_) => CharacterAdapter(session)),
+        RepositoryProvider<CharacterAdapter>(
+          create: (_) => CharacterAdapter(session),
+        ),
         // Lazy: first read is on /tome, after character creation has set
         // session.character, so createInitialTome runs once at the right time.
         RepositoryProvider<TomeAdapter>(
-          create: (_) => TomeAdapter(session)..createInitialTome(),
+          create:
+              (_) =>
+                  TomeAdapter(session)
+                    ..createInitialTome()
+                    ..grantStartingKit(),
         ),
         RepositoryProvider<ItemAdapter>(create: (_) => ItemAdapter(session)),
-        RepositoryProvider<TechniqueAdapter>(create: (_) => TechniqueAdapter(session)),
+        RepositoryProvider<TechniqueAdapter>(
+          create: (_) => TechniqueAdapter(session),
+        ),
         RepositoryProvider<TrainingAdapter>(
-          create: (ctx) => TrainingAdapter(session, tomeAdapter: ctx.read<TomeAdapter>()),
+          create:
+              (ctx) => TrainingAdapter(
+                session,
+                tomeAdapter: ctx.read<TomeAdapter>(),
+              ),
         ),
         RepositoryProvider<CombatAdapter>(
-          create: (ctx) => CombatAdapter(session, tomeAdapter: ctx.read<TomeAdapter>()),
+          create:
+              (ctx) =>
+                  CombatAdapter(session, tomeAdapter: ctx.read<TomeAdapter>()),
         ),
         RepositoryProvider<RewardAdapter>(
-          create: (ctx) => RewardAdapter(
-            session,
-            tomeAdapter: ctx.read<TomeAdapter>(),
-            techniqueAdapter: ctx.read<TechniqueAdapter>(),
-            itemPool: _rewardItemPool,
-            techniquePool: _rewardTechniquePool,
-          ),
+          create:
+              (ctx) => RewardAdapter(
+                session,
+                tomeAdapter: ctx.read<TomeAdapter>(),
+                techniqueAdapter: ctx.read<TechniqueAdapter>(),
+                itemPool: _rewardItemPool,
+                techniquePool: _rewardTechniquePool,
+              ),
         ),
       ],
       child: MultiBlocProvider(
@@ -95,6 +111,7 @@ class _TomeAppState extends State<TomeApp> {
         ],
         child: MaterialApp.router(
           title: 'Tome: Martial Arts',
+          debugShowCheckedModeBanner: false,
           theme: tomeTheme(),
           routerConfig: appRouter(_runBloc, onRestart: _restart),
         ),

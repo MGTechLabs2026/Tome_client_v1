@@ -21,12 +21,16 @@ import 'tome_adapter.dart';
 /// resolver and never publishes) and swapping the evolved form into the
 /// Tome slot the base technique occupied.
 class TrainingAdapter {
-  TrainingAdapter(this._session, {required TomeAdapter tomeAdapter}) : _tomeAdapter = tomeAdapter;
+  TrainingAdapter(this._session, {required TomeAdapter tomeAdapter})
+    : _tomeAdapter = tomeAdapter;
 
   final EngineSession _session;
   final TomeAdapter _tomeAdapter;
 
-  TrainingResultView trainItem(String definitionId, List<TrainingAttempt> attempts) {
+  TrainingResultView trainItem(
+    String definitionId,
+    List<TrainingAttempt> attempts,
+  ) {
     final item = itemDefinition(definitionId, _session.context);
     final wasUsable = isItemUsable(_session.character, item, _session.context);
     final exercise = itemTrainingExerciseFor(item, const TimingExercise());
@@ -40,7 +44,11 @@ class TrainingAdapter {
     }
     final result = session.complete();
     final gain = trainingGain(result.profile);
-    _session.context.mastery.increase(_session.character, itemSubject(definitionId), gain);
+    _session.context.mastery.increase(
+      _session.character,
+      itemSubject(definitionId),
+      gain,
+    );
     final nowUsable = isItemUsable(_session.character, item, _session.context);
 
     return TrainingResultView(
@@ -51,9 +59,15 @@ class TrainingAdapter {
     );
   }
 
-  TrainingResultView trainTechnique(String definitionId, List<TrainingAttempt> attempts) {
+  TrainingResultView trainTechnique(
+    String definitionId,
+    List<TrainingAttempt> attempts,
+  ) {
     final technique = techniqueDefinition(definitionId, _session.context);
-    final exercise = techniqueTrainingExerciseFor(technique, const TimingExercise());
+    final exercise = techniqueTrainingExerciseFor(
+      technique,
+      const TimingExercise(),
+    );
     final session = TrainingSession(
       trainee: _session.character,
       subject: techniqueSubject(definitionId),
@@ -65,11 +79,21 @@ class TrainingAdapter {
     final result = session.complete();
     final gain = trainingGain(result.profile);
 
-    final learning = attemptToLearnTechnique(_session.character, technique, gain, _session.context);
+    final learning = attemptToLearnTechnique(
+      _session.character,
+      technique,
+      gain,
+      _session.context,
+    );
 
     String? evolvedInto;
     if (learning.learned && technique.evolutionCandidates.isNotEmpty) {
-      final evolution = evolveTechnique(_session.character, technique, result.profile, _session.context);
+      final evolution = evolveTechnique(
+        _session.character,
+        technique,
+        result.profile,
+        _session.context,
+      );
       if (evolution.evolved) {
         evolvedInto = evolution.chosenCandidate!.targetId;
         // evolveTechnique is a pure resolver — it never publishes

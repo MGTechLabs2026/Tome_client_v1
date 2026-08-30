@@ -24,8 +24,8 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Attempt Combine'), findsOneWidget);
-    await tester.tap(find.text('Attempt Combine'));
+    expect(find.text('ATTEMPT COMBINE'), findsOneWidget);
+    await tester.tap(find.text('ATTEMPT COMBINE'));
     expect(confirmed, isTrue);
   });
 }

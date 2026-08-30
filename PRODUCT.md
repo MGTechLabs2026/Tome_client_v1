@@ -35,7 +35,7 @@ The mechanism a neighboring roguelike-deckbuilder couldn't casually copy: every 
 - **Phase-driven, illegal-navigation-proof routing**: `go_router` redirects off `RunBloc`'s current `GamePhase` (`CharacterCreation → Tome → TrainingPreparation → Training → TrainingResult → CombatPreparation → Combat → Loot → RunComplete`).
 - **Presentation seams for future work**: `TrainingPresentation`/`CombatPresentation` are abstract interfaces with today's Flutter-widget placeholder implementations — the intended drop-in point for later Flame (2D) combat rendering and 3D training rendering, without touching `core/engine` or `RunBloc`.
 - **Testing culture inherited from `build_engine`**: adapter tests hit the real engine package end-to-end — engine rules are never mocked. Feature Blocs are tested against a fake/in-memory adapter for fast deterministic phase-transition tests.
-- **Cross-repo coordination**: this milestone requires exactly two additive, no-rule-change exports from `build_engine` (`martialTraditionOf(styleId)`, `canCombine(...)`) — no other engine change is in scope. The two repos currently develop in lockstep via local `dependency_overrides` worktrees.
+- **Cross-repo coordination**: this milestone requires exactly two additive, no-rule-change exports from `build_engine` (`martialTraditionOf(styleId)`, `canCombine(...)`) — no other engine change is in scope. Both are now implemented on the `build_engine` branch `tome-ux-milestone-engine`, not yet merged to `build_engine` main; until that merge lands, `Tome_client` builds only via the local `dependency_overrides` path pointing at that worktree. The two repos develop in lockstep via local `dependency_overrides` worktrees.
 - **No cross-run persistence or meta-progression** in this milestone — a completed run returns to Character Creation with nothing carried over.
 
 ## Capabilities and Constraints
@@ -63,6 +63,7 @@ The mechanism a neighboring roguelike-deckbuilder couldn't casually copy: every 
 
 - `docs/superpowers/specs/2026-08-25-tome-client-ux-design.md` — full approved UX design spec (screen-by-screen), source of truth for this milestone's product and interaction facts.
 - `docs/superpowers/plans/2026-08-25-tome-client-ux-implementation.md` — task-by-task implementation plan with the same product facts operationalized.
+- The UX-shell milestone described by those two docs is now implemented and merged to `main` (the full character-creation → 3-fight → run-complete loop, all engine adapters, phase-driven router, and a passing first-run integration test). The described shell is real, not aspirational; the shipped `lib/` code is itself evidence of the interaction model, with Combat/Training still at placeholder fidelity as scoped.
 - No visual assets, logos, or brand marks currently exist in this repo. No player-facing name/logo treatment has been confirmed yet — future visual work must not invent one without asking.
 - No real player testimonials, store copy, or marketing evidence exists yet (pre-release indie game).
 
@@ -76,4 +77,12 @@ The mechanism a neighboring roguelike-deckbuilder couldn't casually copy: every 
 
 ## Accessibility & Inclusion
 
-No accessibility standard has been confirmed yet for this project. Not yet established — do not assume a specific WCAG/platform target without asking.
+Game-oriented accessibility baseline (not strict WCAG conformance, given the custom game UI):
+
+- **State language is never color alone.** Every derived state (locked / usable / mastered / active, combinable-eligible / combinable-ineligible, synergy match / mismatch) must carry a non-color cue — border weight/style, icon, badge, label, or fill pattern — so it reads for colorblind players. This reinforces the existing "relationships stay visible even when unavailable" principle.
+- **Scalable text.** UI text respects the OS/platform text-scale setting without clipping or overlap; layouts reflow rather than truncate meaning.
+- **Large, forgiving targets.** Interactive elements (grid cells, tray items, loot cards, primary actions) meet a generous minimum hit size; drag interactions have a tap/press-hold alternative where feasible.
+- **Full reduced-motion support.** `prefers-reduced-motion` (and any in-game equivalent) disables or de-emphasizes the combat-log replay pacing, tether draw-in, and all decorative animation; the underlying information stays available statically.
+- **Captions for any audio.** If audio cues or voice are added, they ship with visible captions/text equivalents.
+
+Specifics (target sizes in dp, exact reduced-motion behavior per surface) are refined per surface in that surface's brief; this is the floor.

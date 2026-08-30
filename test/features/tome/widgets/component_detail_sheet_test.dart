@@ -24,7 +24,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('LOCKED'), findsOneWidget);
-    expect(find.text('Train'), findsOneWidget);
-    expect(find.text('Equip'), findsNothing);
+    expect(find.text('TRAIN'), findsOneWidget);
+    expect(find.text('EQUIP'), findsNothing);
   });
 }

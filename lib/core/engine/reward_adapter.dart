@@ -14,10 +14,10 @@ class RewardAdapter {
     required TechniqueAdapter techniqueAdapter,
     required List<String> itemPool,
     required List<String> techniquePool,
-  })  : _tomeAdapter = tomeAdapter,
-        _techniqueAdapter = techniqueAdapter,
-        _itemPool = List.of(itemPool),
-        _techniquePool = List.of(techniquePool);
+  }) : _tomeAdapter = tomeAdapter,
+       _techniqueAdapter = techniqueAdapter,
+       _itemPool = List.of(itemPool),
+       _techniquePool = List.of(techniquePool);
 
   final EngineSession _session;
   final TomeAdapter _tomeAdapter;
@@ -45,11 +45,12 @@ class RewardAdapter {
 
   List<LootOptionView> offerLoot() {
     final next = _peekNextPoolEntry();
-    final newComponentDetail = next == null
-        ? 'No new components remain'
-        : (next.isItem
-            ? itemDefinition(next.id, _session.context).id
-            : techniqueDefinition(next.id, _session.context).name);
+    final newComponentDetail =
+        next == null
+            ? 'No new components remain'
+            : (next.isItem
+                ? itemDefinition(next.id, _session.context).id
+                : techniqueDefinition(next.id, _session.context).name);
 
     return [
       const LootOptionView(
@@ -74,7 +75,11 @@ class RewardAdapter {
   void applyLoot(LootKind kind) {
     switch (kind) {
       case LootKind.upgradePoints:
-        _session.context.resources.add(_session.character, ItemResources.upgradePoints, 1);
+        _session.context.resources.add(
+          _session.character,
+          ItemResources.upgradePoints,
+          1,
+        );
       case LootKind.gridExpansion:
         _tomeAdapter.expandGrid();
       case LootKind.newComponent:

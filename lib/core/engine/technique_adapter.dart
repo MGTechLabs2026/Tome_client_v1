@@ -28,12 +28,26 @@ class TechniqueAdapter {
       name: technique.name,
       tier: technique.tier,
       properties: technique.properties,
-      discovered: isTechniqueDiscovered(_session.character, technique, _session.context),
-      learned: isTechniqueLearned(_session.character, technique, _session.context),
-      masteryLevel: techniqueMasteryLevel(_session.character, technique, _session.context),
+      discovered: isTechniqueDiscovered(
+        _session.character,
+        technique,
+        _session.context,
+      ),
+      learned: isTechniqueLearned(
+        _session.character,
+        technique,
+        _session.context,
+      ),
+      masteryLevel: techniqueMasteryLevel(
+        _session.character,
+        technique,
+        _session.context,
+      ),
       evolvedFromId: _session.lineage[definitionId],
     );
   }
 
-  List<TechniqueView> discoveredTechniques() => [for (final id in _discoveredIds) viewOf(id)];
+  List<TechniqueView> discoveredTechniques() => [
+    for (final id in _discoveredIds) viewOf(id),
+  ];
 }

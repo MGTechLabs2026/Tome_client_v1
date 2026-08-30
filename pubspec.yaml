@@ -66,6 +66,20 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  fonts:
+    # Carved-relief display for school / lineage names and sheet titles.
+    - family: Cinzel
+      fonts:
+        - asset: assets/fonts/Cinzel.ttf
+    # Quiet drawing-office workhorse for readouts, labels, and body.
+    - family: Archivo
+      fonts:
+        - asset: assets/fonts/Archivo.ttf
+    # Measurement hand: leader-line quantities (x1.25, cls I -> II, 1 pt).
+    - family: SplineSansMono
+      fonts:
+        - asset: assets/fonts/SplineSansMono.ttf
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

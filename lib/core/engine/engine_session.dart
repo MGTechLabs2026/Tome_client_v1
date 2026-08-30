@@ -4,7 +4,8 @@ import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/martial_arts_plugin.dart';
 import 'package:build_engine/physique_plugin.dart';
 // ignore: implementation_imports
-import 'package:build_engine/src/plugins/game/run_events.dart' show TechniqueEvolved;
+import 'package:build_engine/src/plugins/game/run_events.dart'
+    show TechniqueEvolved;
 import 'package:build_engine/technique_plugin.dart';
 
 /// Bootstraps one `PluginContext` with every plugin the client drives,

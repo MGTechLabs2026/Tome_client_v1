@@ -30,23 +30,35 @@ class CharacterAdapter {
   /// physique_content.dart's `×1.25`/`×0.85` conditional modifiers).
   String _affinityTraditionFor(String physiqueId) {
     final definition = _session.context.content.get(physiqueId);
-    if (definition.tags.contains('western_affinity')) return MartialTraditions.western;
+    if (definition.tags.contains('western_affinity')) {
+      return MartialTraditions.western;
+    }
     return MartialTraditions.eastern;
   }
 
+  /// The current character as a view model — for surfaces (e.g. the
+  /// Tome frontispiece) that render the character after creation without
+  /// re-running the creation flow. Returns empty fields before
+  /// [createCharacter] has run.
+  CharacterView currentView() => _view();
+
   CharacterView _view() => CharacterView(
-        name: _name,
-        physiqueId: _physiqueId,
-        physiqueAffinityTradition: _affinityTraditionFor(_physiqueId),
-        martialTradition: _martialTradition,
-        styleId: _styleId,
-        healthCurrent: _session.context.components
-                .get<HealthComponent>(_session.character)?.current ??
-            0,
-        healthMax: _session.context.components
-                .get<HealthComponent>(_session.character)?.max ??
-            0,
-      );
+    name: _name,
+    physiqueId: _physiqueId,
+    physiqueAffinityTradition: _affinityTraditionFor(_physiqueId),
+    martialTradition: _martialTradition,
+    styleId: _styleId,
+    healthCurrent:
+        _session.context.components
+            .get<HealthComponent>(_session.character)
+            ?.current ??
+        0,
+    healthMax:
+        _session.context.components
+            .get<HealthComponent>(_session.character)
+            ?.max ??
+        0,
+  );
 
   /// Creates the character entity, assigns a `CombatantComponent` and
   /// starting `HealthComponent`, and assigns physique (random, per the
@@ -56,19 +68,23 @@ class CharacterAdapter {
     _name = name;
     final character = _session.context.characters.create();
     _session.character = character;
-    _session.context.components
-        .add(character, const CombatantComponent(team: 'player', initiative: 10));
-    _session.context.components
-        .add(character, const HealthComponent(current: 100, max: 100));
+    _session.context.components.add(
+      character,
+      const CombatantComponent(team: 'player', initiative: 10),
+    );
+    _session.context.components.add(
+      character,
+      const HealthComponent(current: 100, max: 100),
+    );
     _physiqueId = initializePhysique(character, _session.context);
     return _view();
   }
 
   /// All 6 known martial styles, western traditions first.
   List<String> availableStyles() => [
-        ...stylesForTradition(MartialTraditions.western),
-        ...stylesForTradition(MartialTraditions.eastern),
-      ];
+    ...stylesForTradition(MartialTraditions.western),
+    ...stylesForTradition(MartialTraditions.eastern),
+  ];
 
   /// Wraps `martialTraditionOf` so the UI can compare a candidate
   /// style's tradition against the view's `physiqueAffinityTradition`

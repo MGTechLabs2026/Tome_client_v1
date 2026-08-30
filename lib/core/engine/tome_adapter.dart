@@ -24,10 +24,24 @@ class TomeAdapter {
   int get height => _height;
 
   /// Defines and creates a 3x3 grid Tome for the current character.
-  /// Called once, after character creation and before granting the
-  /// starting kit.
+  /// Called once, right after character creation. The starting kit is a
+  /// separate step ([grantStartingKit]) so adapter/bloc tests can work
+  /// against a bare grid.
   void createInitialTome() {
     _defineAndCreate(_width, _height);
+  }
+
+  /// Grants the run's opening components: the knife is hung centre
+  /// (usable with no mastery gate); the cloth armour is owned +
+  /// discovered but stays in the loose rack until trained past its
+  /// mastery threshold — `addItemToTome` will not hang a locked item.
+  void grantStartingKit() {
+    insertItem('knife', '1,1');
+    final cloth = itemDefinition('cloth_armor', _session.context);
+    if (!isItemOwned(_session.character, 'cloth_armor', _session.context)) {
+      ownItem(_session.character, 'cloth_armor', _session.context);
+      discoverItem(_session.character, cloth, _session.context);
+    }
   }
 
   void _defineAndCreate(int width, int height) {
@@ -41,19 +55,25 @@ class TomeAdapter {
 
   List<GridCellView> inspect() {
     final placements = {
-      for (final p in _session.context.tome.inspect(_session.character)) p.slot.id: p,
+      for (final p in _session.context.tome.inspect(_session.character))
+        p.slot.id: p,
     };
     final cells = <GridCellView>[];
     for (var row = 0; row < _height; row++) {
       for (var col = 0; col < _width; col++) {
         final slotId = '$row,$col';
         final placement = placements[slotId];
-        cells.add(GridCellView(
-          slotId: slotId,
-          row: row,
-          col: col,
-          occupant: placement == null ? null : _occupantFor(placement.buildComponentRef),
-        ));
+        cells.add(
+          GridCellView(
+            slotId: slotId,
+            row: row,
+            col: col,
+            occupant:
+                placement == null
+                    ? null
+                    : _occupantFor(placement.buildComponentRef),
+          ),
+        );
       }
     }
     return cells;
@@ -82,11 +102,19 @@ class TomeAdapter {
   /// first (the starting-kit / reward-grant path); if a specific owned
   /// copy's entity id is already known (e.g. from `ItemAdapter`'s combine
   /// flow), pass it directly instead of minting a new one.
-  void insertItem(String definitionId, String slotId, {EntityId? instanceEntityId}) {
+  void insertItem(
+    String definitionId,
+    String slotId, {
+    EntityId? instanceEntityId,
+  }) {
     final item = itemDefinition(definitionId, _session.context);
     var instance = instanceEntityId;
     if (instance == null) {
-      final alreadyOwned = isItemOwned(_session.character, definitionId, _session.context);
+      final alreadyOwned = isItemOwned(
+        _session.character,
+        definitionId,
+        _session.context,
+      );
       if (!alreadyOwned) {
         instance = ownItem(_session.character, definitionId, _session.context);
         discoverItem(_session.character, item, _session.context);
@@ -101,15 +129,40 @@ class TomeAdapter {
     );
   }
 
-  void insertTechnique(String definitionId, String slotId) {
-    final technique = techniqueDefinition(definitionId, _session.context);
-    addTechniqueToTome(_session.character, SlotId(slotId), technique, _session.context);
+  /// Places an already-owned item instance (identified by its raw
+  /// `EntityId.value`, the only handle the UI holds) at [slotId] — the
+  /// tray-to-grid drop path, where the copy exists and must not be
+  /// re-minted.
+  void placeOwnedItem(
+    String definitionId,
+    int instanceEntityValue,
+    String slotId,
+  ) {
+    insertItem(
+      definitionId,
+      slotId,
+      instanceEntityId: EntityId(instanceEntityValue),
+    );
   }
 
-  void remove(String slotId) => _session.context.tome.remove(_session.character, SlotId(slotId));
+  void insertTechnique(String definitionId, String slotId) {
+    final technique = techniqueDefinition(definitionId, _session.context);
+    addTechniqueToTome(
+      _session.character,
+      SlotId(slotId),
+      technique,
+      _session.context,
+    );
+  }
 
-  void move(String fromSlotId, String toSlotId) =>
-      _session.context.tome.move(_session.character, SlotId(fromSlotId), SlotId(toSlotId));
+  void remove(String slotId) =>
+      _session.context.tome.remove(_session.character, SlotId(slotId));
+
+  void move(String fromSlotId, String toSlotId) => _session.context.tome.move(
+    _session.character,
+    SlotId(fromSlotId),
+    SlotId(toSlotId),
+  );
 
   /// No engine primitive grows a live `Container` (`ARCHITECTURE.md`'s
   /// Tome section — a `Container` is fixed-size once built), so a grid

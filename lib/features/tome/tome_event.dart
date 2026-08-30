@@ -7,6 +7,10 @@ class TomeRefreshRequested extends TomeEvent {
   const TomeRefreshRequested();
 }
 
+class FirstRunCalloutDismissed extends TomeEvent {
+  const FirstRunCalloutDismissed();
+}
+
 class ComponentMoved extends TomeEvent {
   const ComponentMoved(this.fromSlotId, this.toSlotId);
   final String fromSlotId;
@@ -23,8 +27,14 @@ class ComponentInserted extends TomeEvent {
     required this.definitionId,
     required this.slotId,
     required this.isTechnique,
+    this.instanceEntityValue,
   });
   final String definitionId;
   final String slotId;
   final bool isTechnique;
+
+  /// For an already-owned item dragged from the rack: the specific copy
+  /// to place, so it is not re-minted. Null for the grant path and for
+  /// techniques.
+  final int? instanceEntityValue;
 }

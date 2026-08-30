@@ -10,54 +10,94 @@ class ItemAdapter {
 
   final EngineSession _session;
 
+  /// The character's banked `upgrade_points` — the currency Combine and
+  /// the hammer-icon upgrade path both spend. A pure read for the Tome
+  /// screen's foot-bar tally.
+  int upgradePoints() =>
+      _session.context.resources
+          .currentOf(_session.character, ItemResources.upgradePoints)
+          .round();
+
   /// Every `ItemInstance` entity [_session.character] owns, grouped by
   /// `(definitionId, itemClass)` — the exact key `canCombine`/
   /// `combineItems` require inputs to share.
   Map<(String, int), List<EntityId>> _ownedInstancesByKey() {
     final grouped = <(String, int), List<EntityId>>{};
-    for (final entity in _session.context.components.entitiesWith<ItemInstance>()) {
+    for (final entity
+        in _session.context.components.entitiesWith<ItemInstance>()) {
       final instance = _session.context.components.get<ItemInstance>(entity)!;
       if (instance.owner != _session.character) continue;
-      grouped.putIfAbsent((instance.definitionId, instance.itemClass), () => []).add(entity);
+      grouped
+          .putIfAbsent((instance.definitionId, instance.itemClass), () => [])
+          .add(entity);
     }
     return grouped;
   }
 
-  ItemView _viewFor(String definitionId, EntityId? instanceEntity, Map<(String, int), List<EntityId>> grouped) {
+  ItemView _viewFor(
+    String definitionId,
+    EntityId? instanceEntity,
+    Map<(String, int), List<EntityId>> grouped,
+  ) {
     final item = itemDefinition(definitionId, _session.context);
-    final owned = isItemOwned(_session.character, definitionId, _session.context);
-    final usable = owned && isItemUsable(_session.character, item, _session.context);
-    final active = owned && isItemActive(_session.character, definitionId, _session.context);
-    final masterySubject = item.requirement?.masterySubject ?? itemSubject(definitionId);
-    final masteryLevel = _session.context.mastery.levelOf(_session.character, masterySubject);
-    final masteryProgress = _session.context.mastery.progressOf(_session.character, masterySubject);
-    final thresholds = _session.context.mastery.definitionOf(masterySubject)?.thresholds ?? const <num>[];
-    final itemClass = instanceEntity == null
-        ? 1
-        : _session.context.components.get<ItemInstance>(instanceEntity)!.itemClass;
+    final owned = isItemOwned(
+      _session.character,
+      definitionId,
+      _session.context,
+    );
+    final usable =
+        owned && isItemUsable(_session.character, item, _session.context);
+    final active =
+        owned &&
+        isItemActive(_session.character, definitionId, _session.context);
+    final masterySubject =
+        item.requirement?.masterySubject ?? itemSubject(definitionId);
+    final masteryLevel = _session.context.mastery.levelOf(
+      _session.character,
+      masterySubject,
+    );
+    final masteryProgress = _session.context.mastery.progressOf(
+      _session.character,
+      masterySubject,
+    );
+    final thresholds =
+        _session.context.mastery.definitionOf(masterySubject)?.thresholds ??
+        const <num>[];
+    final itemClass =
+        instanceEntity == null
+            ? 1
+            : _session.context.components
+                .get<ItemInstance>(instanceEntity)!
+                .itemClass;
 
-    final state = active
-        ? ItemDisplayState.equipped
-        : (item.maxClass != null && itemClass >= item.maxClass!)
+    final state =
+        active
+            ? ItemDisplayState.equipped
+            : (item.maxClass != null && itemClass >= item.maxClass!)
             ? ItemDisplayState.mastered
             : usable
-                ? ItemDisplayState.usable
-                : ItemDisplayState.locked;
+            ? ItemDisplayState.usable
+            : ItemDisplayState.locked;
 
-    final matchedInstances = instanceEntity == null
-        ? const <EntityId>[]
-        : (grouped[(definitionId, itemClass)] ?? const <EntityId>[])
-            .where((e) => e != instanceEntity)
-            .toList();
+    final matchedInstances =
+        instanceEntity == null
+            ? const <EntityId>[]
+            : (grouped[(definitionId, itemClass)] ?? const <EntityId>[])
+                .where((e) => e != instanceEntity)
+                .toList();
     final combinableWith = matchedInstances.map((e) => e.value).toList();
 
     // `eligibleToCombine` answers "does Task 2's non-throwing canCombine
     // pre-check currently return true for this instance paired with its
     // first combinableWith match" — false whenever there's no match at
     // all, or the matched pair is maxed out with no eligible grade path.
-    final eligibleToCombine = instanceEntity != null && matchedInstances.isNotEmpty
-        ? canCombine(_session.character, [instanceEntity, matchedInstances.first], _session.context)
-        : false;
+    final eligibleToCombine =
+        instanceEntity != null && matchedInstances.isNotEmpty
+            ? canCombine(_session.character, [
+              instanceEntity,
+              matchedInstances.first,
+            ], _session.context)
+            : false;
 
     return ItemView(
       definitionId: definitionId,
@@ -80,7 +120,8 @@ class ItemAdapter {
     final grouped = _ownedInstancesByKey();
     return [
       for (final entry in grouped.entries)
-        for (final instance in entry.value) _viewFor(entry.key.$1, instance, grouped),
+        for (final instance in entry.value)
+          _viewFor(entry.key.$1, instance, grouped),
     ];
   }
 
@@ -105,13 +146,19 @@ class ItemAdapter {
   /// to `ItemCombineSucceeded`/`ItemCombineFailed`.
   CombineResultView combine(List<int> instanceEntityValues) {
     final entities = [for (final v in instanceEntityValues) EntityId(v)];
-    final before = _session.context.components.get<ItemInstance>(entities.first)!;
-    final survivor = combineItems(_session.character, entities, _session.context);
+    final before =
+        _session.context.components.get<ItemInstance>(entities.first)!;
+    final survivor = combineItems(
+      _session.character,
+      entities,
+      _session.context,
+    );
     final after = _session.context.components.get<ItemInstance>(survivor)!;
 
-    final kind = after.definitionId != before.definitionId
-        ? CombineResultKind.evolvedIntoNewItem
-        : after.itemClass > before.itemClass
+    final kind =
+        after.definitionId != before.definitionId
+            ? CombineResultKind.evolvedIntoNewItem
+            : after.itemClass > before.itemClass
             ? CombineResultKind.classUpgraded
             : CombineResultKind.fail;
 

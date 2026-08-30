@@ -9,6 +9,7 @@ import '../core/engine/character_adapter.dart';
 import '../core/engine/combat_adapter.dart';
 import '../core/engine/item_adapter.dart';
 import '../core/engine/reward_adapter.dart';
+import '../core/engine/technique_adapter.dart';
 import '../core/engine/tome_adapter.dart';
 import '../core/models/game_phase.dart';
 import '../features/character_creation/character_creation_bloc.dart';
@@ -84,6 +85,8 @@ Widget _screenFor(GamePhase phase, BuildContext context, VoidCallback onRestart)
         create: (_) => TomeBloc(
           tomeAdapter: context.read<TomeAdapter>(),
           itemAdapter: context.read<ItemAdapter>(),
+          characterAdapter: context.read<CharacterAdapter>(),
+          techniqueAdapter: context.read<TechniqueAdapter>(),
         ),
         child: const TomeScreen(),
       );

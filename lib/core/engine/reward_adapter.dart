@@ -28,16 +28,14 @@ class RewardAdapter {
   final _grantedItems = <String>{};
   final _grantedTechniques = <String>{};
 
-  /// The New Component on offer this loot screen, rolled once and held
-  /// until it is either taken or the screen is left. Rebuilds of the
-  /// loot screen read the same held value; only [applyLoot] with
-  /// [LootKind.newComponent] consumes it and lets the next screen roll
-  /// afresh.
-  ({bool isItem, String id})? _pending;
-  var _rolled = false;
+  /// The New Component this loot screen is offering. [offerLoot] rolls a
+  /// fresh one every time it runs — i.e. once per loot screen, so the
+  /// offer changes after every fight whether or not the last one was
+  /// taken — and [applyLoot] grants exactly the id that was shown.
+  ({bool isItem, String id})? _offered;
 
-  /// Rolls the next New Component: a uniformly random pick (via the run's
-  /// seeded RNG) from the pooled items the player has not been granted
+  /// Rolls a New Component: a uniformly random pick (via the run's
+  /// seeded RNG) from the pooled ids the player has not been granted
   /// yet — items first while any remain, then techniques. Returns null
   /// once every pooled reward has been handed out.
   ({bool isItem, String id})? _rollNext() {
@@ -54,16 +52,8 @@ class RewardAdapter {
     return null;
   }
 
-  ({bool isItem, String id})? _peekNextPoolEntry() {
-    if (!_rolled) {
-      _pending = _rollNext();
-      _rolled = true;
-    }
-    return _pending;
-  }
-
   List<LootOptionView> offerLoot() {
-    final next = _peekNextPoolEntry();
+    final next = _offered = _rollNext();
     final newComponentDetail =
         next == null
             ? 'No new components remain'
@@ -102,7 +92,7 @@ class RewardAdapter {
       case LootKind.gridExpansion:
         _tomeAdapter.expandGrid();
       case LootKind.newComponent:
-        final next = _peekNextPoolEntry();
+        final next = _offered;
         if (next == null) return;
         if (next.isItem) {
           final item = itemDefinition(next.id, _session.context);
@@ -113,8 +103,7 @@ class RewardAdapter {
           _techniqueAdapter.discover(next.id);
           _grantedTechniques.add(next.id);
         }
-        _pending = null;
-        _rolled = false;
+        _offered = null;
     }
   }
 }

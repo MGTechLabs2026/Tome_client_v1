@@ -88,4 +88,37 @@ void main() {
     expect(orders.map((o) => o.join()).toSet().length, greaterThan(1),
         reason: 'different seeds should produce different orders');
   });
+
+  test('the New Component re-rolls every loot screen even when it is not '
+      'taken', () {
+    const pool = [
+      ItemIds.ironSword,
+      ItemIds.gloves,
+      ItemIds.trainingStaff,
+      ItemIds.clothArmor,
+      ItemIds.trainingShoes,
+    ];
+    final s = EngineSession(4);
+    CharacterAdapter(s).createCharacter('F');
+    final ra = RewardAdapter(
+      s,
+      tomeAdapter: TomeAdapter(s)..createInitialTome(),
+      techniqueAdapter: TechniqueAdapter(s),
+      itemPool: pool,
+      techniquePool: const [],
+    );
+
+    final offered = <String>{};
+    for (var screen = 0; screen < 12; screen++) {
+      final component =
+          ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent);
+      offered.add(component.detail);
+      // Bank a point instead of taking the component.
+      ra.applyLoot(LootKind.upgradePoints);
+    }
+
+    expect(offered.length, greaterThan(1),
+        reason: 'skipping the component must not freeze the offer');
+    expect(offered.every(pool.contains), isTrue);
+  });
 }

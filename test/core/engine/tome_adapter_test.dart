@@ -1,4 +1,5 @@
 import 'package:build_engine/build_engine.dart';
+import 'package:build_engine/martial_arts_plugin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/core/engine/character_adapter.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
@@ -47,6 +48,34 @@ void main() {
     expect(tomeAdapter.height, 3);
     expect(tomeAdapter.inspect().length, 12);
     expect(tomeAdapter.inspect().firstWhere((c) => c.slotId == '0,0').occupant!.contentId, 'knife');
+  });
+
+  test('grantStartingKit hangs the chosen style\'s two-item kit, both usable', () {
+    // A fresh session so the style is chosen before the kit is granted.
+    final s = EngineSession(7);
+    final character = CharacterAdapter(s)..createCharacter('Kit Fighter');
+    character.chooseStyle(MartialStyles.fencing); // -> rapier + cloth
+    final adapter = TomeAdapter(s)
+      ..createInitialTome()
+      ..grantStartingKit();
+
+    final cells = adapter.inspect();
+    expect(cells.firstWhere((c) => c.slotId == '1,1').occupant!.contentId,
+        'rapier');
+    expect(cells.firstWhere((c) => c.slotId == '1,2').occupant!.contentId,
+        'cloth');
+    expect(cells.where((c) => !c.isEmpty), hasLength(2));
+  });
+
+  test('grantStartingKit falls back to knife + cloth when no style was chosen',
+      () {
+    tomeAdapter.grantStartingKit();
+
+    final cells = tomeAdapter.inspect();
+    expect(cells.firstWhere((c) => c.slotId == '1,1').occupant!.contentId,
+        'knife');
+    expect(cells.firstWhere((c) => c.slotId == '1,2').occupant!.contentId,
+        'cloth');
   });
 
   test('expandGrid destroys the old grid\'s placeholder entities (no leak)', () {

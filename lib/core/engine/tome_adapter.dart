@@ -1,5 +1,6 @@
 import 'package:build_engine/build_engine.dart';
 import 'package:build_engine/item_plugin.dart';
+import 'package:build_engine/martial_arts_plugin.dart';
 import 'package:build_engine/technique_plugin.dart';
 
 import '../models/grid_cell_view.dart';
@@ -31,16 +32,46 @@ class TomeAdapter {
     _defineAndCreate(_width, _height);
   }
 
-  /// Grants the run's opening components: the knife is hung centre
-  /// (usable with no mastery gate); the cloth armour is owned +
-  /// discovered but stays in the loose rack until trained past its
-  /// mastery threshold — `addItemToTome` will not hang a locked item.
+  /// The two-item opening kit each martial style grants. Both pieces are
+  /// engine items with `minimum: 0` (no mastery gate), so both hang on
+  /// the board straight away — training is then only ever for learning
+  /// techniques or raising an item's mastery. The style→kit pairing is a
+  /// game-composition choice and lives here in the client, not in the
+  /// MartialArts plugin (which knows nothing about items).
+  static const _startingKitByStyle = <String, List<String>>{
+    MartialStyles.polearming: ['cloth', 'polearm'],
+    MartialStyles.wrestling: ['chair', 'mask'],
+    MartialStyles.fencing: ['rapier', 'cloth'],
+    MartialStyles.shaolin: ['staff', 'cloth'],
+    MartialStyles.taiChi: ['fan', 'towel'],
+    MartialStyles.kunlun: ['knife', 'cloth'],
+  };
+
+  /// Board slots the kit's first and second pieces hang in — the centre
+  /// column of the middle row, so a fresh Tome opens with a visibly
+  /// paired loadout rather than one lonely mark.
+  static const _kitSlots = ['1,1', '1,2'];
+
+  /// Hangs the opening kit for the character's chosen martial style
+  /// (read back from the `style:<id>` tag `learnStyle` applied). Both
+  /// pieces are immediately usable, so both hang; nothing lands in the
+  /// loose rack. Falls back to the `kunlun` kit (knife + cloth) if no
+  /// style tag is present — e.g. an adapter/bloc test that skipped
+  /// character creation.
   void grantStartingKit() {
-    insertItem('knife', '1,1');
-    final cloth = itemDefinition('cloth_armor', _session.context);
-    if (!isItemOwned(_session.character, 'cloth_armor', _session.context)) {
-      ownItem(_session.character, 'cloth_armor', _session.context);
-      discoverItem(_session.character, cloth, _session.context);
+    final tags = _session.context.components
+            .get<TagSet>(_session.character)
+            ?.tags ??
+        const <String>{};
+    final styleTag = tags.firstWhere(
+      (t) => t.startsWith('style:'),
+      orElse: () => '',
+    );
+    final styleId = styleTag.isEmpty ? '' : styleTag.substring('style:'.length);
+    final kit = _startingKitByStyle[styleId] ??
+        _startingKitByStyle[MartialStyles.kunlun]!;
+    for (var i = 0; i < kit.length; i++) {
+      insertItem(kit[i], _kitSlots[i]);
     }
   }
 

@@ -25,8 +25,8 @@ void main() {
     expect(
       adapter.availableStyles().toSet(),
       {
-        MartialStyles.boxing, MartialStyles.wrestling, MartialStyles.fencing,
-        MartialStyles.shaolin, MartialStyles.taiChi, MartialStyles.wingChun,
+        MartialStyles.polearming, MartialStyles.wrestling, MartialStyles.fencing,
+        MartialStyles.shaolin, MartialStyles.taiChi, MartialStyles.kunlun,
       },
     );
   });
@@ -36,9 +36,9 @@ void main() {
     final adapter = CharacterAdapter(session);
     adapter.createCharacter('Test Fighter');
 
-    final view = adapter.chooseStyle(MartialStyles.boxing);
+    final view = adapter.chooseStyle(MartialStyles.polearming);
 
-    expect(view.styleId, MartialStyles.boxing);
+    expect(view.styleId, MartialStyles.polearming);
     expect(view.martialTradition, MartialTraditions.western);
     expect(adapter.synergyTraditionFor(MartialStyles.shaolin), MartialTraditions.eastern);
   });

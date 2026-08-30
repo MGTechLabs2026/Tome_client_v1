@@ -19,12 +19,12 @@ void main() {
     build: () => CharacterCreationBloc(adapter),
     act: (bloc) {
       bloc.add(const NameSubmitted('Test Fighter'));
-      bloc.add(const StyleChosen(MartialStyles.boxing));
+      bloc.add(const StyleChosen(MartialStyles.polearming));
     },
     verify: (bloc) {
       expect(bloc.state.confirmed, isTrue);
       expect(bloc.state.character!.name, 'Test Fighter');
-      expect(bloc.state.character!.styleId, MartialStyles.boxing);
+      expect(bloc.state.character!.styleId, MartialStyles.polearming);
     },
   );
 }

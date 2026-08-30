@@ -18,6 +18,7 @@ class ItemView {
     this.upgradeCount = 0,
     this.upgradeCap = 3,
     this.displayName = '',
+    this.affixBonus = 0,
   });
 
   final String definitionId;
@@ -61,4 +62,9 @@ class ItemView {
   /// (`Keen Iron Sword of the Ember`), or empty to fall back to the
   /// prettified [definitionId].
   final String displayName;
+
+  /// Total flat bonus this copy's affixes add to its combat stat
+  /// (`ItemInstance.statBonuses`), 0 for a plain piece. Only bites while
+  /// the piece is hung.
+  final int affixBonus;
 }

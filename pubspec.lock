@@ -62,7 +62,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "55b1d7e10db8c99bb26cd9e183932af6db4f7ade"
+      resolved-ref: ef84624a26677ec884096b8f9dd74dd0d2876793
       url: "git@github-built-engine:MGTechLabs2026/built_engine.git"
     source: git
     version: "0.1.0"

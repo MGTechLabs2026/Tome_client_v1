@@ -161,6 +161,15 @@ class ItemAdapter {
       upgradeCount: _upgradesByDefinition[definitionId] ?? 0,
       upgradeCap: 2 * itemClass + 1,
       displayName: _displayName(definitionId, instanceEntity?.value),
+      affixBonus: instanceEntity == null
+          ? 0
+          : (_session.context.components
+                  .get<ItemInstance>(instanceEntity)
+                  ?.statBonuses
+                  .values
+                  .fold<num>(0, (a, b) => a + b) ??
+              0)
+              .round(),
     );
   }
 

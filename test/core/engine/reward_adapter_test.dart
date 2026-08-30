@@ -55,12 +55,13 @@ void main() {
     expect(ItemAdapter(session).ownedItems().map((v) => v.definitionId), contains(ItemIds.ironSword));
   });
 
-  test('a stat-bump affix on a taken New Component reaches the sword', () {
+  test('an affixed New Component binds its stat bonus to the taken copy', () {
     final s = EngineSession(13);
     final cha = CharacterAdapter(s)..createCharacter('F');
+    final items = ItemAdapter(s);
     final ra = RewardAdapter(
       s,
-      itemAdapter: ItemAdapter(s),
+      itemAdapter: items,
       characterAdapter: cha,
       tomeAdapter: TomeAdapter(s)..createInitialTome(),
       techniqueAdapter: TechniqueAdapter(s),
@@ -68,7 +69,7 @@ void main() {
       techniquePool: const [],
     );
 
-    // Roll until a card with a "bite +N" (statUp) affix comes up, take it.
+    // Roll until a card with a "bite +N" affix comes up, take it.
     var took = false;
     for (var i = 0; i < 40 && !took; i++) {
       final card =
@@ -83,10 +84,17 @@ void main() {
     }
     expect(took, isTrue);
 
-    // iron_sword isn't hung, so any 'blade' modifier now is the affix's.
+    // Bound to the copy (ItemInstance.statBonuses), surfaced on the view.
+    final sword = items
+        .ownedItems()
+        .firstWhere((v) => v.definitionId == ItemIds.ironSword);
+    expect(sword.affixBonus, greaterThan(0),
+        reason: 'the roll bumps the sword\'s bite');
+
+    // Not hung -> no live character modifier yet.
     final mods = s.context.modifiers
         .activeModifiersFor(s.character, 'blade', s.context.components);
-    expect(mods, isNotEmpty, reason: 'the roll bumps the sword\'s bite');
+    expect(mods, isEmpty, reason: 'affix only bites while the piece is hung');
   });
 
   test('a taken affixed item carries its rolled name into ItemView', () {

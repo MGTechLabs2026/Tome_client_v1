@@ -170,6 +170,17 @@ class _DetailSheetState extends State<_DetailSheet> {
                 ),
                 const SizedBox(height: 14),
               ],
+              if ((item?.affixBonus ?? 0) > 0) ...[
+                Row(
+                  children: [
+                    Text('AFFIXES', style: hall.label),
+                    const SizedBox(width: 8),
+                    Text('+${item!.affixBonus} while hung',
+                        style: hall.measure.copyWith(color: hall.vermilion)),
+                  ],
+                ),
+                const SizedBox(height: 14),
+              ],
               if (tech?.evolvedFromId != null) ...[
                 GestureDetector(
                   onTap: () => setState(() => _lineageOpen = !_lineageOpen),

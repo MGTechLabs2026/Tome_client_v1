@@ -168,34 +168,42 @@ class RewardAdapter {
       case LootKind.newComponent:
         final next = _offered;
         if (next == null) return;
-        final String primaryStat;
         if (next.isItem) {
           final item = itemDefinition(next.id, _session.context);
           // A fresh instance every time — two of the same id/class can
-          // then be Combined.
+          // then be Combined regardless of their affixes.
           final instance =
               ownItem(_session.character, item.id, _session.context);
           discoverItem(_session.character, item, _session.context);
-          // Bind the rolled affix name to this copy so the Tome shows it.
+          final stat =
+              WeaponStatTags.matchOrFallback(item.tags, 'item:${item.id}');
+          // Item affixes are all flat stat bumps — bind them to *this*
+          // copy on the engine side, so they only bite while it's hung
+          // and ride along through Combine.
+          final total = (_prefix?.amount ?? 0) + (_suffix?.amount ?? 0);
+          if (total > 0) {
+            addItemStatBonuses(instance, {stat: total}, _session.context);
+          }
+          // The rolled name follows the copy for the Tome UI.
           _itemAdapter.recordAffix(instance.value,
               prefix: _prefix?.label, suffix: _suffix?.label);
-          primaryStat =
-              WeaponStatTags.matchOrFallback(item.tags, 'item:${item.id}');
         } else {
           _techniqueAdapter.discover(next.id);
           final tech = techniqueDefinition(next.id, _session.context);
-          primaryStat = WeaponStatTags.matchOrFallback(
+          // Techniques aren't instanced — their affixes stay client-side
+          // character modifiers for now.
+          final primaryStat = WeaponStatTags.matchOrFallback(
               tech.tags, techniqueSubject(next.id));
+          _applyAffix(_prefix, primaryStat);
+          _applyAffix(_suffix, primaryStat);
         }
-        _applyAffix(_prefix, primaryStat);
-        _applyAffix(_suffix, primaryStat);
         _offered = null;
         _prefix = null;
         _suffix = null;
     }
   }
 
-  /// Turns one rolled [affix] into a real effect on the fighter.
+  /// Turns one rolled technique [affix] into a real effect on the fighter.
   void _applyAffix(Affix? affix, String primaryStat) {
     if (affix == null || affix.amount == 0) return;
     _affixSeq++;

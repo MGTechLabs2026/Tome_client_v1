@@ -38,6 +38,10 @@ class Affix {
 }
 
 // ── Item (card) affixes ──────────────────────────────────────────────
+//
+// Item affixes are all flat bonuses to the piece's own combat stat, so
+// they can be **bound to the copy** on the engine side (`ItemInstance.
+// statBonuses`) and only bite while the piece is hung.
 
 const itemPrefixes = <Affix>[
   Affix('Plain', AffixLean.neutral, AffixEffect.statUp, 1, 'unremarkable — bite +1'),
@@ -48,21 +52,21 @@ const itemPrefixes = <Affix>[
   Affix('Heavy', AffixLean.force, AffixEffect.statUp, 4, 'built to break things — bite +4'),
   Affix('Brutal', AffixLean.force, AffixEffect.statUp, 5, 'no finesse, all force — bite +5'),
   Affix('Ember-Forged', AffixLean.force, AffixEffect.statUp, 6, 'forged in coal-heat — bite +6'),
-  Affix('Swift', AffixLean.flow, AffixEffect.initiativeUp, 2, 'light in the hand — act sooner (+2)'),
-  Affix('Flowing', AffixLean.flow, AffixEffect.initiativeUp, 3, 'moves with you — act sooner (+3)'),
-  Affix('Whispering', AffixLean.flow, AffixEffect.statUp, 3, 'barely a sound — bite +3'),
+  Affix('Swift', AffixLean.flow, AffixEffect.statUp, 3, 'light in the hand, quick to land — bite +3'),
+  Affix('Flowing', AffixLean.flow, AffixEffect.statUp, 4, 'moves with you — bite +4'),
+  Affix('Whispering', AffixLean.flow, AffixEffect.statUp, 3, 'barely a sound before it lands — bite +3'),
 ];
 
 const itemSuffixes = <Affix>[
-  Affix('of the Journeyman', AffixLean.neutral, AffixEffect.bankPoint, 1, 'came with a spare — bank +1 point'),
-  Affix('of the Vanguard', AffixLean.neutral, AffixEffect.initiativeUp, 3, 'always first to the line — act sooner (+3)'),
-  Affix('of Second Wind', AffixLean.neutral, AffixEffect.healNow, 12, 'a steadying weight — restore 12 vitality'),
+  Affix('of the Journeyman', AffixLean.neutral, AffixEffect.statUp, 2, 'honest, dependable — bite +2'),
+  Affix('of the Vanguard', AffixLean.neutral, AffixEffect.statUp, 3, 'first to the line — bite +3'),
+  Affix('of the Anvil', AffixLean.neutral, AffixEffect.statUp, 4, 'shaped for the long fight — bite +4'),
   Affix('of the Ember', AffixLean.force, AffixEffect.statUp, 4, 'strikes land like coals — bite +4'),
   Affix('of the Bear', AffixLean.force, AffixEffect.statUp, 5, 'ruinous weight behind it — bite +5'),
-  Affix('of the Avalanche', AffixLean.force, AffixEffect.statUp, 6, 'once it moves, nothing stops it — bite +6'),
-  Affix('of the Gale', AffixLean.flow, AffixEffect.initiativeUp, 4, 'quick as weather — act sooner (+4)'),
-  Affix('of Still Water', AffixLean.flow, AffixEffect.healNow, 18, 'calm returns with it — restore 18 vitality'),
-  Affix('of the Reed', AffixLean.flow, AffixEffect.initiativeUp, 3, 'bends, never breaks — act sooner (+3)'),
+  Affix('of the Avalanche', AffixLean.force, AffixEffect.statUp, 7, 'once it moves, nothing stops it — bite +7'),
+  Affix('of the Gale', AffixLean.flow, AffixEffect.statUp, 4, 'quick as weather — bite +4'),
+  Affix('of Still Water', AffixLean.flow, AffixEffect.statUp, 5, 'calm, certain strikes — bite +5'),
+  Affix('of the Reed', AffixLean.flow, AffixEffect.statUp, 3, 'bends, then whips back — bite +3'),
 ];
 
 // ── Technique (card) affixes ─────────────────────────────────────────

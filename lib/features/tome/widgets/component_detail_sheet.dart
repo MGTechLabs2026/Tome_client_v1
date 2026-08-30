@@ -129,7 +129,7 @@ class _DetailSheetState extends State<_DetailSheet> {
                     SizedBox(
                       width: 96,
                       height: 96,
-                      child: MountView(data: data, showAddress: false),
+                      child: MountView(data: data),
                     ),
                   const SizedBox(width: 16),
                   Expanded(

@@ -270,10 +270,9 @@ class _TomeScreenState extends State<TomeScreen> {
                 ),
               );
             },
-            onStartFight:
-                () => context.read<RunBloc>().add(
-                  const PhaseCompleted(GamePhase.combatPreparation),
-                ),
+            onStartFight: () => context
+                .read<RunBloc>()
+                .add(const PhaseCompleted(GamePhase.combatPreparation)),
           );
 
           final content =
@@ -420,6 +419,7 @@ class _FootBar extends StatelessWidget {
           ],
           const SizedBox(width: 10),
           InkButton(
+            key: const Key('startFightButton'),
             label: 'Start Fight',
             tone: InkTone.seal,
             onPressed: onStartFight,

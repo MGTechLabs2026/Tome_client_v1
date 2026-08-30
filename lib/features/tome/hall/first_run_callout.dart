@@ -1,7 +1,7 @@
 // lib/features/tome/hall/first_run_callout.dart
 //
-// The one-time note pinned over the starting kit the first time the hall
-// opens. Dismissible; never returns.
+// The one-time note pinned over the hall the first time it opens.
+// Dismissible; never returns.
 import 'package:flutter/material.dart';
 
 import 'hall_controls.dart';
@@ -18,38 +18,37 @@ class FirstRunCallout extends StatelessWidget {
     return Align(
       alignment: Alignment.topCenter,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-        padding: const EdgeInsets.fromLTRB(18, 14, 14, 16),
-        constraints: const BoxConstraints(maxWidth: 460),
+        margin: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        constraints: const BoxConstraints(maxWidth: 400),
         decoration: BoxDecoration(
           color: hall.lacquer,
-          border: Border.all(color: hall.gold.withValues(alpha: 0.6)),
+          border: Border.all(color: hall.gold.withValues(alpha: 0.55)),
           boxShadow: rakingShadow(elevation: 1),
         ),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'YOUR FIRST TWO FORMS',
-              style: hall.heading.copyWith(fontSize: 12, letterSpacing: 2.4),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'The knife and the cloth are hung and ready. Drag a loose form from '
-              'the rack onto any open mount, or tap a mount to read its plate. '
-              'Two matching forms grow a cord you can bind.',
-              style: hall.reading.copyWith(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: InkButton(
-                label: 'Got it',
-                dense: true,
-                onPressed: onDismiss,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'YOUR FIRST FORMS',
+                    style: hall.heading.copyWith(fontSize: 11, letterSpacing: 2.4),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'The knife is hung. The cloth waits in the rack until you '
+                    'train it. Two matching forms grow a cord you can bind.',
+                    style: hall.reading.copyWith(fontSize: 12.5, height: 1.4),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(width: 10),
+            InkButton(label: 'Got it', dense: true, onPressed: onDismiss),
           ],
         ),
       ),

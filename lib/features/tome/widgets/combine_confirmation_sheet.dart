@@ -81,7 +81,6 @@ class _CombineSheet extends StatelessWidget {
                         height: 92,
                         child: MountView(
                           data: MountData.fromItem(m),
-                          showAddress: false,
                         ),
                       ),
                   ],

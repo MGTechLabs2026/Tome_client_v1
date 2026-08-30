@@ -25,6 +25,16 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('character creation through 3 fights to Run Complete', (tester) async {
+    // A real desktop form factor — 800x600 is neither shipped target.
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      return tester.binding.setSurfaceSize(null);
+    });
+
     await tester.pumpWidget(TomeApp(runBloc: RunBloc(), session: EngineSession(2026)));
     await tester.pumpAndSettle();
 
@@ -37,24 +47,26 @@ void main() {
     await tester.tap(find.byType(InkWell).first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Your Tome'), findsOneWidget);
+    expect(find.text('THE LOOSE RACK'), findsOneWidget);
 
     // Fight 1 -> Loot -> Tome -> Fight 2 -> Loot -> Tome -> Fight 3 -> Loot -> Run Complete.
     for (var fight = 1; fight <= 3; fight++) {
-      await tester.tap(find.text('Start Fight'));
-      await tester.pumpAndSettle();
-
+      await tester.pumpAndSettle(); // finish the slide-in onto the Tome
+      await tester.tap(find.byKey(const Key('startFightButton')));
+      await tester.pumpAndSettle(); // Tome -> Combat Prep (both static)
       expect(find.text('Confirm & Fight'), findsOneWidget);
-      await tester.tap(find.text('Confirm & Fight'));
 
-      await _pumpUntil(tester, () => find.text('+1 Upgrade Point').evaluate().isNotEmpty);
+      await tester.tap(find.text('Confirm & Fight'));
+      await _pumpUntil(
+          tester, () => find.text('+1 Upgrade Point').evaluate().isNotEmpty);
       expect(find.text('+1 Upgrade Point'), findsOneWidget);
+      await tester.pumpAndSettle(); // settle the Loot screen
 
       await tester.tap(find.text('+1 Upgrade Point'));
       await _pumpUntil(
         tester,
         () =>
-            find.text('Start Fight').evaluate().isNotEmpty ||
+            find.byKey(const Key('startFightButton')).evaluate().isNotEmpty ||
             find.text('Run Complete!').evaluate().isNotEmpty,
       );
     }

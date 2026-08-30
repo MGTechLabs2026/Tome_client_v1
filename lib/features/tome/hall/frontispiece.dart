@@ -48,39 +48,51 @@ class Frontispiece extends StatelessWidget {
             : _Vitality(current: c.healthCurrent, max: c.healthMax);
 
     if (compact) {
+      final parts = <String>[
+        if (c != null && c.physiqueId.isNotEmpty) _pretty(c.physiqueId),
+        if (c != null && c.styleId.isNotEmpty) _pretty(c.styleId),
+        if (c != null && c.martialTradition.isNotEmpty)
+          _pretty(c.martialTradition),
+        if (c != null) '${c.healthCurrent.round()}/${c.healthMax.round()} vit',
+      ];
       return Container(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 11),
         decoration: BoxDecoration(
           color: hall.lacquer,
           border: Border(
             bottom: BorderSide(color: hall.bone.withValues(alpha: 0.16)),
           ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
                     name.toUpperCase(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: hall.display.copyWith(
-                      fontSize: 17,
-                      letterSpacing: 1.8,
+                      fontSize: 16,
+                      letterSpacing: 1.6,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Wrap(spacing: 14, runSpacing: 4, children: marks),
+                ),
+                if (synergy != null) ...[
+                  const SizedBox(width: 10),
+                  _SynergyTag(text: synergy, matched: matched),
                 ],
-              ),
+              ],
             ),
-            const SizedBox(width: 12),
-            if (synergy != null) _SynergyTag(text: synergy, matched: matched),
-            if (health != null) ...[const SizedBox(width: 12), health],
+            const SizedBox(height: 5),
+            Text(
+              parts.join('   ·   '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: hall.measure.copyWith(fontSize: 10.5),
+            ),
           ],
         ),
       );

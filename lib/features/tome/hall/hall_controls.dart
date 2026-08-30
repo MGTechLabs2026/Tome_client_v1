@@ -48,19 +48,20 @@ class _InkButtonState extends State<InkButton> {
     final filled = widget.tone == InkTone.seal;
     final fg = filled ? hall.bone : ink;
 
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: widget.label,
-      child: MouseRegion(
-        cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        child: GestureDetector(
-          onTapDown: enabled ? (_) => setState(() => _down = true) : null,
-          onTapUp: enabled ? (_) => setState(() => _down = false) : null,
-          onTapCancel: enabled ? () => setState(() => _down = false) : null,
-          onTap: widget.onPressed,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: enabled ? (_) => setState(() => _down = true) : null,
+      onTapUp: enabled ? (_) => setState(() => _down = false) : null,
+      onTapCancel: enabled ? () => setState(() => _down = false) : null,
+      onTap: widget.onPressed,
+      child: Semantics(
+        button: true,
+        enabled: enabled,
+        label: widget.label,
+        child: MouseRegion(
+          cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
           child: Opacity(
             opacity: enabled ? 1 : 0.4,
             child: CustomPaint(

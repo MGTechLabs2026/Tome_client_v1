@@ -122,7 +122,6 @@ class MountView extends StatelessWidget {
     this.selected = false,
     this.dimmed = false,
     this.compact = false,
-    this.showAddress = true,
     this.spotlight = false,
   });
 
@@ -134,7 +133,6 @@ class MountView extends StatelessWidget {
 
   /// Rack / preview size: hides the address and shrinks the seal.
   final bool compact;
-  final bool showAddress;
 
   /// One-time "this just arrived" emphasis.
   final bool spotlight;
@@ -236,15 +234,19 @@ class MountView extends StatelessWidget {
                         letterSpacing: 1.4,
                       ),
                     ),
-                    if (data.annotation != null && !compact) ...[
-                      SizedBox(height: side * 0.02),
+                    if (!compact) ...[
+                      SizedBox(height: side * 0.03),
                       Text(
-                        data.annotation!,
+                        [
+                          if (data.address != null)
+                            data.address!.replaceAll(',', '·'),
+                          if (data.annotation != null) data.annotation!,
+                        ].join('   '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: hall.measure.copyWith(
-                          color: hall.lacquerDeep.withValues(alpha: 0.62),
-                          fontSize: 9.5,
+                          color: hall.lacquerDeep.withValues(alpha: 0.5),
+                          fontSize: 9,
                         ),
                       ),
                     ],
@@ -269,19 +271,6 @@ class MountView extends StatelessWidget {
                   ),
                 ),
               ),
-              // grid address, bottom-left
-              if (showAddress && !compact && data.address != null)
-                Positioned(
-                  left: side * 0.08,
-                  bottom: side * 0.05,
-                  child: Text(
-                    data.address!.replaceAll(',', '·'),
-                    style: hall.measure.copyWith(
-                      color: hall.lacquerDeep.withValues(alpha: 0.4),
-                      fontSize: 9,
-                    ),
-                  ),
-                ),
             ],
           );
         },

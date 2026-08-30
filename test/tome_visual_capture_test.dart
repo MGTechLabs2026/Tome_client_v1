@@ -3,6 +3,9 @@
 // Dev harness: renders the real app (real fonts, real engine data) at
 // the two shipped form factors and writes PNGs to .impeccable/review/
 // for the batched inspection round. Not a behavioural test.
+@Timeout(Duration(minutes: 3))
+library;
+
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -23,15 +26,10 @@ Future<void> _loadFonts() async {
   }
 }
 
-Future<void> _pump(WidgetTester tester, [int frames = 24]) async {
-  for (var i = 0; i < frames; i++) {
-    await tester.pump(const Duration(milliseconds: 90));
-  }
-}
-
 Future<void> _capture(WidgetTester tester, Key key, String path) async {
-  final boundary = tester.firstRenderObject(find.byKey(key)) as RenderRepaintBoundary;
-  final image = await boundary.toImage(pixelRatio: 2.0);
+  final boundary =
+      tester.firstRenderObject(find.byKey(key)) as RenderRepaintBoundary;
+  final image = await boundary.toImage(pixelRatio: 1.5);
   final data = await image.toByteData(format: ui.ImageByteFormat.png);
   File(path)
     ..createSync(recursive: true)
@@ -43,19 +41,27 @@ Future<void> _run(WidgetTester tester, Size size, String path) async {
   await tester.binding.setSurfaceSize(size);
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    return tester.binding.setSurfaceSize(null);
+  });
+
   await tester.pumpWidget(
     RepaintBoundary(
       key: key,
       child: TomeApp(runBloc: RunBloc(), session: EngineSession(4242)),
     ),
   );
-  await _pump(tester);
+  await tester.pump(const Duration(seconds: 1));
+
   await tester.enterText(find.byType(TextField), 'Mireille Vasquez');
-  await _pump(tester, 4);
+  await tester.pump();
   await tester.tap(find.text('Continue'));
-  await _pump(tester);
+  await tester.pump(const Duration(milliseconds: 400));
   await tester.tap(find.byType(InkWell).first);
-  await _pump(tester);
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(seconds: 1));
+
   await _capture(tester, key, path);
 }
 
@@ -64,11 +70,9 @@ void main() {
 
   testWidgets('capture Tome — desktop', (tester) async {
     await _run(tester, const Size(1280, 832), '.impeccable/review/desktop.png');
-    addTearDown(() => tester.binding.setSurfaceSize(null));
   });
 
   testWidgets('capture Tome — mobile', (tester) async {
     await _run(tester, const Size(402, 874), '.impeccable/review/mobile.png');
-    addTearDown(() => tester.binding.setSurfaceSize(null));
   });
 }

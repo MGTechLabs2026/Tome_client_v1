@@ -84,14 +84,14 @@ class _LineageBoardState extends State<LineageBoard> {
   /// grows or a double-tap). Scales down when the lattice overruns,
   /// gently up when it is small; the player pans/zooms from there.
   void _maybeFit() {
-    if (_viewport == Size.zero) return;
+    if (_viewport.width < 60 || _viewport.height < 60) return;
     final grid = '${widget.width}x${widget.height}';
     if (_fitted && grid == _fittedGrid) return;
     _fitted = true;
     _fittedGrid = grid;
     final sx = (_viewport.width - 40) / _contentW;
     final sy = (_viewport.height - 40) / _contentH;
-    final scale = (sx < sy ? sx : sy).clamp(0.5, 1.75);
+    final scale = (sx < sy ? sx : sy).clamp(0.5, 1.5).toDouble();
     final tx = (_viewport.width - _contentW * scale) / 2;
     final ty = (_viewport.height - _contentH * scale) / 2;
     final m = Matrix4.identity();
@@ -100,7 +100,7 @@ class _LineageBoardState extends State<LineageBoard> {
     m.setEntry(0, 3, tx);
     m.setEntry(1, 3, ty);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _controller.value = m;
+      if (mounted && _controller.value != m) _controller.value = m;
     });
   }
 
@@ -512,28 +512,48 @@ class _EmptyCellPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final r = (Offset.zero & size).deflate(6);
-    final path = handRect(r, radius: 2, seed: seed, jitter: 1.4);
-    // dashed registration outline
-    canvas.drawPath(
-      _dashPath(path, dash: 5, gap: 6),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = registration ? 2 : 1.2
-        ..color = (accept ? vermilion : ink).withValues(
-          alpha: registration ? 0.9 : 0.4,
-        ),
+    final idle = (accept ? vermilion : ink).withValues(
+      alpha: registration ? 0.9 : 0.34,
     );
-    // "+" hint
-    final c = size.center(Offset.zero);
-    final s = size.shortestSide * 0.11;
-    final hint =
+
+    // an empty mount reads as four carved corner brackets, not a box
+    final bracket = size.shortestSide * 0.16;
+    final cp = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = registration ? 2 : 1.4
+      ..color = idle;
+    void corner(Offset o, double sx, double sy) {
+      canvas.drawLine(o, o + Offset(bracket * sx, 0), cp);
+      canvas.drawLine(o, o + Offset(0, bracket * sy), cp);
+    }
+
+    corner(r.topLeft, 1, 1);
+    corner(r.topRight, -1, 1);
+    corner(r.bottomLeft, 1, -1);
+    corner(r.bottomRight, -1, -1);
+
+    if (registration) {
+      // full dashed outline only when a drop is armed / hovering
+      canvas.drawPath(
+        _dashPath(handRect(r, radius: 2, seed: seed, jitter: 1.2), dash: 5, gap: 6),
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round
-          ..strokeWidth = 2
-          ..color = (accept ? vermilion : ink).withValues(
-            alpha: registration ? 0.8 : 0.3,
-          );
+          ..strokeWidth = 1.6
+          ..color = idle.withValues(alpha: 0.7),
+      );
+    }
+
+    // "+" hint
+    final c = size.center(Offset.zero);
+    final s = size.shortestSide * 0.1;
+    final hint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 1.8
+      ..color = (accept ? vermilion : ink).withValues(
+        alpha: registration ? 0.8 : 0.22,
+      );
     canvas.drawLine(c + Offset(-s, 0), c + Offset(s, 0), hint);
     canvas.drawLine(c + Offset(0, -s), c + Offset(0, s), hint);
 

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'tome_bloc.dart';
 import 'tome_event.dart';
+import 'widgets/component_detail_sheet.dart';
 import 'widgets/component_tray.dart';
 import 'widgets/tome_grid.dart';
 
@@ -25,7 +26,14 @@ class TomeScreen extends StatelessWidget {
                 onMove: (from, to) => context.read<TomeBloc>().add(ComponentMoved(from, to)),
               ),
             ),
-            ComponentTray(items: state.tray),
+            ComponentTray(
+              items: state.tray,
+              onItemTap: (item) => showComponentDetail(
+                context,
+                item: item,
+                onTrain: () => Navigator.of(context).pop(),
+              ),
+            ),
           ],
         ),
       ),

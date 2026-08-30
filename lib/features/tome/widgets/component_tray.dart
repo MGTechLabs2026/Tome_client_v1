@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import '../../../core/models/item_view.dart';
 
 class ComponentTray extends StatelessWidget {
-  const ComponentTray({super.key, required this.items});
+  const ComponentTray({super.key, required this.items, this.onItemTap});
   final List<ItemView> items;
+  final void Function(ItemView item)? onItemTap;
 
   Color _borderColorFor(ItemDisplayState state) => switch (state) {
         ItemDisplayState.locked => Colors.grey,
@@ -22,14 +23,17 @@ class ComponentTray extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         children: [
           for (final item in items)
-            Container(
-              width: 80,
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                border: Border.all(color: _borderColorFor(item.state), width: 2),
-                borderRadius: BorderRadius.circular(8),
+            GestureDetector(
+              onTap: onItemTap == null ? null : () => onItemTap!(item),
+              child: Container(
+                width: 80,
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: _borderColorFor(item.state), width: 2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(child: Text(item.definitionId, textAlign: TextAlign.center)),
               ),
-              child: Center(child: Text(item.definitionId, textAlign: TextAlign.center)),
             ),
         ],
       ),

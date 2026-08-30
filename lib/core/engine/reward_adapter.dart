@@ -16,17 +16,21 @@ class RewardAdapter {
     required List<String> techniquePool,
   })  : _tomeAdapter = tomeAdapter,
         _techniqueAdapter = techniqueAdapter,
-        _itemPool = List.of(itemPool),
-        _techniquePool = List.of(techniquePool);
+        _pool = [
+          for (final id in itemPool) (isItem: true, id: id),
+          for (final id in techniquePool) (isItem: false, id: id),
+        ];
 
   final EngineSession _session;
   final TomeAdapter _tomeAdapter;
   final TechniqueAdapter _techniqueAdapter;
-  final List<String> _itemPool;
-  final List<String> _techniquePool;
 
-  final _grantedItems = <String>{};
-  final _grantedTechniques = <String>{};
+  /// Items and techniques the New Component reward draws from, flattened
+  /// into one pool. Drawn **with replacement** — the same id can be
+  /// offered (and taken) again, so the player can farm a duplicate to
+  /// Combine, and techniques stay in the rotation instead of being gated
+  /// behind clearing every item first.
+  final List<({bool isItem, String id})> _pool;
 
   /// The New Component this loot screen is offering. [offerLoot] rolls a
   /// fresh one every time it runs — i.e. once per loot screen, so the
@@ -34,23 +38,10 @@ class RewardAdapter {
   /// taken — and [applyLoot] grants exactly the id that was shown.
   ({bool isItem, String id})? _offered;
 
-  /// Rolls a New Component: a uniformly random pick (via the run's
-  /// seeded RNG) from the pooled ids the player has not been granted
-  /// yet — items first while any remain, then techniques. Returns null
-  /// once every pooled reward has been handed out.
-  ({bool isItem, String id})? _rollNext() {
-    final items =
-        _itemPool.where((id) => !_grantedItems.contains(id)).toList();
-    if (items.isNotEmpty) {
-      return (isItem: true, id: items[_session.rng.nextInt(items.length)]);
-    }
-    final techs =
-        _techniquePool.where((id) => !_grantedTechniques.contains(id)).toList();
-    if (techs.isNotEmpty) {
-      return (isItem: false, id: techs[_session.rng.nextInt(techs.length)]);
-    }
-    return null;
-  }
+  /// A uniformly random pick (via the run's seeded RNG) from the whole
+  /// reward pool, with replacement.
+  ({bool isItem, String id})? _rollNext() =>
+      _pool.isEmpty ? null : _pool[_session.rng.nextInt(_pool.length)];
 
   List<LootOptionView> offerLoot() {
     final next = _offered = _rollNext();
@@ -96,12 +87,12 @@ class RewardAdapter {
         if (next == null) return;
         if (next.isItem) {
           final item = itemDefinition(next.id, _session.context);
+          // A fresh instance every time — two of the same id/class can
+          // then be Combined.
           ownItem(_session.character, item.id, _session.context);
           discoverItem(_session.character, item, _session.context);
-          _grantedItems.add(next.id);
         } else {
           _techniqueAdapter.discover(next.id);
-          _grantedTechniques.add(next.id);
         }
         _offered = null;
     }

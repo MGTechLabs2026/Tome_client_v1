@@ -17,9 +17,9 @@ import 'theme.dart';
 
 /// Reward pools the New Component loot draws from — real registered
 /// `build_engine` content ids. `RewardAdapter` rolls one at random (via
-/// the run's seeded RNG) from whatever the player has not been granted
-/// yet, each loot screen, so the offered component varies run to run
-/// and pick to pick.
+/// the run's seeded RNG) from the flattened pool every loot screen,
+/// **with replacement**: the same id can be offered and taken again, so
+/// a duplicate can be farmed for Combine and techniques stay in the mix.
 const _rewardItemPool = [
   'iron_sword',
   'gloves',
@@ -27,7 +27,7 @@ const _rewardItemPool = [
   'cloth_armor',
   'training_shoes',
 ];
-const _rewardTechniquePool = ['basic_slash', 'basic_guard'];
+const _rewardTechniquePool = ['basic_slash', 'basic_guard', 'basic_punch'];
 
 class TomeApp extends StatefulWidget {
   const TomeApp({super.key, required this.runBloc, this.session});

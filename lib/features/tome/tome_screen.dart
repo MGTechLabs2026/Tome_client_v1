@@ -385,12 +385,17 @@ class _FootBar extends StatelessWidget {
         children: [
           CustomPaint(
             size: const Size(15, 15),
-            painter: HammerGlyph(color: hall.gold),
+            painter: HammerGlyph(
+              color: upgradePoints > 0 ? hall.bone : hall.boneDim,
+            ),
           ),
           const SizedBox(width: 8),
           Text(
             '$upgradePoints',
-            style: hall.measureStrong.copyWith(color: hall.gold, fontSize: 15),
+            style: hall.measureStrong.copyWith(
+              color: upgradePoints > 0 ? hall.bone : hall.boneDim,
+              fontSize: 15,
+            ),
           ),
           const SizedBox(width: 4),
           Text('PTS', style: hall.label.copyWith(fontSize: 9)),

@@ -89,9 +89,13 @@ class _LineageBoardState extends State<LineageBoard> {
     if (_fitted && grid == _fittedGrid) return;
     _fitted = true;
     _fittedGrid = grid;
-    final sx = (_viewport.width - 40) / _contentW;
-    final sy = (_viewport.height - 40) / _contentH;
-    final scale = (sx < sy ? sx : sy).clamp(0.5, 1.5).toDouble();
+    // Fill the vertical space between the top rule and the extent rail;
+    // let the lattice overflow horizontally so the player pans along the
+    // west↔east axis (the one that never collapses). Never scale so far
+    // that the board's own width becomes unreachably wide.
+    final sy = (_viewport.height - 24) / _contentH;
+    final sxCap = (_viewport.width - 24) / _contentW * 1.6;
+    final scale = sy.clamp(0.55, 1.7).toDouble().clamp(0.0, sxCap).toDouble();
     final tx = (_viewport.width - _contentW * scale) / 2;
     final ty = (_viewport.height - _contentH * scale) / 2;
     final m = Matrix4.identity();
@@ -415,20 +419,22 @@ class _GroundPainter extends CustomPainter {
     final r = Offset.zero & size;
     canvas.drawRect(r, Paint()..color = lacquer);
 
-    // west (warm) ← → east (cool): two soft halves, the axis that never
-    // collapses. Read before any label.
+    // west (warm) ← → east (cool): the hall's one organising axis. Laid
+    // heavy enough that the left half reads warm and the right cool at a
+    // glance — never a symmetric vignette.
     canvas.drawRect(
       r,
       Paint()
         ..blendMode = BlendMode.plus
         ..shader = LinearGradient(
           colors: [
+            west.withValues(alpha: 0.62),
             west.withValues(alpha: 0.16),
-            west.withValues(alpha: 0.03),
-            east.withValues(alpha: 0.03),
+            Colors.transparent,
             east.withValues(alpha: 0.16),
+            east.withValues(alpha: 0.62),
           ],
-          stops: const [0.0, 0.42, 0.58, 1.0],
+          stops: const [0.0, 0.30, 0.5, 0.70, 1.0],
         ).createShader(r),
     );
 

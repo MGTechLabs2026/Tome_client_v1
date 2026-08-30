@@ -23,7 +23,7 @@ class FirstRunCallout extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 400),
         decoration: BoxDecoration(
           color: hall.lacquer,
-          border: Border.all(color: hall.gold.withValues(alpha: 0.55)),
+          border: Border.all(color: hall.bone.withValues(alpha: 0.28)),
           boxShadow: rakingShadow(elevation: 1),
         ),
         child: Row(

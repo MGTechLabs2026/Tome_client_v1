@@ -144,16 +144,21 @@ class MountView extends StatelessWidget {
         data.state == MountState.locked || data.state == MountState.unknown;
     final isMastered = data.state == MountState.mastered;
     final ground = hall.bone;
-    final seedTint = isLocked ? hall.boneDim : hall.lacquerDeep;
+    final seedTint = isLocked ? HallTheme.cLockedInk : hall.lacquerDeep;
 
-    final chopInk =
-        isMastered
-            ? hall.gold
-            : isLocked
-            ? hall.boneDim
+    // Locked ink is dark on the bone plate (~5:1), not dim: a locked
+    // form stays legible, its state carried by the struck mark's shape.
+    final chopInk = isMastered
+        ? hall.gold
+        : isLocked
+            ? HallTheme.cLockedInk
             : hall.vermilionInk;
+    final nameInk = isLocked ? HallTheme.cLockedInk : hall.lacquerDeep;
 
-    return Opacity(
+    return Semantics(
+      label: data.displayName,
+      value: _semanticsValue(),
+      child: Opacity(
       opacity: dimmed ? 0.52 : 1,
       child: LayoutBuilder(
         builder: (context, c) {
@@ -229,7 +234,7 @@ class MountView extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: hall.label.copyWith(
-                        color: isLocked ? hall.boneDim : hall.lacquerDeep,
+                        color: nameInk,
                         fontSize: compact ? 9 : 10.5,
                         letterSpacing: 1.4,
                       ),
@@ -245,7 +250,10 @@ class MountView extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: hall.measure.copyWith(
-                          color: hall.lacquerDeep.withValues(alpha: 0.5),
+                          color: (isLocked
+                                  ? HallTheme.cLockedInk
+                                  : hall.lacquerDeep)
+                              .withValues(alpha: 0.7),
                           fontSize: 9,
                         ),
                       ),
@@ -275,7 +283,25 @@ class MountView extends StatelessWidget {
           );
         },
       ),
+      ),
     );
+  }
+
+  String _semanticsValue() {
+    final parts = <String>[
+      switch (data.state) {
+        MountState.locked || MountState.unknown => 'locked',
+        MountState.usable => 'usable',
+        MountState.learned => 'learned',
+        MountState.mastered => 'mastered',
+        MountState.active => 'in the Tome',
+      },
+      if (data.maxClass != null) 'class ${data.itemClass}',
+      if (data.masteryLevel > 0) 'mastery ${data.masteryLevel}',
+      if (data.maxed) 'at maximum',
+      if (data.address != null) 'slot ${data.address!.replaceAll(',', ' ')}',
+    ];
+    return parts.join(', ');
   }
 
   InkMark _markFor(MountData d) => switch (d.state) {

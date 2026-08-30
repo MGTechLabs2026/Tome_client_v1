@@ -1,7 +1,9 @@
 // lib/features/tome/widgets/component_tray.dart
 //
 // The loose rack: components the player owns or has discovered but has
-// not hung yet. Drag one onto the board, or tap it for its plate.
+// not hung yet. Drag one onto the board, or tap it for its plate. When
+// the rack holds fewer forms than it has room for, it still shows its
+// empty mounting positions — a rack with capacity, never a black void.
 import 'package:flutter/material.dart';
 
 import '../../../core/models/item_view.dart';
@@ -37,21 +39,47 @@ class LooseRack extends StatefulWidget {
 class _LooseRackState extends State<LooseRack> {
   RackFilter _filter = RackFilter.all;
 
+  /// The rack always shows at least this many mounting positions.
+  static const _minSlots = 8;
+
   @override
   Widget build(BuildContext context) {
     final hall = context.hall;
     final showItems = _filter != RackFilter.techniques;
     final showTech = _filter != RackFilter.items;
-    final empty =
-        (!showItems || widget.items.isEmpty) &&
-        (!showTech || widget.techniques.isEmpty);
+
+    final pieces = <Widget>[
+      if (showItems)
+        for (final item in widget.items)
+          _RackPiece(
+            key: ValueKey('i${item.instanceEntityValue}'),
+            drag: item.instanceEntityValue == null
+                ? null
+                : TomeDrag.rackItem(
+                    item.definitionId, item.instanceEntityValue!),
+            onTap: () => widget.onItemTap(item),
+            child: MountView(
+              data: MountData.fromItem(item),
+              compact: true,
+              spotlight: item.instanceEntityValue != null &&
+                  widget.spotlight.contains(item.instanceEntityValue),
+            ),
+          ),
+      if (showTech)
+        for (final t in widget.techniques)
+          _RackPiece(
+            key: ValueKey('t${t.definitionId}'),
+            drag: TomeDrag.rackTechnique(t.definitionId),
+            onTap: () => widget.onTechniqueTap(t),
+            child: MountView(data: MountData.fromTechnique(t), compact: true),
+          ),
+    ];
+    final emptySlots = (_minSlots - pieces.length).clamp(0, _minSlots);
 
     return Container(
       decoration: BoxDecoration(
         color: hall.lacquer,
-        border: Border(
-          top: BorderSide(color: hall.bone.withValues(alpha: 0.16)),
-        ),
+        border: Border(top: BorderSide(color: hall.bone.withValues(alpha: 0.16))),
       ),
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       child: Column(
@@ -61,6 +89,11 @@ class _LooseRackState extends State<LooseRack> {
           Row(
             children: [
               Text('THE LOOSE RACK', style: hall.label),
+              if (pieces.isEmpty) ...[
+                const SizedBox(width: 12),
+                Text('win a fight for loot',
+                    style: hall.body.copyWith(fontSize: 11, color: hall.boneDim)),
+              ],
               const Spacer(),
               _FilterTab(
                 label: 'All',
@@ -80,55 +113,68 @@ class _LooseRackState extends State<LooseRack> {
             ],
           ),
           const SizedBox(height: 8),
-          if (empty)
-            _EmptyRack(hall: hall)
-          else
-            SizedBox(
-              height: widget.height,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  if (showItems)
-                    for (final item in widget.items)
-                      _RackPiece(
-                        key: ValueKey('i${item.instanceEntityValue}'),
-                        drag:
-                            item.instanceEntityValue == null
-                                ? null
-                                : TomeDrag.rackItem(
-                                  item.definitionId,
-                                  item.instanceEntityValue!,
-                                ),
-                        onTap: () => widget.onItemTap(item),
-                        child: MountView(
-                          data: MountData.fromItem(item),
-                          compact: true,
-                          spotlight:
-                              item.instanceEntityValue != null &&
-                              widget.spotlight.contains(
-                                item.instanceEntityValue,
-                              ),
-                        ),
-                      ),
-                  if (showTech)
-                    for (final t in widget.techniques)
-                      _RackPiece(
-                        key: ValueKey('t${t.definitionId}'),
-                        drag: TomeDrag.rackTechnique(t.definitionId),
-                        onTap: () => widget.onTechniqueTap(t),
-                        child: MountView(
-                          data: MountData.fromTechnique(t),
-                          compact: true,
-                        ),
-                      ),
-                ],
-              ),
+          SizedBox(
+            height: widget.height,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              children: [
+                ...pieces,
+                for (var i = 0; i < emptySlots; i++)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 12),
+                    child: _EmptyMount(),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
   }
+}
+
+class _EmptyMount extends StatelessWidget {
+  const _EmptyMount();
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: 104,
+        child: CustomPaint(
+          painter: _EmptyMountPainter(ink: context.hall.bone),
+        ),
+      );
+}
+
+class _EmptyMountPainter extends CustomPainter {
+  _EmptyMountPainter({required this.ink});
+  final Color ink;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = (Offset.zero & size).deflate(6);
+    final b = size.shortestSide * 0.16;
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 1.4
+      ..color = ink.withValues(alpha: 0.26);
+    void corner(Offset o, double sx, double sy) {
+      canvas.drawLine(o, o + Offset(b * sx, 0), p);
+      canvas.drawLine(o, o + Offset(0, b * sy), p);
+    }
+
+    corner(r.topLeft, 1, 1);
+    corner(r.topRight, -1, 1);
+    corner(r.bottomLeft, 1, -1);
+    corner(r.bottomRight, -1, -1);
+    // a faint mounting-peg mark
+    final c = size.center(Offset.zero);
+    canvas.drawCircle(
+        c, 2.4, Paint()..color = ink.withValues(alpha: 0.18));
+  }
+
+  @override
+  bool shouldRepaint(_EmptyMountPainter old) => old.ink != ink;
 }
 
 class _RackPiece extends StatelessWidget {
@@ -183,42 +229,34 @@ class _FilterTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hall = context.hall;
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.only(left: 14),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label.toUpperCase(),
-              style: hall.label.copyWith(
-                fontSize: 9.5,
-                color: active ? hall.bone : hall.boneDim,
+    return Semantics(
+      button: true,
+      selected: active,
+      label: '$label filter',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: hall.label.copyWith(
+                  fontSize: 9.5,
+                  color: active ? hall.bone : hall.boneDim,
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Container(
-              height: 2,
-              width: label.length * 6.0,
-              color: active ? hall.vermilion : Colors.transparent,
-            ),
-          ],
+              const SizedBox(height: 3),
+              Container(
+                height: 2,
+                width: label.length * 6.0,
+                color: active ? hall.vermilion : Colors.transparent,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-}
-
-class _EmptyRack extends StatelessWidget {
-  const _EmptyRack({required this.hall});
-  final HallTheme hall;
-  @override
-  Widget build(BuildContext context) => Align(
-    alignment: Alignment.centerLeft,
-    child: Text(
-      'the rack is bare — win a fight for loot',
-      style: hall.measure.copyWith(fontSize: 11),
-    ),
-  );
 }

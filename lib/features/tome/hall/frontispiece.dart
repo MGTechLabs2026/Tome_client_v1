@@ -53,7 +53,8 @@ class Frontispiece extends StatelessWidget {
         if (c != null && c.styleId.isNotEmpty) _pretty(c.styleId),
         if (c != null && c.martialTradition.isNotEmpty)
           _pretty(c.martialTradition),
-        if (c != null) '${c.healthCurrent.round()}/${c.healthMax.round()} vit',
+        if (c != null)
+          '${c.healthCurrent.round()} / ${c.healthMax.round()} vitality',
       ];
       return Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 11),
@@ -91,7 +92,7 @@ class Frontispiece extends StatelessWidget {
               parts.join('   ·   '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: hall.measure.copyWith(fontSize: 10.5),
+              style: hall.body.copyWith(fontSize: 11, color: hall.boneDim),
             ),
           ],
         ),
@@ -102,11 +103,9 @@ class Frontispiece extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('THE LINEAGE OF', style: hall.label),
-        const SizedBox(height: 6),
         Text(
           name.toUpperCase(),
-          style: hall.displayLarge.copyWith(fontSize: 26, height: 1.06),
+          style: hall.displayLarge.copyWith(fontSize: 27, height: 1.06),
         ),
         const SizedBox(height: 18),
         _Rule(color: hall.bone.withValues(alpha: 0.16)),
@@ -126,7 +125,11 @@ class Frontispiece extends StatelessWidget {
                   matched
                       ? 'physique favours your tradition'
                       : 'physique favours the other tradition',
-                  style: hall.measure.copyWith(fontSize: 10.5, height: 1.35),
+                  style: hall.body.copyWith(
+                    fontSize: 11.5,
+                    height: 1.35,
+                    color: hall.boneDim,
+                  ),
                 ),
               ),
             ],

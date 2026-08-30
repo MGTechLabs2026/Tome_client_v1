@@ -13,6 +13,11 @@ class ComponentMoved extends TomeEvent {
   final String toSlotId;
 }
 
+class CombineRequested extends TomeEvent {
+  const CombineRequested(this.instanceEntityValues);
+  final List<int> instanceEntityValues;
+}
+
 class ComponentInserted extends TomeEvent {
   const ComponentInserted({
     required this.definitionId,

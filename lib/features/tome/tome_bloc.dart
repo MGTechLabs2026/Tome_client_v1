@@ -18,6 +18,10 @@ class TomeBloc extends Bloc<TomeEvent, TomeState> {
       _tomeAdapter.move(event.fromSlotId, event.toSlotId);
       emit(_snapshot());
     });
+    on<CombineRequested>((event, emit) {
+      _itemAdapter.combine(event.instanceEntityValues);
+      emit(_snapshot());
+    });
     on<ComponentInserted>((event, emit) {
       if (event.isTechnique) {
         _tomeAdapter.insertTechnique(event.definitionId, event.slotId);
@@ -46,6 +50,10 @@ class TomeBloc extends Bloc<TomeEvent, TomeState> {
       ],
       width: _tomeAdapter.width,
       height: _tomeAdapter.height,
+      ownedByInstanceValue: {
+        for (final v in owned)
+          if (v.instanceEntityValue != null) v.instanceEntityValue!: v,
+      },
     );
   }
 }

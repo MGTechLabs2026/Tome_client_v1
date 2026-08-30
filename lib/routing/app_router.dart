@@ -6,13 +6,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/engine/character_adapter.dart';
+import '../core/engine/combat_adapter.dart';
 import '../core/engine/item_adapter.dart';
+import '../core/engine/reward_adapter.dart';
 import '../core/engine/tome_adapter.dart';
 import '../core/models/game_phase.dart';
 import '../features/character_creation/character_creation_bloc.dart';
 import '../features/character_creation/character_creation_screen.dart';
+import '../features/combat/combat_bloc.dart';
 import '../features/combat/combat_preparation_screen.dart';
 import '../features/combat/combat_screen.dart';
+import '../features/loot/loot_bloc.dart';
 import '../features/loot/loot_screen.dart';
 import '../features/run/run_bloc.dart';
 import '../features/run/run_event.dart';
@@ -94,22 +98,28 @@ Widget _screenFor(GamePhase phase, BuildContext context, VoidCallback onRestart)
       return const TrainingResultScreen();
     case GamePhase.combatPreparation:
       final enemy = _enemyFor(run.state.fightIndex);
-      return CombatPreparationScreen(
-        enemyId: enemy.id,
-        enemyHealth: enemy.health,
-        enemyDamage: enemy.damage,
-        enemyDamageStat: enemy.stat,
-      );
+      return CombatPreparationScreen(enemyId: enemy.id, enemyHealth: enemy.health);
     case GamePhase.combat:
-      return CombatScreen(
-        onFinished: () => run.add(const PhaseCompleted(GamePhase.loot)),
+      final enemy = _enemyFor(run.state.fightIndex);
+      return BlocProvider(
+        create: (_) => CombatBloc(context.read<CombatAdapter>()),
+        child: CombatScreen(
+          enemyId: enemy.id,
+          enemyHealth: enemy.health,
+          enemyDamage: enemy.damage,
+          enemyDamageStat: enemy.stat,
+          onFinished: () => run.add(const PhaseCompleted(GamePhase.loot)),
+        ),
       );
     case GamePhase.loot:
       final lastFight = run.state.fightIndex >= kFightsPerRun - 1;
-      return LootScreen(
-        onApplied: () => run.add(PhaseCompleted(
-          lastFight ? GamePhase.runComplete : GamePhase.tome,
-        )),
+      return BlocProvider(
+        create: (_) => LootBloc(context.read<RewardAdapter>()),
+        child: LootScreen(
+          onApplied: () => run.add(PhaseCompleted(
+            lastFight ? GamePhase.runComplete : GamePhase.tome,
+          )),
+        ),
       );
     case GamePhase.runComplete:
       return RunCompleteScreen(onRestart: onRestart);

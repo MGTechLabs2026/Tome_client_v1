@@ -14,6 +14,10 @@ class LootScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bloc = context.read<LootBloc>();
+    if (bloc.state.options.isEmpty && !bloc.state.applied) {
+      bloc.add(const LootOffered());
+    }
     return BlocConsumer<LootBloc, LootState>(
       listenWhen: (prev, next) => !prev.applied && next.applied,
       listener: (context, state) => onApplied?.call(),

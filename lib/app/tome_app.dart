@@ -10,8 +10,6 @@ import '../core/engine/reward_adapter.dart';
 import '../core/engine/technique_adapter.dart';
 import '../core/engine/tome_adapter.dart';
 import '../core/engine/training_adapter.dart';
-import '../features/combat/combat_bloc.dart';
-import '../features/loot/loot_bloc.dart';
 import '../features/run/run_bloc.dart';
 import '../features/training/training_bloc.dart';
 import '../routing/app_router.dart';
@@ -88,14 +86,11 @@ class _TomeAppState extends State<TomeApp> {
       child: MultiBlocProvider(
         providers: [
           BlocProvider<RunBloc>.value(value: _runBloc),
+          // Training spans 3 routes (prepare -> exercise -> result) so it
+          // lives here; Combat and Loot Blocs are per-route (created in
+          // app_router) so each fight/loot visit starts clean.
           BlocProvider<TrainingBloc>(
             create: (ctx) => TrainingBloc(ctx.read<TrainingAdapter>()),
-          ),
-          BlocProvider<CombatBloc>(
-            create: (ctx) => CombatBloc(ctx.read<CombatAdapter>()),
-          ),
-          BlocProvider<LootBloc>(
-            create: (ctx) => LootBloc(ctx.read<RewardAdapter>()),
           ),
         ],
         child: MaterialApp.router(

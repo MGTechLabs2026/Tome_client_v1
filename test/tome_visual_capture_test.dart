@@ -14,8 +14,12 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/app/tome_app.dart';
+import 'package:tome_client/app/theme.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
+import 'package:tome_client/core/models/grid_cell_view.dart';
 import 'package:tome_client/features/run/run_bloc.dart';
+import 'package:tome_client/features/tome/hall/hall_theme.dart';
+import 'package:tome_client/features/tome/hall/mount.dart';
 
 Future<void> _loadFonts() async {
   for (final family in const ['Cinzel', 'Archivo', 'SplineSansMono']) {
@@ -74,5 +78,86 @@ void main() {
 
   testWidgets('capture Tome — mobile', (tester) async {
     await _run(tester, const Size(402, 874), '.impeccable/review/mobile.png');
+  });
+
+  // Synthetic-state boards — states a fresh run cannot show, rendered
+  // from the same widgets so DESIGN.md describes rendered facts.
+  testWidgets('capture states — mounts + reveal', (tester) async {
+    final key = GlobalKey();
+    await tester.binding.setSurfaceSize(const Size(880, 520));
+    tester.view.physicalSize = const Size(880, 520);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      return tester.binding.setSurfaceSize(null);
+    });
+
+    MountData md(String id, MountState s,
+            {int lvl = 0, double prog = 0, int cls = 1, int? maxCls, bool maxed = false}) =>
+        MountData(
+          contentId: id,
+          displayName: id.replaceAll('_', ' '),
+          kind: GridComponentKind.item,
+          state: s,
+          masteryLevel: lvl,
+          masteryProgress01: prog,
+          itemClass: cls,
+          maxClass: maxCls,
+          maxed: maxed,
+          address: '1,1',
+          annotation: 'cls ${'I' * cls}',
+        );
+
+    await tester.pumpWidget(
+      RepaintBoundary(
+        key: key,
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: tomeTheme(),
+          home: Builder(builder: (context) {
+            final hall = context.hall;
+            return Scaffold(
+              backgroundColor: hall.lacquerDeep,
+              body: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('MOUNT STATES', style: hall.heading.copyWith(fontSize: 13)),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 150,
+                      child: Row(
+                        children: [
+                          for (final m in [
+                            md('locked_form', MountState.locked, prog: 0.4),
+                            md('usable_form', MountState.usable, lvl: 1, prog: 0.6),
+                            md('mastered_form', MountState.mastered,
+                                lvl: 4, cls: 3, maxCls: 3, maxed: true),
+                            md('hung_form', MountState.active, lvl: 2, prog: 0.3),
+                          ])
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 16),
+                                child: MountView(data: m, selected: m.state == MountState.active),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    Text('COMBINE REVEAL — CLASS RAISED',
+                        style: hall.heading.copyWith(fontSize: 13)),
+                    const Spacer(),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    await _capture(tester, key, '.impeccable/review/states.png');
   });
 }

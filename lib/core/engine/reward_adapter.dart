@@ -17,7 +17,26 @@ class RewardAdapter {
   }) : _tomeAdapter = tomeAdapter,
        _techniqueAdapter = techniqueAdapter,
        _itemPool = List.of(itemPool),
-       _techniquePool = List.of(techniquePool);
+       _techniquePool = List.of(techniquePool) {
+    // Shuffle each pool once, up front, with the run's own seeded RNG:
+    // the New Component reward's identity is then random per run but
+    // still fully reproducible from the seed (and the shuffle is done
+    // here, not re-rolled per draw, so a run never re-offers a component
+    // it already spent).
+    _shuffleInPlace(_itemPool);
+    _shuffleInPlace(_techniquePool);
+  }
+
+  /// Fisher-Yates over [_session.rng] — the package's only sanctioned
+  /// randomness source, so this stays inside the seed's determinism.
+  void _shuffleInPlace(List<String> list) {
+    for (var i = list.length - 1; i > 0; i--) {
+      final j = _session.rng.nextInt(i + 1);
+      final tmp = list[i];
+      list[i] = list[j];
+      list[j] = tmp;
+    }
+  }
 
   final EngineSession _session;
   final TomeAdapter _tomeAdapter;
@@ -27,12 +46,11 @@ class RewardAdapter {
   var _itemPoolIndex = 0;
   var _techniquePoolIndex = 0;
 
-  /// The next pooled reward — items first, then techniques, mirroring
+  /// The next pooled reward — items first, then techniques. Both pools
+  /// were seed-shuffled once in the constructor (mirroring
   /// `game_run.dart`'s own seed-shuffled-then-linear-draw reward pool
-  /// pattern (this client draws in a fixed, caller-supplied order
-  /// instead of reshuffling, since the pool itself is passed in already
-  /// prepared by whoever wires `RewardAdapter` up, e.g. seed-shuffled at
-  /// app start).
+  /// pattern), so this linear walk hands back a run-random order that is
+  /// still reproducible from the seed.
   ({bool isItem, String id})? _peekNextPoolEntry() {
     if (_itemPoolIndex < _itemPool.length) {
       return (isItem: true, id: _itemPool[_itemPoolIndex]);

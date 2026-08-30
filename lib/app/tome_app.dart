@@ -16,7 +16,9 @@ import '../routing/app_router.dart';
 import 'theme.dart';
 
 /// Starting reward pools, mirroring `run_content.dart`'s own
-/// rewardPool*Ids — plain game-content id lists, drawn in fixed order.
+/// rewardPool*Ids — plain game-content id lists. `RewardAdapter`
+/// seed-shuffles each pool at construction, so the New Component
+/// reward's identity is run-random (reproducible from the seed).
 const _rewardItemPool = ['iron_sword', 'gloves', 'leather_armor'];
 const _rewardTechniquePool = ['basic_slash', 'basic_guard'];
 

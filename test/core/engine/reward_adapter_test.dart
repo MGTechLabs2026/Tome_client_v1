@@ -52,4 +52,40 @@ void main() {
     rewardAdapter.applyLoot(LootKind.newComponent);
     expect(ItemAdapter(session).ownedItems().map((v) => v.definitionId), contains(ItemIds.ironSword));
   });
+
+  test('the New Component pool is seed-shuffled: reproducible per seed, '
+      'random across seeds', () {
+    const pool = [ItemIds.ironSword, ItemIds.gloves, ItemIds.trainingStaff];
+
+    List<String> drawOrder(int seed) {
+      final s = EngineSession(seed);
+      CharacterAdapter(s).createCharacter('F');
+      final ta = TomeAdapter(s)..createInitialTome();
+      final ra = RewardAdapter(
+        s,
+        tomeAdapter: ta,
+        techniqueAdapter: TechniqueAdapter(s),
+        itemPool: pool,
+        techniquePool: const [],
+      );
+      final item = ItemAdapter(s);
+      final order = <String>[];
+      for (var i = 0; i < pool.length; i++) {
+        final before = item.ownedItems().map((v) => v.definitionId).toSet();
+        ra.offerLoot();
+        ra.applyLoot(LootKind.newComponent);
+        final after = item.ownedItems().map((v) => v.definitionId).toSet();
+        order.add(after.difference(before).single);
+      }
+      return order;
+    }
+
+    final seed13 = drawOrder(13);
+    expect(drawOrder(13), equals(seed13), reason: 'same seed -> same order');
+    expect(seed13.toSet(), equals(pool.toSet()), reason: 'a permutation');
+
+    final orders = [for (var seed = 0; seed < 25; seed++) drawOrder(seed)];
+    expect(orders.map((o) => o.join()).toSet().length, greaterThan(1),
+        reason: 'different seeds should produce different orders');
+  });
 }

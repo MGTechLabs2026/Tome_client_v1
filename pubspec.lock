@@ -60,7 +60,7 @@ packages:
   build_engine:
     dependency: "direct main"
     description:
-      path: "/Users/m4maxpro/Projects/Tome:RougelikeGame/.worktrees/tome-ux-milestone-engine"
+      path: "/Users/m4maxpro/Projects/Tome:RougelikeGame"
       relative: false
     source: path
     version: "0.1.0"

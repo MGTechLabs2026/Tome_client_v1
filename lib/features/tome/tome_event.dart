@@ -17,6 +17,14 @@ class ComponentMoved extends TomeEvent {
   final String toSlotId;
 }
 
+/// Take a hung component off the board — it drops back to the loose
+/// rack (items) or the technique tray (techniques). Nothing is
+/// destroyed; the ownership / discovery / mastery state is untouched.
+class ComponentRemoved extends TomeEvent {
+  const ComponentRemoved(this.slotId);
+  final String slotId;
+}
+
 class CombineRequested extends TomeEvent {
   const CombineRequested(this.instanceEntityValues);
   final List<int> instanceEntityValues;

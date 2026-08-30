@@ -30,6 +30,10 @@ class TomeBloc extends Bloc<TomeEvent, TomeState> {
       _tomeAdapter.move(event.fromSlotId, event.toSlotId);
       emit(_snapshot());
     });
+    on<ComponentRemoved>((event, emit) {
+      _tomeAdapter.remove(event.slotId);
+      emit(_snapshot());
+    });
     on<CombineRequested>((event, emit) {
       final result = _itemAdapter.combine(event.instanceEntityValues);
       _lastCombine = CombineOutcome(

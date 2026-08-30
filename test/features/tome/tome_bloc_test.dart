@@ -33,4 +33,24 @@ void main() {
     act: (bloc) => bloc.add(const TomeRefreshRequested()),
     verify: (bloc) => expect(bloc.state.cells.where((c) => !c.isEmpty).length, 1),
   );
+
+  blocTest<TomeBloc, TomeState>(
+    'ComponentRemoved takes the hung item off the board and back to the rack',
+    build: () => TomeBloc(
+      tomeAdapter: tomeAdapter,
+      itemAdapter: ItemAdapter(session),
+      characterAdapter: characterAdapter,
+      techniqueAdapter: TechniqueAdapter(session),
+    ),
+    act: (bloc) {
+      bloc.add(const TomeRefreshRequested());
+      bloc.add(const ComponentRemoved('0,0'));
+    },
+    verify: (bloc) {
+      expect(bloc.state.cells.every((c) => c.isEmpty), isTrue,
+          reason: 'board is clear');
+      expect(bloc.state.tray.map((v) => v.definitionId), contains('knife'),
+          reason: 'knife is back in the loose rack, still owned');
+    },
+  );
 }

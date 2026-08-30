@@ -126,12 +126,23 @@ class _TomeScreenState extends State<TomeScreen> {
 
   void _openItemDetail(ItemView item, TomeState state) {
     final run = context.read<RunBloc>();
-    final placed = state.cells.any(
-      (c) => c.occupant?.instanceEntityValue == item.instanceEntityValue,
-    );
+    String? placedSlot;
+    for (final c in state.cells) {
+      if (c.occupant?.instanceEntityValue == item.instanceEntityValue) {
+        placedSlot = c.slotId;
+        break;
+      }
+    }
+    final placed = placedSlot != null;
     showComponentDetail(
       context,
       item: item,
+      onRemove: placedSlot == null
+          ? null
+          : () {
+              Navigator.of(context).pop();
+              context.read<TomeBloc>().add(ComponentRemoved(placedSlot!));
+            },
       onTrain:
           () =>
               run.add(TrainingRequested(item.definitionId, isTechnique: false)),
@@ -169,6 +180,15 @@ class _TomeScreenState extends State<TomeScreen> {
     final run = context.read<RunBloc>();
     final placed =
         !state.trayTechniques.any((x) => x.definitionId == t.definitionId);
+    String? placedSlot;
+    for (final c in state.cells) {
+      if (c.occupant != null &&
+          c.occupant!.instanceEntityValue == null &&
+          c.occupant!.contentId == t.definitionId) {
+        placedSlot = c.slotId;
+        break;
+      }
+    }
     // Build the accumulated lineage chain from evolvedFromId hops.
     final chain = <String>[];
     var cur = t;
@@ -186,6 +206,12 @@ class _TomeScreenState extends State<TomeScreen> {
       lineage: chain,
       onTrain:
           () => run.add(TrainingRequested(t.definitionId, isTechnique: true)),
+      onRemove: placedSlot == null
+          ? null
+          : () {
+              Navigator.of(context).pop();
+              context.read<TomeBloc>().add(ComponentRemoved(placedSlot!));
+            },
       onHang:
           placed
               ? null

@@ -262,7 +262,7 @@ class _DetailSheetState extends State<_DetailSheet> {
                     ),
                   if (widget.onRemove != null)
                     InkButton(
-                      label: 'Remove',
+                      label: 'Unhang',
                       tone: InkTone.quiet,
                       onPressed: widget.onRemove,
                     ),

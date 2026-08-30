@@ -2,9 +2,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/engine/character_adapter.dart';
 import '../core/models/game_phase.dart';
+import '../features/character_creation/character_creation_bloc.dart';
+import '../features/character_creation/character_creation_screen.dart';
 import '../features/run/run_bloc.dart';
 
 String _pathFor(GamePhase phase) => switch (phase) {
@@ -46,10 +50,18 @@ GoRouter appRouter(RunBloc runBloc) => GoRouter(
       refreshListenable: _RunBlocListenable(runBloc),
       redirect: (context, state) => _pathFor(runBloc.state.phase),
       routes: [
-        for (final phase in GamePhase.values)
-          GoRoute(
-            path: _pathFor(phase),
-            builder: (context, state) => _placeholderFor(phase),
+        GoRoute(
+          path: _pathFor(GamePhase.characterCreation),
+          builder: (context, state) => BlocProvider(
+            create: (_) => CharacterCreationBloc(context.read<CharacterAdapter>()),
+            child: const CharacterCreationScreen(),
           ),
+        ),
+        for (final phase in GamePhase.values)
+          if (phase != GamePhase.characterCreation)
+            GoRoute(
+              path: _pathFor(phase),
+              builder: (context, state) => _placeholderFor(phase),
+            ),
       ],
     );

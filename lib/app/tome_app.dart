@@ -96,6 +96,7 @@ class _TomeAppState extends State<TomeApp> {
                 session,
                 tomeAdapter: ctx.read<TomeAdapter>(),
                 techniqueAdapter: ctx.read<TechniqueAdapter>(),
+                characterAdapter: ctx.read<CharacterAdapter>(),
                 itemPool: _rewardItemPool,
                 techniquePool: _rewardTechniquePool,
               ),

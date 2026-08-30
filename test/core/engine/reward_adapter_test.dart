@@ -16,10 +16,11 @@ void main() {
 
   setUp(() {
     session = EngineSession(13);
-    CharacterAdapter(session).createCharacter('Test Fighter');
+    final cha = CharacterAdapter(session)..createCharacter('Test Fighter');
     tomeAdapter = TomeAdapter(session)..createInitialTome();
     rewardAdapter = RewardAdapter(
       session,
+      characterAdapter: cha,
       tomeAdapter: tomeAdapter,
       techniqueAdapter: TechniqueAdapter(session),
       itemPool: const [ItemIds.ironSword],
@@ -53,13 +54,40 @@ void main() {
     expect(ItemAdapter(session).ownedItems().map((v) => v.definitionId), contains(ItemIds.ironSword));
   });
 
+  test('taking an affixed New Component applies its prefix modifier', () {
+    final s = EngineSession(13);
+    final cha = CharacterAdapter(s)..createCharacter('F');
+    final ra = RewardAdapter(
+      s,
+      characterAdapter: cha,
+      tomeAdapter: TomeAdapter(s)..createInitialTome(),
+      techniqueAdapter: TechniqueAdapter(s),
+      itemPool: const [ItemIds.ironSword],
+      techniquePool: const [],
+    );
+
+    final card = ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent);
+    expect(card.effects, hasLength(2), reason: 'prefix + suffix blurbs');
+    expect(card.badge, 'CLASS I');
+
+    ra.applyLoot(LootKind.newComponent);
+
+    // iron_sword isn't hung, so the only 'blade' modifier now is the
+    // rolled quality prefix (always a stat bump).
+    final mods = s.context.modifiers
+        .activeModifiersFor(s.character, 'blade', s.context.components);
+    expect(mods, isNotEmpty,
+        reason: 'the rolled quality bumps the sword\'s bite');
+  });
+
   test('the New Component draws with replacement — a duplicate can be '
       'farmed for Combine', () {
     final s = EngineSession(13);
-    CharacterAdapter(s).createCharacter('F');
+    final cha = CharacterAdapter(s)..createCharacter('F');
     final item = ItemAdapter(s);
     final ra = RewardAdapter(
       s,
+      characterAdapter: cha,
       tomeAdapter: TomeAdapter(s)..createInitialTome(),
       techniqueAdapter: TechniqueAdapter(s),
       itemPool: const [ItemIds.ironSword], // a one-item pool: every draw repeats
@@ -82,9 +110,10 @@ void main() {
 
   test('techniques are in the New Component rotation from the start', () {
     final s = EngineSession(5);
-    CharacterAdapter(s).createCharacter('F');
+    final cha = CharacterAdapter(s)..createCharacter('F');
     final ra = RewardAdapter(
       s,
+      characterAdapter: cha,
       tomeAdapter: TomeAdapter(s)..createInitialTome(),
       techniqueAdapter: TechniqueAdapter(s),
       itemPool: const [ItemIds.ironSword, ItemIds.gloves],
@@ -94,13 +123,13 @@ void main() {
     final techniqueIds = {'basic_slash', 'basic_guard'};
     var sawTechnique = false;
     for (var screen = 0; screen < 30 && !sawTechnique; screen++) {
-      final detail = ra
+      final title = ra
           .offerLoot()
           .firstWhere((o) => o.kind == LootKind.newComponent)
-          .detail;
+          .title;
       // technique detail is the technique's display name, not an item id.
       sawTechnique = techniqueIds.any((id) =>
-          detail.toLowerCase().replaceAll(' ', '_').contains(id));
+          title.toLowerCase().replaceAll(' ', '_').contains(id));
       ra.applyLoot(LootKind.upgradePoints);
     }
     expect(sawTechnique, isTrue,
@@ -109,10 +138,11 @@ void main() {
 
   test('a technique already on the roster is not offered again', () {
     final s = EngineSession(3);
-    CharacterAdapter(s).createCharacter('F');
+    final cha = CharacterAdapter(s)..createCharacter('F');
     final techniques = TechniqueAdapter(s);
     final ra = RewardAdapter(
       s,
+      characterAdapter: cha,
       tomeAdapter: TomeAdapter(s)..createInitialTome(),
       techniqueAdapter: techniques,
       itemPool: const [ItemIds.ironSword],
@@ -123,7 +153,7 @@ void main() {
     var got = false;
     for (var i = 0; i < 50 && !got; i++) {
       final next = ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent);
-      if (next.detail.toLowerCase().contains('slash')) {
+      if (next.title.toLowerCase().contains('slash')) {
         ra.applyLoot(LootKind.newComponent);
         got = true;
       } else {
@@ -135,7 +165,8 @@ void main() {
 
     // From here it should never be offered again — only the item comes up.
     for (var i = 0; i < 40; i++) {
-      final d = ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent).detail;
+      final d = ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent)
+          .title;
       expect(d.toLowerCase().contains('slash'), isFalse,
           reason: 'basic_slash must not be re-offered');
       ra.applyLoot(LootKind.upgradePoints);
@@ -145,9 +176,10 @@ void main() {
   test('same seed -> same New Component sequence', () {
     List<String> seq(int seed) {
       final s = EngineSession(seed);
-      CharacterAdapter(s).createCharacter('F');
+      final cha = CharacterAdapter(s)..createCharacter('F');
       final ra = RewardAdapter(
         s,
+        characterAdapter: cha,
         tomeAdapter: TomeAdapter(s)..createInitialTome(),
         techniqueAdapter: TechniqueAdapter(s),
         itemPool: const [ItemIds.ironSword, ItemIds.gloves, ItemIds.trainingStaff],
@@ -159,7 +191,7 @@ void main() {
             final d = ra
                 .offerLoot()
                 .firstWhere((o) => o.kind == LootKind.newComponent)
-                .detail;
+          .title;
             ra.applyLoot(LootKind.upgradePoints);
             return d;
           }()
@@ -182,9 +214,10 @@ void main() {
       ItemIds.trainingShoes,
     ];
     final s = EngineSession(4);
-    CharacterAdapter(s).createCharacter('F');
+    final cha = CharacterAdapter(s)..createCharacter('F');
     final ra = RewardAdapter(
       s,
+      characterAdapter: cha,
       tomeAdapter: TomeAdapter(s)..createInitialTome(),
       techniqueAdapter: TechniqueAdapter(s),
       itemPool: pool,
@@ -195,13 +228,16 @@ void main() {
     for (var screen = 0; screen < 12; screen++) {
       final component =
           ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent);
-      offered.add(component.detail);
+      offered.add(component.title);
       // Bank a point instead of taking the component.
       ra.applyLoot(LootKind.upgradePoints);
     }
 
     expect(offered.length, greaterThan(1),
         reason: 'skipping the component must not freeze the offer');
-    expect(offered.every(pool.contains), isTrue);
+    expect(
+        offered.every((t) => pool.any(
+            (id) => t.toLowerCase().replaceAll(' ', '_').contains(id))),
+        isTrue);
   });
 }

@@ -16,10 +16,11 @@ void main() {
     'LootOffered then LootChosen applies the choice',
     build: () {
       final session = EngineSession(61);
-      CharacterAdapter(session).createCharacter('Test Fighter');
+      final cha = CharacterAdapter(session)..createCharacter('Test Fighter');
       final tomeAdapter = TomeAdapter(session)..createInitialTome();
       final rewardAdapter = RewardAdapter(
-        session, tomeAdapter: tomeAdapter, techniqueAdapter: TechniqueAdapter(session),
+        session,
+        characterAdapter: cha, tomeAdapter: tomeAdapter, techniqueAdapter: TechniqueAdapter(session),
         itemPool: const [ItemIds.ironSword], techniquePool: const [],
       );
       return LootBloc(rewardAdapter);

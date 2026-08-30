@@ -59,11 +59,11 @@ void main() {
       // fully in (a couple of extra frames past first appearance so the
       // route transition has settled before we tap).
       await _pumpUntil(
-          tester, () => find.text('+1 Upgrade Point').evaluate().isNotEmpty);
+          tester, () => find.text('Upgrade Point').evaluate().isNotEmpty);
       await tester.pump(const Duration(milliseconds: 600));
       await _pumpUntil(
-          tester, () => find.text('+1 Upgrade Point').evaluate().isNotEmpty);
-      await tester.tap(find.text('+1 Upgrade Point'));
+          tester, () => find.text('Upgrade Point').evaluate().isNotEmpty);
+      await tester.tap(find.text('Upgrade Point'));
     }
 
     // Bouts 1 and 2: loot leads straight into the next bout's prep — the

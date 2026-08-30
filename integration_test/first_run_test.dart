@@ -87,5 +87,7 @@ void main() {
     expect(find.byKey(const Key('startFightButton')), findsOneWidget);
     // The foot bar now reads run 2.
     expect(find.textContaining('RUN 2'), findsWidgets);
+    // Clearing the run healed the fighter to full for the next one.
+    expect(find.text('100 / 100'), findsOneWidget);
   });
 }

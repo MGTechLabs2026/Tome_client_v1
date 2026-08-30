@@ -1,5 +1,6 @@
 import 'package:build_engine/build_engine.dart';
 import 'package:build_engine/combat_plugin.dart';
+import 'package:build_engine/game.dart' show restoreHealth;
 import 'package:build_engine/martial_arts_plugin.dart';
 import 'package:build_engine/physique_plugin.dart';
 
@@ -99,4 +100,10 @@ class CharacterAdapter {
     learnStyle(_session.character, styleId, _session.context);
     return _view();
   }
+
+  /// Heals the fighter back to full vitality — the engine's own
+  /// `restoreHealth` (`package:build_engine/game.dart`), the same call
+  /// the reference run makes at each run boundary. Used when a run is
+  /// cleared, before the next one begins.
+  void restoreVitality() => restoreHealth(_session.character, _session.context);
 }

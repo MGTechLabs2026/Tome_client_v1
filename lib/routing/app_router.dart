@@ -158,7 +158,13 @@ Widget _screenFor(GamePhase phase, BuildContext context) {
       return BlocProvider(
         create: (_) => LootBloc(context.read<RewardAdapter>()),
         child: LootScreen(
-          onApplied: () => run.add(const LootResolved()),
+          onApplied: () {
+            // Clearing a run heals the fighter to full for the next one.
+            if (!run.state.hasNextFight) {
+              context.read<CharacterAdapter>().restoreVitality();
+            }
+            run.add(const LootResolved());
+          },
         ),
       );
   }

@@ -310,7 +310,12 @@ class _Cell extends StatelessWidget {
         );
 
         return GestureDetector(
-          onTap: onSelect,
+          // Select the slot *and* open its detail sheet (train, combine,
+          // unhang). A drag still lifts the mount off the board.
+          onTap: () {
+            onSelect();
+            onTapped();
+          },
           child: Draggable<TomeDrag>(
             data: TomeDrag.fromSlot(cell.slotId),
             dragAnchorStrategy: pointerDragAnchorStrategy,

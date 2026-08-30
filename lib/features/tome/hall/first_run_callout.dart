@@ -40,8 +40,9 @@ class FirstRunCallout extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'The knife is hung. The cloth waits in the rack until you '
-                    'train it. Two matching forms grow a cord you can bind.',
+                    'Both your starting forms hang ready. Train to earn a '
+                    'technique or raise a form\'s mastery. Two matching forms '
+                    'grow a cord you can bind.',
                     style: hall.reading.copyWith(fontSize: 12.5, height: 1.4),
                   ),
                 ],

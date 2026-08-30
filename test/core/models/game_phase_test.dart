@@ -12,8 +12,7 @@ void main() {
       GamePhase.combatPreparation,
       GamePhase.combat,
       GamePhase.loot,
-      GamePhase.runComplete,
     ];
-    expect(phases.toSet().length, 9);
+    expect(phases.toSet().length, 8);
   });
 }

@@ -7,5 +7,4 @@ enum GamePhase {
   combatPreparation,
   combat,
   loot,
-  runComplete,
 }

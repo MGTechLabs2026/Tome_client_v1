@@ -19,17 +19,15 @@ class PhaseCompleted extends RunEvent {
 }
 
 /// The player has taken their loot after a bout. The run orchestrates
-/// what comes next: the Tome for the next bout, or the run-complete
-/// screen if that was the final (hard) fight.
+/// what comes next:
+///
+/// * more bouts remain -> straight into the next bout's preparation
+///   (there is no Tome mid-run);
+/// * that was the final (hard) bout -> the run is cleared: advance to
+///   the next, longer run and open the Tome to strategise. The
+///   character and build carry over.
 class LootResolved extends RunEvent {
   const LootResolved();
-}
-
-/// The player chose to start the next run from the run-complete screen.
-/// Bumps `runNumber`, resets `fightIndex`, and recomputes
-/// `fightsInCurrentRun`; the character and build carry over.
-class RunAdvanced extends RunEvent {
-  const RunAdvanced();
 }
 
 /// Player picked a component to train from the Tome; carries the choice
@@ -40,8 +38,8 @@ class TrainingRequested extends RunEvent {
   final bool isTechnique;
 }
 
-/// "Start Over" — a fresh character. Resets all run tracking to the
-/// beginning; the app rebuilds the engine session around it.
+/// Reset all run tracking to a fresh run 1 (a brand-new fighter — the
+/// app rebuilds the engine session around it).
 class RunReset extends RunEvent {
   const RunReset();
 }

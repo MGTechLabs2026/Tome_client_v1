@@ -60,38 +60,28 @@ void main() {
   );
 
   blocTest<RunBloc, RunState>(
-    'LootResolved mid-run advances to the next bout, back on the Tome',
+    'LootResolved mid-run goes straight to the next bout — no Tome',
     build: RunBloc.new,
     seed: () => const RunState(
         phase: GamePhase.loot, fightIndex: 0, fightsInCurrentRun: 3),
     act: (bloc) => bloc.add(const LootResolved()),
     expect: () => [
       const RunState(
-          phase: GamePhase.tome, fightIndex: 1, fightsInCurrentRun: 3),
+          phase: GamePhase.combatPreparation,
+          fightIndex: 1,
+          fightsInCurrentRun: 3),
     ],
   );
 
   blocTest<RunBloc, RunState>(
-    'LootResolved after the final bout completes the run',
+    'LootResolved after the final bout clears the run: next run + Tome',
     build: RunBloc.new,
     seed: () => const RunState(
-        phase: GamePhase.loot, fightIndex: 2, fightsInCurrentRun: 3),
-    act: (bloc) => bloc.add(const LootResolved()),
-    expect: () => [
-      const RunState(
-          phase: GamePhase.runComplete, fightIndex: 2, fightsInCurrentRun: 3),
-    ],
-  );
-
-  blocTest<RunBloc, RunState>(
-    'RunAdvanced starts the next run: number up, bout reset, length recomputed',
-    build: RunBloc.new,
-    seed: () => const RunState(
-        phase: GamePhase.runComplete,
+        phase: GamePhase.loot,
         runNumber: 10,
         fightIndex: 2,
         fightsInCurrentRun: 3),
-    act: (bloc) => bloc.add(const RunAdvanced()),
+    act: (bloc) => bloc.add(const LootResolved()),
     expect: () => [
       const RunState(
           phase: GamePhase.tome,
@@ -105,7 +95,7 @@ void main() {
     'RunReset wipes back to a fresh run 1',
     build: RunBloc.new,
     seed: () => const RunState(
-        phase: GamePhase.runComplete, runNumber: 4, fightIndex: 6),
+        phase: GamePhase.loot, runNumber: 4, fightIndex: 6),
     act: (bloc) => bloc.add(const RunReset()),
     expect: () => [const RunState()],
   );

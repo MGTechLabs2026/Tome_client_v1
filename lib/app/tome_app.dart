@@ -40,19 +40,11 @@ class TomeApp extends StatefulWidget {
 }
 
 class _TomeAppState extends State<TomeApp> {
-  late EngineSession _session = widget.session ?? _freshSession();
-  late RunBloc _runBloc = widget.runBloc;
+  late final EngineSession _session = widget.session ?? _freshSession();
+  late final RunBloc _runBloc = widget.runBloc;
 
   EngineSession _freshSession() =>
       EngineSession(DateTime.now().millisecondsSinceEpoch);
-
-  void _restart() {
-    setState(() {
-      _session.dispose();
-      _session = _freshSession();
-      _runBloc = RunBloc();
-    });
-  }
 
   @override
   void dispose() {
@@ -122,7 +114,7 @@ class _TomeAppState extends State<TomeApp> {
           title: 'Tome: Martial Arts',
           debugShowCheckedModeBanner: false,
           theme: tomeTheme(),
-          routerConfig: appRouter(_runBloc, onRestart: _restart),
+          routerConfig: appRouter(_runBloc),
         ),
       ),
     );

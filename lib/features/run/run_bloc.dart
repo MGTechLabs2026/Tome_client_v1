@@ -9,34 +9,34 @@ export 'run_state.dart';
 
 class RunBloc extends Bloc<RunEvent, RunState> {
   RunBloc() : super(const RunState()) {
-    // Plain phase moves. Progression rules live in the LootResolved /
-    // RunAdvanced handlers, not here.
+    // Plain phase moves. Progression rules live in LootResolved.
     on<PhaseCompleted>((event, emit) {
+      // Ignore a redundant move to the phase we're already in (e.g. the
+      // combat replay re-announcing "-> loot" after navigation): churning
+      // the router would rebuild the destination screen's Bloc.
+      if (event.next == state.phase) return;
       emit(state.copyWith(phase: event.next));
     });
 
-    // Loot taken after a bout: advance to the next bout of this run, or
-    // end the run if that was the final (hard) fight.
+    // Loot taken after a bout.
     on<LootResolved>((event, emit) {
       if (state.hasNextFight) {
+        // Straight into the next bout — the Tome does not open mid-run.
         emit(state.copyWith(
-          phase: GamePhase.tome,
+          phase: GamePhase.combatPreparation,
           fightIndex: state.fightIndex + 1,
         ));
       } else {
-        emit(state.copyWith(phase: GamePhase.runComplete));
+        // Run cleared: advance to the next, longer run and open the Tome
+        // to strategise. Character and build carry over.
+        final next = state.runNumber + 1;
+        emit(state.copyWith(
+          phase: GamePhase.tome,
+          runNumber: next,
+          fightIndex: 0,
+          fightsInCurrentRun: fightsForRun(next),
+        ));
       }
-    });
-
-    // Start the next run — character and build carry over.
-    on<RunAdvanced>((event, emit) {
-      final next = state.runNumber + 1;
-      emit(state.copyWith(
-        phase: GamePhase.tome,
-        runNumber: next,
-        fightIndex: 0,
-        fightsInCurrentRun: fightsForRun(next),
-      ));
     });
 
     on<TrainingRequested>((event, emit) {

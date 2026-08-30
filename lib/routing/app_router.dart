@@ -21,7 +21,6 @@ import '../features/loot/loot_bloc.dart';
 import '../features/loot/loot_screen.dart';
 import '../features/run/run_bloc.dart';
 import '../features/run/run_event.dart';
-import '../features/run_complete/run_complete_screen.dart';
 import '../features/tome/tome_bloc.dart';
 import '../features/tome/tome_screen.dart';
 import '../features/training/training_preparation_screen.dart';
@@ -36,7 +35,6 @@ String _pathFor(GamePhase phase) => switch (phase) {
       GamePhase.combatPreparation => '/combat/prepare',
       GamePhase.combat => '/combat',
       GamePhase.loot => '/loot',
-      GamePhase.runComplete => '/run-complete',
     };
 
 /// The enemy for the current bout. Ordinary bouts draw from a small
@@ -104,7 +102,7 @@ class _RunBlocListenable extends ChangeNotifier {
 /// The real screen for [phase]. Feature Blocs that outlive a single
 /// screen (Training/Combat/Loot) are provided once in `TomeApp`; screens
 /// only local to one route get their Bloc here.
-Widget _screenFor(GamePhase phase, BuildContext context, VoidCallback onRestart) {
+Widget _screenFor(GamePhase phase, BuildContext context) {
   final run = context.read<RunBloc>();
   switch (phase) {
     case GamePhase.characterCreation:
@@ -163,19 +161,10 @@ Widget _screenFor(GamePhase phase, BuildContext context, VoidCallback onRestart)
           onApplied: () => run.add(const LootResolved()),
         ),
       );
-    case GamePhase.runComplete:
-      final r = run.state;
-      return RunCompleteScreen(
-        runNumber: r.runNumber,
-        fightsCleared: r.fightsInCurrentRun,
-        nextRunFights: fightsForRun(r.runNumber + 1),
-        onContinue: () => run.add(const RunAdvanced()),
-        onRestart: onRestart,
-      );
   }
 }
 
-GoRouter appRouter(RunBloc runBloc, {required VoidCallback onRestart}) => GoRouter(
+GoRouter appRouter(RunBloc runBloc) => GoRouter(
       initialLocation: _pathFor(runBloc.state.phase),
       refreshListenable: _RunBlocListenable(runBloc),
       redirect: (context, state) => _pathFor(runBloc.state.phase),
@@ -183,7 +172,7 @@ GoRouter appRouter(RunBloc runBloc, {required VoidCallback onRestart}) => GoRout
         for (final phase in GamePhase.values)
           GoRoute(
             path: _pathFor(phase),
-            builder: (context, state) => _screenFor(phase, context, onRestart),
+            builder: (context, state) => _screenFor(phase, context),
           ),
       ],
     );

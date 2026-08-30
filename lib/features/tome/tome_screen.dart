@@ -252,7 +252,7 @@ class _TomeScreenState extends State<TomeScreen> {
             onTechniqueTap: (t) => _openTechniqueDetail(t, state),
           );
 
-          final run = context.watch<RunBloc>().state;
+          final run = context.read<RunBloc>().state;
           final foot = _FootBar(
             upgradePoints: state.upgradePoints,
             runLabel: 'RUN ${run.runNumber}  ·  BOUT ${run.fightIndex + 1} / '

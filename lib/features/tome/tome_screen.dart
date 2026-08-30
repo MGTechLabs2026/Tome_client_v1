@@ -252,8 +252,11 @@ class _TomeScreenState extends State<TomeScreen> {
             onTechniqueTap: (t) => _openTechniqueDetail(t, state),
           );
 
+          final run = context.watch<RunBloc>().state;
           final foot = _FootBar(
             upgradePoints: state.upgradePoints,
+            runLabel: 'RUN ${run.runNumber}  ·  BOUT ${run.fightIndex + 1} / '
+                '${run.fightsInCurrentRun}',
             armedHint: _armed != null,
             canTrain: _selectedSlotId != null,
             onCancelArm: () => setState(() => _armed = null),
@@ -356,6 +359,7 @@ class _TomeScreenState extends State<TomeScreen> {
 class _FootBar extends StatelessWidget {
   const _FootBar({
     required this.upgradePoints,
+    required this.runLabel,
     required this.armedHint,
     required this.canTrain,
     required this.onCancelArm,
@@ -364,6 +368,7 @@ class _FootBar extends StatelessWidget {
   });
 
   final int upgradePoints;
+  final String runLabel;
   final bool armedHint;
   final bool canTrain;
   final VoidCallback onCancelArm;
@@ -399,6 +404,8 @@ class _FootBar extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text('PTS', style: hall.label.copyWith(fontSize: 9)),
+          const SizedBox(width: 18),
+          Text(runLabel, style: hall.label.copyWith(fontSize: 9)),
           const Spacer(),
           if (armedHint) ...[
             Flexible(

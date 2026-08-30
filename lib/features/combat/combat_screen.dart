@@ -16,6 +16,7 @@ class CombatScreen extends StatelessWidget {
     required this.enemyDamageStat,
     required this.onFinished,
     this.playerName = '',
+    this.isHardFight = false,
   });
 
   final String enemyId;
@@ -23,10 +24,13 @@ class CombatScreen extends StatelessWidget {
   final num enemyDamage;
   final String enemyDamageStat;
 
-  /// Fired when the replay finishes, with the fight's outcome — `true`
-  /// if the player won, `false` if they were defeated.
-  final void Function(bool won) onFinished;
+  /// Fired when the replay finishes. The run always proceeds to loot
+  /// next regardless of the fight's outcome.
+  final VoidCallback onFinished;
   final String playerName;
+
+  /// The final bout of the run — surfaced in the matchup line.
+  final bool isHardFight;
 
   /// `sparring_partner` -> `Sparring Partner`.
   String get _enemyName => enemyId
@@ -51,9 +55,9 @@ class CombatScreen extends StatelessWidget {
               )
             : LogReplayCombatPresentation(
                 log: state.log,
-                onFinished: () => onFinished(state.won ?? true),
+                onFinished: onFinished,
                 playerName: playerName,
-                enemyName: _enemyName,
+                enemyName: isHardFight ? '$_enemyName  ·  HARD' : _enemyName,
               ),
       ),
     );

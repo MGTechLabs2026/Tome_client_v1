@@ -24,9 +24,8 @@ Future<void> _pumpUntil(
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('character creation through an endless gauntlet until the player falls',
-      (tester) async {
-    // A real desktop form factor — 800x600 is neither shipped target.
+  testWidgets('a run is a fixed 3 bouts, then the run-complete screen, then '
+      'the Tome for the next run', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1.0;
@@ -36,57 +35,52 @@ void main() {
       return tester.binding.setSurfaceSize(null);
     });
 
-    await tester.pumpWidget(TomeApp(runBloc: RunBloc(), session: EngineSession(2026)));
+    await tester.pumpWidget(
+        TomeApp(runBloc: RunBloc(), session: EngineSession(2026)));
     await tester.pumpAndSettle();
 
-    // Character Creation: name step.
+    // Character Creation.
     await tester.enterText(find.byType(TextField), 'Integration Fighter');
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
-
-    // Style step: pick the first style card.
-    await tester.tap(find.byType(InkWell).first);
+    await tester.tap(find.byType(InkWell).first); // first style card
     await tester.pumpAndSettle();
 
     expect(find.text('THE LOOSE RACK'), findsOneWidget);
 
-    // Endless: Tome -> Fight -> (win) Loot -> Tome -> ... until a bout is
-    // lost and the run ends on the "YOU FELL" screen. Enemies scale each
-    // bout, so this always terminates; the cap is just a safety net.
-    var gameOver = false;
-    for (var fight = 1; fight <= 30 && !gameOver; fight++) {
-      await tester.pumpAndSettle(); // finish the slide-in onto the Tome
+    Future<void> fightThenLoot() async {
+      await tester.pumpAndSettle(); // slide onto the Tome
       await tester.tap(find.byKey(const Key('startFightButton')));
-      await tester.pumpAndSettle(); // Tome -> Combat Prep (both static)
+      await tester.pumpAndSettle(); // Tome -> Combat Prep
       expect(find.text('Confirm & Fight'), findsOneWidget);
-
       await tester.tap(find.text('Confirm & Fight'));
       await _pumpUntil(
-        tester,
-        () =>
-            find.text('+1 Upgrade Point').evaluate().isNotEmpty ||
-            find.text('YOU FELL').evaluate().isNotEmpty,
-      );
-
-      if (find.text('YOU FELL').evaluate().isNotEmpty) {
-        gameOver = true;
-        break;
-      }
-
-      // Won this bout — take the upgrade point and head back to the Tome.
-      await tester.pumpAndSettle(); // settle the Loot screen
+          tester, () => find.text('+1 Upgrade Point').evaluate().isNotEmpty);
+      expect(find.text('+1 Upgrade Point'), findsOneWidget);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('+1 Upgrade Point'));
-      await _pumpUntil(
-        tester,
-        () =>
-            find.byKey(const Key('startFightButton')).evaluate().isNotEmpty ||
-            find.text('YOU FELL').evaluate().isNotEmpty,
-      );
-      gameOver = find.text('YOU FELL').evaluate().isNotEmpty;
     }
 
-    expect(gameOver, isTrue, reason: 'the gauntlet should end the player');
-    expect(find.text('YOU FELL'), findsOneWidget);
-    expect(find.text('Start New Run'), findsOneWidget);
+    // Bouts 1 and 2 -> back to the Tome each time.
+    for (var bout = 1; bout <= 2; bout++) {
+      await fightThenLoot();
+      await _pumpUntil(tester,
+          () => find.byKey(const Key('startFightButton')).evaluate().isNotEmpty);
+      expect(find.byKey(const Key('startFightButton')), findsOneWidget,
+          reason: 'bout $bout returns to the Tome');
+    }
+
+    // Bout 3 is the hard fight; its loot leads to RUN COMPLETE, not the Tome.
+    await fightThenLoot();
+    await _pumpUntil(
+        tester, () => find.text('RUN 1 CLEARED').evaluate().isNotEmpty);
+    expect(find.text('RUN 1 CLEARED'), findsOneWidget);
+    expect(find.byKey(const Key('startFightButton')), findsNothing);
+
+    // Continue -> next run, back on the Tome.
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('startFightButton')), findsOneWidget);
+    expect(find.text('THE LOOSE RACK'), findsOneWidget);
   });
 }

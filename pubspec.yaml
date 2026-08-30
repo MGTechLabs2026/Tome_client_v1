@@ -110,13 +110,3 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-
-dependency_overrides:
-  build_engine:
-    # Local path to the built_engine checkout. The tome-ux-milestone-engine
-    # branch (martialTraditionOf/canCombine exports, the polearming/kunlun
-    # style rename, and the 8 starting-kit item definitions) is merged to
-    # built_engine main as of 55b1d7e, so this points at the main checkout.
-    # Still a local override -- Tome_client does not build standalone until
-    # build_engine is consumed as a published/git dependency.
-    path: /Users/m4maxpro/Projects/Tome:RougelikeGame

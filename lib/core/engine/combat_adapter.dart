@@ -98,33 +98,35 @@ class CombatAdapter {
     );
 
     final log = <CombatLogEntryView>[];
+
+    /// Stamps the current entry with both fighters' live health, read
+    /// straight off their `HealthComponent`s at log time.
+    CombatLogEntryView entry(CombatLogEntryKind kind, String text) {
+      final player =
+          _session.context.components.get<HealthComponent>(_session.character);
+      final foe = _session.context.components.get<HealthComponent>(enemy);
+      return CombatLogEntryView(
+        kind: kind,
+        text: text,
+        playerHp: player?.current,
+        playerHpMax: player?.max,
+        enemyHp: foe?.current,
+        enemyHpMax: foe?.max,
+      );
+    }
+
     final subs = [
       _session.context.events.subscribe<TurnStarted>((e) {
         final label = e.actor == _session.character ? 'You' : 'Enemy';
-        log.add(
-          CombatLogEntryView(
-            kind: CombatLogEntryKind.turnStart,
-            text: '$label act.',
-          ),
-        );
+        log.add(entry(CombatLogEntryKind.turnStart, '$label act.'));
       }),
       _session.context.events.subscribe<EntityDamaged>((e) {
         final label = e.id == _session.character ? 'You take' : 'Enemy takes';
-        log.add(
-          CombatLogEntryView(
-            kind: CombatLogEntryKind.damage,
-            text: '$label ${e.amount} damage.',
-          ),
-        );
+        log.add(entry(CombatLogEntryKind.damage, '$label ${e.amount} damage.'));
       }),
       _session.context.events.subscribe<EntityHealed>((e) {
         final label = e.id == _session.character ? 'You heal' : 'Enemy heals';
-        log.add(
-          CombatLogEntryView(
-            kind: CombatLogEntryKind.heal,
-            text: '$label ${e.amount}.',
-          ),
-        );
+        log.add(entry(CombatLogEntryKind.heal, '$label ${e.amount}.'));
       }),
     ];
 
@@ -139,9 +141,9 @@ class CombatAdapter {
             .current;
     final won = playerHealth > 0 && !controller.isActive;
     log.add(
-      CombatLogEntryView(
-        kind: won ? CombatLogEntryKind.victory : CombatLogEntryKind.defeat,
-        text: won ? 'Victory!' : 'Defeated...',
+      entry(
+        won ? CombatLogEntryKind.victory : CombatLogEntryKind.defeat,
+        won ? 'Victory!' : 'Defeated...',
       ),
     );
 

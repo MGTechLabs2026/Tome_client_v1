@@ -111,6 +111,7 @@ Widget _screenFor(GamePhase phase, BuildContext context, VoidCallback onRestart)
           enemyHealth: enemy.health,
           enemyDamage: enemy.damage,
           enemyDamageStat: enemy.stat,
+          playerName: context.read<CharacterAdapter>().currentView().name,
           onFinished: () => run.add(const PhaseCompleted(GamePhase.loot)),
         ),
       );

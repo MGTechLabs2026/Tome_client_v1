@@ -195,3 +195,9 @@ app.*.symbols
 # IntelliJ related
 .idea/
 
+
+# Impeccable design-workflow scratch (keep DESIGN.md, .impeccable/design.json, .impeccable/surfaces/)
+.impeccable/questions/
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/config.local.json

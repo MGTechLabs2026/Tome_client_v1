@@ -80,9 +80,9 @@ void main() {
     await _run(tester, const Size(402, 874), '.impeccable/review/mobile.png');
   });
 
-  // Synthetic-state boards — states a fresh run cannot show, rendered
-  // from the same widgets so DESIGN.md describes rendered facts.
-  testWidgets('capture states — mounts + reveal', (tester) async {
+  // Synthetic mount states — a fresh run only ever shows one, so this
+  // renders all four side by side from MountView for DESIGN.md.
+  testWidgets('capture states — mounts', (tester) async {
     final key = GlobalKey();
     await tester.binding.setSurfaceSize(const Size(880, 520));
     tester.view.physicalSize = const Size(880, 520);
@@ -145,9 +145,6 @@ void main() {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    Text('COMBINE REVEAL — CLASS RAISED',
-                        style: hall.heading.copyWith(fontSize: 13)),
                     const Spacer(),
                   ],
                 ),

@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-30T00:00:00Z",
+  "title": "Design System: Tome — Martial Arts",
+  "extensions": {
+    "colorMeta": {
+      "lacquer": {
+        "role": "neutral",
+        "displayName": "Lacquer",
+        "canonical": "#141013",
+        "tonalRamp": ["#1C171B", "#392D36", "#5B4956", "#7D6476", "#9B8295", "#B6A4B2", "#D6CCD4", "#F1EEF1"]
+      },
+      "lacquer-deep": {
+        "role": "neutral",
+        "displayName": "Deep Lacquer",
+        "canonical": "#0C090B",
+        "tonalRamp": ["#1D161B", "#3A2C35", "#5D4655", "#806076", "#9F7F94", "#B9A2B1", "#D8CBD3", "#F2EEF0"]
+      },
+      "bone": {
+        "role": "neutral",
+        "displayName": "Aged Bone",
+        "canonical": "#E7DDCA",
+        "tonalRamp": ["#231C10", "#463920", "#705B33", "#9A7D46", "#B99C65", "#CCB78F", "#E2D6C0", "#F5F1EA"]
+      },
+      "bone-dim": {
+        "role": "neutral",
+        "displayName": "Dimmed Bone",
+        "canonical": "#9A9384",
+        "tonalRamp": ["#1C1A17", "#38352E", "#5A554A", "#7B7465", "#9A9384", "#B5B0A5", "#D6D3CD", "#F1F0EE"]
+      },
+      "vermilion": {
+        "role": "primary",
+        "displayName": "Vermilion Seal-Ink",
+        "canonical": "#B23A2E",
+        "tonalRamp": ["#290D0A", "#511A15", "#822A22", "#B23A2E", "#D1594D", "#DD867D", "#ECBBB6", "#F9E8E7"]
+      },
+      "vermilion-ink": {
+        "role": "primary",
+        "displayName": "Vermilion Chop-Ink",
+        "canonical": "#8E2C22",
+        "tonalRamp": ["#290D0A", "#521A14", "#842920", "#B5382B", "#D4574A", "#DF857B", "#EDBAB5", "#F9E8E6"]
+      },
+      "gold": {
+        "role": "secondary",
+        "displayName": "Tarnished Gold",
+        "canonical": "#B8933F",
+        "tonalRamp": ["#261E0D", "#4C3D1A", "#7A612A", "#A78639", "#C6A458", "#D5BD85", "#E8DABB", "#F7F3E8"]
+      },
+      "slate": {
+        "role": "tertiary",
+        "displayName": "Cold Slate",
+        "canonical": "#6E7377",
+        "tonalRamp": ["#181A1B", "#313335", "#4E5255", "#6C7175", "#8A8F93", "#AAAEB1", "#CFD1D3", "#EFF0F0"]
+      },
+      "locked-ink": {
+        "role": "neutral",
+        "displayName": "Locked Ink",
+        "canonical": "#433A2D",
+        "tonalRamp": ["#1F1A14", "#3D3529", "#625542", "#86745A", "#A59379", "#BDB09D", "#DAD3C8", "#F3F0ED"]
+      },
+      "west-ground": {
+        "role": "neutral",
+        "displayName": "West Ground (Ember Umber)",
+        "canonical": "#2E1810",
+        "tonalRamp": ["#26140D", "#4C271A", "#793F2A", "#A6573A", "#C57559", "#D59B86", "#E7C7BB", "#F7ECE8"]
+      },
+      "east-ground": {
+        "role": "neutral",
+        "displayName": "East Ground (Cold Steel)",
+        "canonical": "#0B171C",
+        "tonalRamp": ["#0E1E25", "#1D3C49", "#2E6075", "#3F84A1", "#5EA3C0", "#8ABCD1", "#BDD9E5", "#E9F2F6"]
+      }
+    },
+    "typographyMeta": {
+      "display-large": { "displayName": "Display Large", "purpose": "The lineage's own name, and only that. Uppercase Cinzel, set at 27px in the frontispiece rail." },
+      "display": { "displayName": "Display", "purpose": "Sheet titles and the compact frontispiece name. Uppercase Cinzel." },
+      "heading": { "displayName": "Heading", "purpose": "Section titles in overlays and sheets; runs to 11-12px, held up by 2.6px tracking." },
+      "body": { "displayName": "Body", "purpose": "Every readout and control value. Steps to 11-12.5px in dense contexts." },
+      "reading": { "displayName": "Reading", "purpose": "Sheet and callout prose only; the one comfortable 1.5 line-height." },
+      "label": { "displayName": "Label", "purpose": "Struck uppercase micro-labels, mount names, and all button captions. Steps to 9-9.5px." },
+      "measure": { "displayName": "Measure", "purpose": "Leader-line quantities, grid addresses, classes and ranks. Monospace only." },
+      "measure-strong": { "displayName": "Measure Strong", "purpose": "The same, when the number is the subject (upgrade points, synergy multiplier)." }
+    },
+    "light": [
+      { "name": "raking-light", "value": "Alignment(-0.72, -0.86)", "purpose": "The hall's one light source. Every shadow, inner gradient, highlight, and light pool in the build derives its direction from this constant (kRakingLight in hall_theme.dart)." }
+    ],
+    "shadows": [
+      { "name": "plate", "value": "translate(4.4, 5.4) blur 9 rgba(0,0,0,0.44)", "purpose": "A mounted form's own shadow on the board. The most-used depth mark in the build." },
+      { "name": "control", "value": "translate(2.4, 3) blur 5 rgba(0,0,0,0.34)", "purpose": "Under an InkButton at rest. Removed entirely while pressed — the press is a loss of depth, not a colour change." },
+      { "name": "raking-e1", "value": "0 offset(4.3, 5.2) 14px rgba(0,0,0,0.42), offset(1.4, 1.7) 4px rgba(0,0,0,0.22)", "purpose": "rakingShadow(elevation: 1) — the two-layer stack for floating overlays such as the first-run callout. Offsets scale with the elevation multiplier." },
+      { "name": "inner-raking", "value": "linear-gradient(from kRakingLight: rgba(255,255,255,0.16) 0%, transparent 50%, rgba(0,0,0,0.14) 100%)", "purpose": "The inner light-to-shade wash clipped inside every mount plate, so the plate agrees with the ground about where the light is." }
+    ],
+    "motion": [
+      { "name": "reveal", "value": "640ms cubic-bezier(0.215, 0.61, 0.355, 1) /* Curves.easeOutCubic */", "purpose": "The combine reveal overlay's entrance — the only animation in the committed surface." },
+      { "name": "reveal-dwell", "value": "1700ms", "purpose": "How long the combine reveal holds before dismissing itself." },
+      { "name": "reduced", "value": "1ms", "purpose": "Every animated duration collapses to this under MediaQuery.disableAnimations." },
+      { "name": "no-splash", "value": "NoSplash.splashFactory; highlightColor transparent; hoverColor bone @ 4%", "purpose": "The build refuses ripple and splash entirely. Feedback is edge weight and fill alpha, never a spreading circle." }
+    ],
+    "breakpoints": [
+      { "name": "hall-wide", "value": "760px" }
+    ],
+    "metrics": [
+      { "name": "cell", "value": "132px wide / 108px narrow", "purpose": "A board mount's side." },
+      { "name": "gutter", "value": "22px", "purpose": "The lattice gap between and around cells." },
+      { "name": "rack-piece", "value": "104px at a 12px gap", "purpose": "A loose-rack mount." },
+      { "name": "rail", "value": "320px", "purpose": "The wide-layout frontispiece rail." },
+      { "name": "rack-height", "value": "132px wide / 120px narrow" },
+      { "name": "zoom", "value": "0.5x - 2.4x, auto-fit clamped 0.55 - 1.7", "purpose": "InteractiveViewer bounds on the lattice." },
+      { "name": "hairline", "value": "1px bone @ 16%", "purpose": "The single division between any two regions." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Seal Button",
+      "kind": "button",
+      "refersTo": "button-seal",
+      "description": "The one committing action on a surface — Start Fight, Bind the Cord. Vermilion laid as dry ink at 92%, reaching full strength only on hover.",
+      "html": "<button class=\"ds-btn-seal\">START FIGHT</button>",
+      "css": ".ds-btn-seal { background: rgba(178,58,46,0.92); color: #E7DDCA; font-family: Archivo, 'Helvetica Neue', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; line-height: 1.1; padding: 11px 18px; border: 1.4px solid rgba(0,0,0,0.25); border-radius: 2px; box-shadow: 2.4px 3px 5px rgba(0,0,0,0.34); cursor: pointer; transition: background 120ms linear, box-shadow 80ms linear; } .ds-btn-seal:hover { background: #B23A2E; } .ds-btn-seal:focus-visible { outline: 2px solid rgba(184,147,63,0.55); outline-offset: 2px; } .ds-btn-seal:active { box-shadow: none; transform: translate(1px, 1px); } .ds-btn-seal:disabled { opacity: 0.4; cursor: default; }"
+    },
+    {
+      "name": "Plain Button",
+      "kind": "button",
+      "refersTo": "button-plain",
+      "description": "The secondary action. No fill of its own — a 5% tint of bone inside a struck bone edge.",
+      "html": "<button class=\"ds-btn-plain\">TRAIN</button>",
+      "css": ".ds-btn-plain { background: rgba(231,221,202,0.05); color: #E7DDCA; font-family: Archivo, 'Helvetica Neue', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; line-height: 1.1; padding: 11px 18px; border: 1.6px solid rgba(231,221,202,0.7); border-radius: 2px; box-shadow: 2.4px 3px 5px rgba(0,0,0,0.34); cursor: pointer; transition: background 120ms linear, border-color 120ms linear; } .ds-btn-plain:hover { background: rgba(231,221,202,0.12); border-color: rgba(231,221,202,0.95); } .ds-btn-plain:focus-visible { outline: 2px solid rgba(184,147,63,0.55); outline-offset: 2px; } .ds-btn-plain:active { border-width: 2px; box-shadow: none; } .ds-btn-plain:disabled { opacity: 0.4; cursor: default; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "The dense cancel. Dimmed bone ink, dense padding.",
+      "html": "<button class=\"ds-btn-quiet\">CANCEL</button>",
+      "css": ".ds-btn-quiet { background: rgba(154,147,132,0.05); color: #9A9384; font-family: Archivo, 'Helvetica Neue', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; line-height: 1.1; padding: 8px 12px; border: 1.6px solid rgba(154,147,132,0.7); border-radius: 2px; box-shadow: 2.4px 3px 5px rgba(0,0,0,0.34); cursor: pointer; transition: background 120ms linear, border-color 120ms linear; } .ds-btn-quiet:hover { background: rgba(154,147,132,0.12); border-color: rgba(154,147,132,0.95); } .ds-btn-quiet:focus-visible { outline: 2px solid rgba(184,147,63,0.55); outline-offset: 2px; } .ds-btn-quiet:active { border-width: 2px; box-shadow: none; }"
+    },
+    {
+      "name": "Mount — Usable",
+      "kind": "custom",
+      "refersTo": "mount",
+      "description": "The build's signature component: a bone plate carrying a content-hashed seal chop, the state mark in its fixed top-right cell, the form's name, and its grid address plus class in the mono hand.",
+      "html": "<div class=\"ds-mount\"><svg class=\"ds-mount-chop\" viewBox=\"0 0 48 48\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"42\" height=\"42\" rx=\"3\" fill=\"none\" stroke=\"#8E2C22\" stroke-width=\"2.4\"/><path d=\"M13 33 L35 15\" stroke=\"#8E2C22\" stroke-width=\"2.6\" stroke-linecap=\"round\"/><path d=\"M13 22 L13 33 L24 33\" stroke=\"#8E2C22\" stroke-width=\"2.6\" stroke-linecap=\"round\" fill=\"none\"/><path d=\"M12 37 L36 37\" stroke=\"rgba(142,44,34,0.8)\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg><span class=\"ds-mount-mark\"></span><span class=\"ds-mount-name\">Knife</span><span class=\"ds-mount-meta\">1·1&nbsp;&nbsp;&nbsp;cls I</span></div>",
+      "css": ".ds-mount { position: relative; box-sizing: border-box; width: 132px; height: 132px; padding: 14px; display: flex; flex-direction: column; justify-content: flex-end; background: #E7DDCA; background-image: linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.14) 100%); border: 1.6px solid rgba(12,9,11,0.5); border-radius: 3px; box-shadow: 4.4px 5.4px 9px rgba(0,0,0,0.44); cursor: pointer; } .ds-mount:hover { border-color: rgba(12,9,11,0.75); } .ds-mount:focus-visible { outline: 2.6px solid rgba(184,147,63,0.9); outline-offset: -1px; } .ds-mount-chop { position: absolute; top: 14px; left: 14px; width: 46px; height: 46px; } .ds-mount-mark { position: absolute; top: 8px; right: 8px; width: 21px; height: 21px; background: #8E2C22; border-radius: 2px; } .ds-mount-name { font-family: Archivo, 'Helvetica Neue', sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; color: #0C090B; } .ds-mount-meta { margin-top: 4px; font-family: SplineSansMono, ui-monospace, monospace; font-size: 9px; letter-spacing: 0.2px; color: rgba(12,9,11,0.7); }"
+    },
+    {
+      "name": "Mount — Locked",
+      "kind": "custom",
+      "refersTo": "mount-locked",
+      "description": "A locked form stays legible. The plate is washed with slate at 22%, all ink switches to locked-ink (5.78:1), and the state mark becomes hollow slate.",
+      "html": "<div class=\"ds-mount-locked\"><svg class=\"ds-mount-chop-l\" viewBox=\"0 0 48 48\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"42\" height=\"42\" rx=\"3\" fill=\"none\" stroke=\"#433A2D\" stroke-width=\"2.4\"/><path d=\"M15 15 L24 33 L33 15\" stroke=\"#433A2D\" stroke-width=\"2.6\" stroke-linecap=\"round\" fill=\"none\"/><path d=\"M12 37 L36 37\" stroke=\"rgba(67,58,45,0.8)\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg><span class=\"ds-mount-mark-l\"></span><span class=\"ds-mount-name-l\">Cloth Armor</span><span class=\"ds-mount-meta-l\">1·2&nbsp;&nbsp;&nbsp;cls I</span></div>",
+      "css": ".ds-mount-locked { position: relative; box-sizing: border-box; width: 132px; height: 132px; padding: 14px; display: flex; flex-direction: column; justify-content: flex-end; background: #C4BDB1; background-image: linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 50%, rgba(0,0,0,0.14) 100%); border: 1.6px solid rgba(67,58,45,0.5); border-radius: 3px; box-shadow: 4.4px 5.4px 9px rgba(0,0,0,0.44); } .ds-mount-chop-l { position: absolute; top: 14px; left: 14px; width: 46px; height: 46px; } .ds-mount-mark-l { position: absolute; top: 8px; right: 8px; width: 21px; height: 21px; border: 1.6px solid #6E7377; border-radius: 2px; } .ds-mount-name-l { font-family: Archivo, 'Helvetica Neue', sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; color: #433A2D; } .ds-mount-meta-l { margin-top: 4px; font-family: SplineSansMono, ui-monospace, monospace; font-size: 9px; color: rgba(67,58,45,0.7); }"
+    },
+    {
+      "name": "Empty Mounting Position",
+      "kind": "custom",
+      "refersTo": "mount",
+      "description": "An open cell reads as four carved corner brackets plus a faint '+', never an outlined box. On hover/arm the brackets rise and a dashed hand-cut outline appears; on accept everything turns vermilion.",
+      "html": "<div class=\"ds-cell\"><span class=\"ds-cell-plus\"></span></div>",
+      "css": ".ds-cell { position: relative; box-sizing: border-box; width: 132px; height: 132px; background: transparent; border: 1.4px solid transparent; border-radius: 2px; background-image: linear-gradient(rgba(231,221,202,0.34), rgba(231,221,202,0.34)), linear-gradient(rgba(231,221,202,0.34), rgba(231,221,202,0.34)), linear-gradient(rgba(231,221,202,0.34), rgba(231,221,202,0.34)), linear-gradient(rgba(231,221,202,0.34), rgba(231,221,202,0.34)); background-repeat: no-repeat; background-size: 21px 1.4px, 1.4px 21px, 21px 1.4px, 1.4px 21px; background-position: 6px 6px, 6px 6px, calc(100% - 6px) calc(100% - 6px), calc(100% - 6px) calc(100% - 6px); cursor: pointer; } .ds-cell-plus { position: absolute; inset: 0; margin: auto; width: 26px; height: 26px; background-image: linear-gradient(rgba(231,221,202,0.22), rgba(231,221,202,0.22)), linear-gradient(rgba(231,221,202,0.22), rgba(231,221,202,0.22)); background-repeat: no-repeat; background-size: 26px 1.8px, 1.8px 26px; background-position: center, center; } .ds-cell:hover { border-color: rgba(178,58,46,0.7); border-style: dashed; } .ds-cell:hover .ds-cell-plus { background-image: linear-gradient(rgba(178,58,46,0.8), rgba(178,58,46,0.8)), linear-gradient(rgba(178,58,46,0.8), rgba(178,58,46,0.8)); }"
+    },
+    {
+      "name": "Filter Tab",
+      "kind": "nav",
+      "refersTo": "panel-foot",
+      "description": "The rack's only navigation. Uppercase label, dimmed when inactive, with a 2px vermilion underline under the active tab. No pill, no background.",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab ds-tab--on\">ALL</button><button class=\"ds-tab\">ITEMS</button><button class=\"ds-tab\">TECHNIQUES</button></nav>",
+      "css": ".ds-tabs { display: flex; gap: 14px; background: #141013; padding: 10px 14px; } .ds-tab { background: none; border: none; padding: 0 0 5px 0; font-family: Archivo, 'Helvetica Neue', sans-serif; font-size: 9.5px; font-weight: 600; letter-spacing: 1.9px; text-transform: uppercase; color: #9A9384; border-bottom: 2px solid transparent; cursor: pointer; transition: color 120ms linear; } .ds-tab:hover { color: #E7DDCA; } .ds-tab:focus-visible { outline: 2px solid rgba(184,147,63,0.55); outline-offset: 3px; } .ds-tab--on { color: #E7DDCA; border-bottom-color: #B23A2E; }"
+    },
+    {
+      "name": "Struck Mark",
+      "kind": "custom",
+      "refersTo": "panel-rail",
+      "description": "The frontispiece's field pattern: a 9px uppercase label struck above a 13px body value, 12px between marks.",
+      "html": "<div class=\"ds-struck\"><span class=\"ds-struck-label\">TRADITION</span><span class=\"ds-struck-value\">Western</span></div>",
+      "css": ".ds-struck { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; } .ds-struck-label { font-family: Archivo, 'Helvetica Neue', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 1.9px; text-transform: uppercase; color: #9A9384; } .ds-struck-value { font-family: Archivo, 'Helvetica Neue', sans-serif; font-size: 13px; line-height: 1.35; color: #E7DDCA; }"
+    },
+    {
+      "name": "Synergy Tag",
+      "kind": "chip",
+      "refersTo": "synergy-tag",
+      "description": "Physique/tradition synergy as a real quantity. Gold with an upward solid triangle when matched; slate with a downward struck triangle when not — direction before colour.",
+      "html": "<span class=\"ds-tag ds-tag--miss\"><svg viewBox=\"0 0 10 10\" width=\"10\" height=\"10\" aria-hidden=\"true\"><path d=\"M5 9 L9 1 L1 1 Z\" fill=\"#6E7377\"/><path d=\"M0 5 L10 5\" stroke=\"#6E7377\" stroke-width=\"1.4\" stroke-linecap=\"round\"/></svg>×0.85 mismatch</span>",
+      "css": ".ds-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid rgba(184,147,63,0.7); border-radius: 0; background: #141013; font-family: SplineSansMono, ui-monospace, monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.2px; color: #B8933F; } .ds-tag--miss { border-color: rgba(110,115,119,0.7); color: #6E7377; }"
+    },
+    {
+      "name": "Leader Label",
+      "kind": "custom",
+      "refersTo": "panel-foot",
+      "description": "The hall's one way of pointing at a number: a dot, a drawn rule, and the quantity in the mono hand.",
+      "html": "<span class=\"ds-leader\"><svg viewBox=\"0 0 22 8\" width=\"22\" height=\"8\" aria-hidden=\"true\"><circle cx=\"1.5\" cy=\"4\" r=\"1.6\" fill=\"#9A9384\"/><path d=\"M3 4 L22 4\" stroke=\"#9A9384\" stroke-width=\"1.2\" stroke-linecap=\"round\"/></svg>cls I -&gt; II · 1 pt</span>",
+      "css": ".ds-leader { display: inline-flex; align-items: center; gap: 6px; font-family: SplineSansMono, ui-monospace, monospace; font-size: 12px; line-height: 1.2; letter-spacing: 0.2px; color: #9A9384; }"
+    },
+    {
+      "name": "Commit Sheet",
+      "kind": "card",
+      "refersTo": "sheet-commit",
+      "description": "A bottom sheet, square-cornered and flat, with a grab rule at the top. Its 2px top edge is the tell: bone at 20% to read, vermilion at 50% when it asks for a commit.",
+      "html": "<section class=\"ds-sheet\"><span class=\"ds-sheet-grab\"></span><span class=\"ds-sheet-kicker\">BIND THE CORD</span><h2 class=\"ds-sheet-title\">KNIFE — CLASS II</h2><p class=\"ds-sheet-body\">Two matched forms are consumed to raise one.</p></section>",
+      "css": ".ds-sheet { display: block; background: #141013; border-top: 2px solid rgba(178,58,46,0.5); border-radius: 0; padding: 16px 24px 24px; text-align: center; } .ds-sheet-grab { display: block; width: 28px; height: 3px; margin: 0 auto 14px; background: rgba(231,221,202,0.28); } .ds-sheet-kicker { display: block; font-family: Archivo, 'Helvetica Neue', sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: 1.9px; text-transform: uppercase; color: #9A9384; } .ds-sheet-title { margin: 8px 0 0; font-family: Cinzel, Georgia, serif; font-size: 20px; font-weight: 600; line-height: 1.12; letter-spacing: 1.4px; color: #E7DDCA; } .ds-sheet-body { margin: 10px 0 0; font-family: Archivo, 'Helvetica Neue', sans-serif; font-size: 14.5px; line-height: 1.5; color: #E7DDCA; }"
+    },
+    {
+      "name": "Vitality Gauge",
+      "kind": "custom",
+      "refersTo": "panel-rail",
+      "description": "A 132x6 drawn rule filled to fraction in bone at 85% over bone at 18%, notched at the quarters. The build's only progress bar.",
+      "html": "<div class=\"ds-vit\"><span class=\"ds-vit-head\">VITALITY <b>100 / 100</b></span><span class=\"ds-vit-rule\"><i style=\"width:100%\"></i></span></div>",
+      "css": ".ds-vit { display: flex; flex-direction: column; gap: 5px; } .ds-vit-head { font-family: Archivo, 'Helvetica Neue', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 1.9px; text-transform: uppercase; color: #9A9384; } .ds-vit-head b { font-family: SplineSansMono, ui-monospace, monospace; font-size: 10.5px; font-weight: 400; letter-spacing: 0.2px; } .ds-vit-rule { position: relative; display: block; width: 132px; height: 6px; background: rgba(231,221,202,0.18); background-image: linear-gradient(90deg, transparent 0 25%, rgba(12,9,11,0.5) 25% calc(25% + 1px), transparent calc(25% + 1px) 50%, rgba(12,9,11,0.5) 50% calc(50% + 1px), transparent calc(50% + 1px) 75%, rgba(12,9,11,0.5) 75% calc(75% + 1px), transparent calc(75% + 1px)); } .ds-vit-rule i { position: absolute; inset: 0 auto 0 0; display: block; background: rgba(231,221,202,0.85); z-index: -1; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lineage Hall",
+    "overview": "The surface is a dim hall of lacquered boards with martial forms mounted on it — bone plates hung on a coordinate lattice, cords tied between the ones that combine, seals chopped into each plate to name it. It refuses the two obvious neighbours: the neon-glass build screen and the monochrome data grid. Every mark in the build is drawn — chops, rank rings, cords, state marks, button edges, the vitality gauge, the hammer glyph — from one small set of ink primitives on canvas. There are no stock Material widgets, no icon fonts, and no glyph typefaces in the committed surface.\n\nDensity is high but never crowded: the board is a pannable lattice with a 22px gutter between 132px cells, and every panel around it is a flat lacquer plane divided from its neighbour by a single 1px bone hairline at 16% alpha. The world is lit by exactly one raking light from the upper-left (Alignment(-0.72, -0.86)), and that constant is what makes it read as a physical room rather than a dark theme: the ground's light pool, its answering shade, each plate's inner light-to-shade gradient, and every cast shadow are derived from that one vector.\n\nThe palette is deliberately near-monochrome in the field and saturated only at the point of meaning. The board holds at lacquered near-black across its full width; the only chromatic movement is a warm-to-cold tint carried in hue at near-constant value — west traditions hang left in ember umber, east traditions right in cold steel. Bone is the material of anything the player owns. Vermilion is the ink of anything live. Gold is what the hall's light is made of, and at full strength it means mastered.",
+    "keyCharacteristics": [
+      "One ink hand: every mark is canvas-drawn from handRect / inkStroke, never a widget or icon",
+      "One light: Alignment(-0.72, -0.86), and every shadow, gradient, and highlight derives from it",
+      "Bone plates on a lacquered near-black board; vermilion for live, gold for earned, slate for dead",
+      "A near-flat type ramp where tracking and case, not size, carry rank",
+      "Structural chrome is square and hairline-ruled; only drawn marks get corners",
+      "Deterministic hand-wobble seeded by content id — never animated, never jittering",
+      "State is always shape before colour (four fixed ink marks: filled / hollow / struck / sealed)"
+    ],
+    "rules": [
+      { "name": "The Earned Gold Rule", "body": "Gold is light or it is mastery — never decoration. Below ~6% alpha it may appear anywhere as the raking light. At any strength above that it must mean the player earned something: a mastered form, a matched synergy, the currently selected plate taking the light. A first-run screen shows no full-strength gold, and that absence is the point.", "section": "colors" },
+      { "name": "The One Organising Axis Rule", "body": "West↔east is the only axis that never collapses. It is carried in hue at constant value — a monotonic srcOver tint from west-ground to east-ground at 55%→16%→16%→55% alpha over lacquer — so the board still reads as near-black #141013 at 1.0x and the halves only lean warm or cold. Never carry this axis in brightness, saturation, or a hue that lifts the ground off lacquer.", "section": "colors" },
+      { "name": "The Shape-Before-Colour Rule", "body": "No derived state is signalled by colour alone. Locked / usable / mastered / maxed each get one of four fixed ink marks (hollow / filled / sealed / struck) in the plate's top-right corner; cords carry eligibility as taut-vs-dashed-and-struck before they carry it as vermilion-vs-slate; synergy carries as an up-pointing solid triangle vs. a down-pointing struck one before it carries as gold-vs-slate. Colour reinforces; it never informs alone.", "section": "colors" },
+      { "name": "The Three Hands Rule", "body": "Three faces, three jobs, never crossed. Cinzel letters names and section titles and nothing else. Archivo carries all prose, labels, and control captions. Spline Sans Mono is reserved for quantities, classes, ranks, and grid addresses — if a number is a measurement, it is set in the mono; if it is part of a sentence, it is not.", "section": "typography" },
+      { "name": "The Tracking-Carries-Rank Rule", "body": "The size ramp is deliberately flat — 34 / 22 / 15 / 14.5 / 13.5 / 12 / 10.5, most of the surface living between 9 and 14.5px. Hierarchy is carried by tracking and case instead: tracking climbs as size falls (1.0 → 1.4 → 2.6 → 1.9), and anything at label rank is uppercase. Do not reach for a bigger size to make something important; reach for caps and letterspacing.", "section": "typography" },
+      { "name": "The Hairline Division Rule", "body": "Regions are separated by exactly one 1px bone rule at 16% alpha on the shared edge — never by a gap, a shadow, a colour step, or a rounded card. The only heavier rule in the build is a sheet's 2px top edge, which is what makes a sheet read as arriving rather than as another panel.", "section": "layout" },
+      { "name": "The One Light Rule", "body": "Every shadow, highlight, gradient, and inner shade in the build derives from kRakingLight. A new element must read its direction from that constant, never hard-code an arbitrary offset, and never introduce a second source. If a surface needs to look lifted, cast a soft shadow down-and-right and lighten its upper-left; nothing else.", "section": "elevation" },
+      { "name": "The Press-Is-Depth Rule", "body": "A pressed control loses its shadow and thickens its edge stroke (1.6 → 2px); it does not change colour. Hover raises the fill alpha (0.05 → 0.12 outlined, 0.92 → 1.0 filled) and the edge alpha (0.7 → 0.95). Disabled drops the whole control to 40% opacity.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do draw every new mark from ink.dart — handRect, inkStroke, drawInkMark, rakingShadow — so it joins the one ink hand.",
+      "Do derive every shadow, highlight, and gradient from kRakingLight = Alignment(-0.72, -0.86); a new element reads its light direction from that constant.",
+      "Do seed every hand-wobble from a content id or label hash so a mark is identical on every rebuild.",
+      "Do give every state a shape before you give it a colour — one of the four fixed ink marks, a stroke weight, a dash pattern, or a direction.",
+      "Do hold the board at lacquered near-black lacquer across its width, letting only the west↔east hue tint move.",
+      "Do reach for uppercase and letterspacing when something needs rank, not for a larger size.",
+      "Do set every quantity, class, rank, and grid address in Spline Sans Mono, and everything readable in Archivo.",
+      "Do separate regions with a single 1px bone hairline at 16% alpha.",
+      "Do keep the commit action to exactly one seal-tone button per surface.",
+      "Do collapse animation to 1ms under MediaQuery.disableAnimations, as the combine reveal does."
+    ],
+    "donts": [
+      "Don't use a Material button, icon font, or glyph typeface in the committed surface — the build ships none, and adding one breaks the one-hand claim.",
+      "Don't put gold above ~6% alpha on anything the player has not earned. Selection, mastery, and matched synergy only.",
+      "Don't round structural chrome. Rails, racks, foot bars, sheets, tooltips, and tags are 0px; corners belong to drawn marks.",
+      "Don't add a second light, a zero-offset colour halo, or an unblurred offset shadow.",
+      "Don't carry the west↔east axis in brightness or saturation — it is hue at constant value, or it collapses.",
+      "Don't dim a locked mount into illegibility; wash the plate and switch to locked-ink, which holds 5.78:1.",
+      "Don't signal a state with colour alone, and don't introduce a fifth state mark — the four fixed cells are the vocabulary.",
+      "Don't show an empty region as a black void; show its mounting positions (the rack always renders at least 12).",
+      "Don't animate the hand-wobble, add idle motion, or use a splash/ripple — the build sets NoSplash and a transparent highlight deliberately.",
+      "Don't invent a logo, wordmark, or brand treatment; none exists and none has been confirmed."
+    ]
+  }
+}

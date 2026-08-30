@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/engine/character_adapter.dart';
 import '../core/engine/engine_session.dart';
+import '../core/engine/item_adapter.dart';
+import '../core/engine/tome_adapter.dart';
 import '../features/run/run_bloc.dart';
 import '../routing/app_router.dart';
 import 'theme.dart';
@@ -30,6 +32,15 @@ class TomeApp extends StatelessWidget {
         RepositoryProvider<EngineSession>.value(value: session),
         RepositoryProvider<CharacterAdapter>(
           create: (_) => CharacterAdapter(session),
+        ),
+        // Lazy: first read happens on the /tome route, by which point
+        // character creation has set session.character. createInitialTome
+        // therefore runs exactly once, at the right time.
+        RepositoryProvider<TomeAdapter>(
+          create: (_) => TomeAdapter(session)..createInitialTome(),
+        ),
+        RepositoryProvider<ItemAdapter>(
+          create: (_) => ItemAdapter(session),
         ),
       ],
       child: BlocProvider.value(

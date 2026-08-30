@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/core/models/game_phase.dart';
 import 'package:tome_client/features/run/run_bloc.dart';
 import 'package:tome_client/features/run/run_event.dart';
-import 'package:tome_client/features/run/run_state.dart';
 
 void main() {
   test('RunState defaults to the characterCreation phase', () {

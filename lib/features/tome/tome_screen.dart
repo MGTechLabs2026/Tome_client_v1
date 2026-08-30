@@ -2,7 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/models/game_phase.dart';
 import '../../core/models/item_view.dart';
+import '../run/run_bloc.dart';
+import '../run/run_event.dart';
 import 'tome_bloc.dart';
 import 'tome_event.dart';
 import 'widgets/combine_confirmation_sheet.dart';
@@ -31,29 +34,42 @@ class TomeScreen extends StatelessWidget {
             ),
             ComponentTray(
               items: state.tray,
-              onItemTap: (item) => showComponentDetail(
-                context,
-                item: item,
-                onTrain: () => Navigator.of(context).pop(),
-                onCombine: item.combinableWith.isEmpty
-                    ? null
-                    : () {
-                        Navigator.of(context).pop();
-                        _confirmCombine(context, item, state.ownedByInstanceValue);
-                      },
-              ),
+              onItemTap: (item) => _openDetail(context, item),
             ),
           ],
+        ),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(12),
+        child: FilledButton(
+          onPressed: () =>
+              context.read<RunBloc>().add(const PhaseCompleted(GamePhase.combatPreparation)),
+          child: const Text('Start Fight'),
         ),
       ),
     );
   }
 
-  void _confirmCombine(
-    BuildContext context,
-    ItemView item,
-    Map<int, ItemView> ownedByInstanceValue,
-  ) {
+  void _openDetail(BuildContext context, ItemView item) {
+    final run = context.read<RunBloc>();
+    showComponentDetail(
+      context,
+      item: item,
+      onTrain: () {
+        Navigator.of(context).pop();
+        run.add(TrainingRequested(item.definitionId, isTechnique: false));
+      },
+      onCombine: item.combinableWith.isEmpty
+          ? null
+          : () {
+              Navigator.of(context).pop();
+              _confirmCombine(context, item);
+            },
+    );
+  }
+
+  void _confirmCombine(BuildContext context, ItemView item) {
+    final ownedByInstanceValue = context.read<TomeBloc>().state.ownedByInstanceValue;
     final matched = <ItemView>[
       item,
       for (final v in item.combinableWith)

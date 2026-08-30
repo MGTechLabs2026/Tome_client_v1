@@ -65,17 +65,21 @@ class CombatAdapter {
       targets: [enemy],
       context: _session.context,
     );
-    final effectiveActions =
-        playerActions.isEmpty
-            ? [
-              AttackAction(
-                actor: _session.character,
-                targets: [enemy],
-                baseDamage: 4,
-                damageStat: _fallbackStrikeStat(build),
-              ),
-            ]
-            : playerActions;
+    // The player always needs *some* way to hit back. Techniques like
+    // Basic Guard interpret to a purely defensive action, so a Tome that
+    // holds only defensive techniques (or no technique at all) still
+    // gets the bare-handed strike appended.
+    final hasAttack = playerActions.any((a) => a is AttackAction);
+    final effectiveActions = [
+      ...playerActions,
+      if (!hasAttack)
+        AttackAction(
+          actor: _session.character,
+          targets: [enemy],
+          baseDamage: 4,
+          damageStat: _fallbackStrikeStat(build),
+        ),
+    ];
 
     final battle = _session.combatPlugin.system.startBattle([
       _session.character,

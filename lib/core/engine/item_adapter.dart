@@ -1,4 +1,5 @@
 import 'package:build_engine/build_engine.dart';
+import 'package:build_engine/build_interpretation.dart' show WeaponStatTags;
 import 'package:build_engine/item_plugin.dart';
 
 import '../models/combine_result_view.dart';
@@ -9,6 +10,10 @@ class ItemAdapter {
   ItemAdapter(this._session);
 
   final EngineSession _session;
+
+  /// Monotonic tag so each spent point adds its own stacking Modifier
+  /// (mirrors `TomeManager.upgradeSpendCounter` in the reference run).
+  int _spendSeq = 0;
 
   /// The character's banked `upgrade_points` — the currency Combine and
   /// the hammer-icon upgrade path both spend. A pure read for the Tome
@@ -133,6 +138,33 @@ class ItemAdapter {
     );
     final instance = firstOwned.value.isEmpty ? null : firstOwned.value.first;
     return _viewFor(definitionId, instance, grouped);
+  }
+
+  /// Spends one banked upgrade point to give [definitionId]'s combat
+  /// stat a permanent +2 — the `item:<id>` branch of `runGame`'s own
+  /// `applyUpgrade` (`tome_manager.dart`): same value, same
+  /// `WeaponStatTags` stat resolution, same `upgrade:item:...` source
+  /// shape, and the point is subtracted the same way. Returns false and
+  /// does nothing if no point is banked.
+  bool spendUpgradePoint(String definitionId) {
+    final points = _session.context.resources
+        .currentOf(_session.character, ItemResources.upgradePoints);
+    if (points < 1) return false;
+    _session.context.resources
+        .subtract(_session.character, ItemResources.upgradePoints, 1);
+    _spendSeq++;
+    final item = itemDefinition(definitionId, _session.context);
+    final stat =
+        WeaponStatTags.matchOrFallback(item.tags, 'item:$definitionId');
+    _session.context.modifiers.add(Modifier(
+      source: ModifierSource(
+          'upgrade:item:$definitionId:${_session.character.value}:$_spendSeq'),
+      target: _session.character,
+      stat: stat,
+      operation: ModifierOperation.add,
+      value: 2,
+    ));
+    return true;
   }
 
   /// Resolves [instanceEntityValues] back to `EntityId`s and calls

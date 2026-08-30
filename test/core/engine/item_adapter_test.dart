@@ -47,6 +47,27 @@ void main() {
     expect(views[1].combinableWith, [views[0].instanceEntityValue]);
   });
 
+  test('spendUpgradePoint consumes a banked point and buffs the item stat', () {
+    ownItem(session.character, ItemIds.knife, session.context);
+    discoverItem(session.character,
+        itemDefinition(ItemIds.knife, session.context), session.context);
+
+    // Nothing banked yet.
+    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isFalse);
+    expect(itemAdapter.upgradePoints(), 0);
+
+    session.context.resources
+        .add(session.character, ItemResources.upgradePoints, 2);
+
+    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isTrue);
+    expect(itemAdapter.upgradePoints(), 1, reason: 'one point spent');
+
+    final mods = session.context.modifiers.activeModifiersFor(
+        session.character, 'blade', session.context.components);
+    expect(mods.where((m) => m.value == 2), isNotEmpty,
+        reason: '+2 to the blade stat');
+  });
+
   test('combining two owned knives consumes one and derives a real outcome kind', () {
     ownItem(session.character, ItemIds.knife, session.context);
     ownItem(session.character, ItemIds.knife, session.context);

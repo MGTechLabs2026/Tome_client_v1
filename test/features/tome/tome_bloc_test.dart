@@ -1,5 +1,6 @@
 // test/features/tome/tome_bloc_test.dart
 import 'package:bloc_test/bloc_test.dart';
+import 'package:build_engine/item_plugin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/core/engine/character_adapter.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
@@ -32,6 +33,25 @@ void main() {
     ),
     act: (bloc) => bloc.add(const TomeRefreshRequested()),
     verify: (bloc) => expect(bloc.state.cells.where((c) => !c.isEmpty).length, 1),
+  );
+
+  blocTest<TomeBloc, TomeState>(
+    'ComponentUpgraded spends a banked point',
+    build: () {
+      session.context.resources
+          .add(session.character, ItemResources.upgradePoints, 3);
+      return TomeBloc(
+        tomeAdapter: tomeAdapter,
+        itemAdapter: ItemAdapter(session),
+        characterAdapter: characterAdapter,
+        techniqueAdapter: TechniqueAdapter(session),
+      );
+    },
+    act: (bloc) {
+      bloc.add(const TomeRefreshRequested());
+      bloc.add(const ComponentUpgraded('knife'));
+    },
+    verify: (bloc) => expect(bloc.state.upgradePoints, 2),
   );
 
   blocTest<TomeBloc, TomeState>(

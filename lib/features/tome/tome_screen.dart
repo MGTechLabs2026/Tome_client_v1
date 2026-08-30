@@ -148,7 +148,22 @@ class _TomeScreenState extends State<TomeScreen> {
               run.add(TrainingRequested(item.definitionId, isTechnique: false)),
       onUpgrade:
           state.upgradePoints > 0
-              ? () => Navigator.of(context).maybePop()
+              ? () {
+                Navigator.of(context).pop();
+                context
+                    .read<TomeBloc>()
+                    .add(ComponentUpgraded(item.definitionId));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    duration: const Duration(seconds: 2),
+                    content: Text(
+                      '1 point spent · +2 to ${item.name.replaceAll('_', ' ')}',
+                      style: context.hall.body,
+                    ),
+                    backgroundColor: context.hall.lacquer,
+                  ),
+                );
+              }
               : null,
       onCombine:
           item.combinableWith.isEmpty

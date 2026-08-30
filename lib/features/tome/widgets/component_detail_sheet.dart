@@ -88,7 +88,11 @@ class _DetailSheetState extends State<_DetailSheet> {
     final hall = context.hall;
     final item = widget.item;
     final tech = widget.technique;
-    final name = item != null ? _pretty(item.name) : _pretty(tech?.name ?? '');
+    final name = item != null
+        ? (item.upgradeCount > 0
+            ? '${_pretty(item.name)} +${item.upgradeCount}'
+            : _pretty(item.name))
+        : _pretty(tech?.name ?? '');
     final subtitle =
         item != null
             ? item.category.toUpperCase()

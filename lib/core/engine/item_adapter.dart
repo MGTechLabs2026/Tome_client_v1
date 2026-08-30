@@ -15,6 +15,29 @@ class ItemAdapter {
   /// (mirrors `TomeManager.upgradeSpendCounter` in the reference run).
   int _spendSeq = 0;
 
+  /// Upgrade points sunk into each item definition so far — the `+N` on
+  /// its name. Per-definition, matching the character-level `+2` Modifier
+  /// `spendUpgradePoint` adds (keyed by definition id, like the
+  /// reference run).
+  final Map<String, int> _upgradesByDefinition = {};
+
+  /// The `+N` ceiling for [definitionId]: `2 * c + 1` where `c` is the
+  /// highest class among the owned copies (1 if none) — class 1 -> 3,
+  /// class 2 -> 5, class 3 -> 7, and +2 for each class beyond.
+  int upgradeCapFor(String definitionId) {
+    var maxClass = 1;
+    for (final entity
+        in _session.context.components.entitiesWith<ItemInstance>()) {
+      final instance = _session.context.components.get<ItemInstance>(entity)!;
+      if (instance.owner != _session.character ||
+          instance.definitionId != definitionId) {
+        continue;
+      }
+      if (instance.itemClass > maxClass) maxClass = instance.itemClass;
+    }
+    return 2 * maxClass + 1;
+  }
+
   /// The character's banked `upgrade_points` — the currency Combine and
   /// the hammer-icon upgrade path both spend. A pure read for the Tome
   /// screen's foot-bar tally.
@@ -118,6 +141,8 @@ class ItemAdapter {
       instanceEntityValue: instanceEntity?.value,
       combinableWith: combinableWith,
       eligibleToCombine: eligibleToCombine,
+      upgradeCount: _upgradesByDefinition[definitionId] ?? 0,
+      upgradeCap: 2 * itemClass + 1,
     );
   }
 
@@ -145,13 +170,20 @@ class ItemAdapter {
   /// `applyUpgrade` (`tome_manager.dart`): same value, same
   /// `WeaponStatTags` stat resolution, same `upgrade:item:...` source
   /// shape, and the point is subtracted the same way. Returns false and
-  /// does nothing if no point is banked.
+  /// does nothing if no point is banked, or if the item is already at
+  /// its class `+N` ceiling ([upgradeCapFor]).
   bool spendUpgradePoint(String definitionId) {
+    if ((_upgradesByDefinition[definitionId] ?? 0) >=
+        upgradeCapFor(definitionId)) {
+      return false;
+    }
     final points = _session.context.resources
         .currentOf(_session.character, ItemResources.upgradePoints);
     if (points < 1) return false;
     _session.context.resources
         .subtract(_session.character, ItemResources.upgradePoints, 1);
+    _upgradesByDefinition[definitionId] =
+        (_upgradesByDefinition[definitionId] ?? 0) + 1;
     _spendSeq++;
     final item = itemDefinition(definitionId, _session.context);
     final stat =

@@ -55,7 +55,9 @@ class MountData {
     final span = (next - prev);
     return MountData(
       contentId: v.definitionId,
-      displayName: _pretty(v.name),
+      displayName: v.upgradeCount > 0
+          ? '${_pretty(v.name)} +${v.upgradeCount}'
+          : _pretty(v.name),
       kind: GridComponentKind.item,
       state: switch (v.state) {
         ItemDisplayState.locked => MountState.locked,

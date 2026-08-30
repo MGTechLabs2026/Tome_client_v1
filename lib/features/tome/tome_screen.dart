@@ -147,17 +147,19 @@ class _TomeScreenState extends State<TomeScreen> {
           () =>
               run.add(TrainingRequested(item.definitionId, isTechnique: false)),
       onUpgrade:
-          state.upgradePoints > 0
+          state.upgradePoints > 0 && item.canUpgrade
               ? () {
                 Navigator.of(context).pop();
                 context
                     .read<TomeBloc>()
                     .add(ComponentUpgraded(item.definitionId));
+                final next = item.upgradeCount + 1;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     duration: const Duration(seconds: 2),
                     content: Text(
-                      '1 point spent · +2 to ${item.name.replaceAll('_', ' ')}',
+                      '${item.name.replaceAll('_', ' ')} +$next  ·  '
+                      '${next >= item.upgradeCap ? 'at class cap' : '+2 to its stat'}',
                       style: context.hall.body,
                     ),
                     backgroundColor: context.hall.lacquer,

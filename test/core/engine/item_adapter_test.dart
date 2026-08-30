@@ -61,11 +61,34 @@ void main() {
 
     expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isTrue);
     expect(itemAdapter.upgradePoints(), 1, reason: 'one point spent');
+    expect(itemAdapter.viewOf(ItemIds.knife).upgradeCount, 1);
 
     final mods = session.context.modifiers.activeModifiersFor(
         session.character, 'blade', session.context.components);
     expect(mods.where((m) => m.value == 2), isNotEmpty,
         reason: '+2 to the blade stat');
+  });
+
+  test('a class-1 item upgrades to +3, then hits its cap', () {
+    ownItem(session.character, ItemIds.knife, session.context);
+    discoverItem(session.character,
+        itemDefinition(ItemIds.knife, session.context), session.context);
+    session.context.resources
+        .add(session.character, ItemResources.upgradePoints, 10);
+
+    expect(itemAdapter.viewOf(ItemIds.knife).upgradeCap, 3,
+        reason: 'class 1 -> 2*1 + 1');
+
+    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isTrue); // +1
+    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isTrue); // +2
+    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isTrue); // +3
+    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isFalse,
+        reason: 'at the class cap');
+
+    final view = itemAdapter.viewOf(ItemIds.knife);
+    expect(view.upgradeCount, 3);
+    expect(view.canUpgrade, isFalse);
+    expect(itemAdapter.upgradePoints(), 7, reason: 'only 3 points spent');
   });
 
   test('combining two owned knives consumes one and derives a real outcome kind', () {

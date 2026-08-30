@@ -15,6 +15,8 @@ class ItemView {
     required this.instanceEntityValue,
     required this.combinableWith,
     required this.eligibleToCombine,
+    this.upgradeCount = 0,
+    this.upgradeCap = 3,
   });
 
   final String definitionId;
@@ -45,4 +47,12 @@ class ItemView {
   /// (eligible) vs. dim (matched-but-ineligible) combine tether — see
   /// Task 17.
   final bool eligibleToCombine;
+
+  /// How many upgrade points have been sunk into this item (`+N` on the
+  /// name), and the ceiling for its class: `2 * itemClass + 1` —
+  /// class 1 -> 3, class 2 -> 5, class 3 -> 7, ...
+  final int upgradeCount;
+  final int upgradeCap;
+
+  bool get canUpgrade => upgradeCount < upgradeCap;
 }

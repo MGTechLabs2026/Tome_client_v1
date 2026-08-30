@@ -147,10 +147,10 @@ class _LineageBoardState extends State<LineageBoard> {
                         Positioned.fill(
                           child: CustomPaint(
                             painter: _GroundPainter(
-                              west: hall.groundFor('western'),
-                              east: hall.groundFor('eastern'),
+                              west: HallTheme.cWestGround,
+                              east: HallTheme.cEastGround,
                               lacquer: hall.lacquer,
-                              lightWash: hall.gold.withValues(alpha: 0.05),
+                              lightWash: hall.gold.withValues(alpha: 0.035),
                             ),
                           ),
                         ),
@@ -419,44 +419,45 @@ class _GroundPainter extends CustomPainter {
     final r = Offset.zero & size;
     canvas.drawRect(r, Paint()..color = lacquer);
 
-    // west (warm) ← → east (cool): the hall's one organising axis. Laid
-    // heavy enough that the left half reads warm and the right cool at a
-    // glance — never a symmetric vignette.
+    // west (warm) → east (cool): the hall's one organising axis. A
+    // monotonic left→right tint in very dark, low-chroma umber / slate,
+    // laid srcOver at moderate alpha — near lacquer value throughout, so
+    // the board stays near-black #141013 and the halves only lean warm
+    // or cool.
     canvas.drawRect(
       r,
       Paint()
-        ..blendMode = BlendMode.plus
         ..shader = LinearGradient(
           colors: [
-            west.withValues(alpha: 0.62),
+            west.withValues(alpha: 0.55),
             west.withValues(alpha: 0.16),
-            Colors.transparent,
             east.withValues(alpha: 0.16),
-            east.withValues(alpha: 0.62),
+            east.withValues(alpha: 0.55),
           ],
-          stops: const [0.0, 0.30, 0.5, 0.70, 1.0],
+          stops: const [0.0, 0.4, 0.6, 1.0],
         ).createShader(r),
     );
 
-    // one raking light pooled at the upper-left
+    // THE one light: a small soft pool from the upper-left. Nothing
+    // else adds light; its falloff toward the lower-right is monotonic.
     canvas.drawRect(
       r,
       Paint()
         ..blendMode = BlendMode.plus
         ..shader = RadialGradient(
           center: kRakingLight,
-          radius: 1.4,
+          radius: 1.1,
           colors: [lightWash, Colors.transparent],
         ).createShader(r),
     );
-    // and its answering shadow in the lower-right
+    // its answering shade, deepening toward the lower-right — same source.
     canvas.drawRect(
       r,
       Paint()
         ..shader = RadialGradient(
           center: -kRakingLight,
-          radius: 1.5,
-          colors: [Colors.black.withValues(alpha: 0.22), Colors.transparent],
+          radius: 1.4,
+          colors: [Colors.black.withValues(alpha: 0.28), Colors.transparent],
         ).createShader(r),
     );
 

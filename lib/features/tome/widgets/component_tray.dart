@@ -40,7 +40,7 @@ class _LooseRackState extends State<LooseRack> {
   RackFilter _filter = RackFilter.all;
 
   /// The rack always shows at least this many mounting positions.
-  static const _minSlots = 8;
+  static const _minSlots = 12;
 
   @override
   Widget build(BuildContext context) {

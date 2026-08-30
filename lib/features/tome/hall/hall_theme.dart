@@ -89,16 +89,16 @@ class HallTheme extends ThemeExtension<HallTheme> {
   static const cSlate = Color(0xFF6E7377);
 
   /// Ink for a locked / undiscovered mount's name and chop — dark
-  /// enough to clear 4.5:1 on the bone plate (measured ~5.2:1), so a
-  /// locked form is legible, not merely dim.
-  static const cLockedInk = Color(0xFF554C3E);
+  /// enough to clear 4.5:1 on the (slightly greyed) bone plate even in
+  /// the dimmed state, so a locked form stays legible.
+  static const cLockedInk = Color(0xFF433A2D);
 
   /// The west (warm) and east (cool) ends of the hall's one organising
-  /// axis — pulled far apart in hue and value so the left half reads
-  /// warm and the right half cool at a glance, never a symmetric
-  /// vignette.
-  static const cWestGround = Color(0xFF3A2012);
-  static const cEastGround = Color(0xFF0A1A22);
+  /// axis. Carried in HUE, not brightness: both sit near lacquer value,
+  /// the halves only differ in temperature. West leans ember, east
+  /// leans cold steel.
+  static const cWestGround = Color(0xFF2E1810);
+  static const cEastGround = Color(0xFF0B171C);
 
   static const _lacquer = cLacquer;
   static const _lacquerDeep = cLacquerDeep;

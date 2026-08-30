@@ -4,6 +4,7 @@ import 'package:build_engine/item_plugin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/core/engine/character_adapter.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
+import 'package:tome_client/core/engine/item_adapter.dart';
 import 'package:tome_client/core/engine/reward_adapter.dart';
 import 'package:tome_client/core/engine/technique_adapter.dart';
 import 'package:tome_client/core/engine/tome_adapter.dart';
@@ -20,6 +21,7 @@ void main() {
       final tomeAdapter = TomeAdapter(session)..createInitialTome();
       final rewardAdapter = RewardAdapter(
         session,
+        itemAdapter: ItemAdapter(session),
         characterAdapter: cha, tomeAdapter: tomeAdapter, techniqueAdapter: TechniqueAdapter(session),
         itemPool: const [ItemIds.ironSword], techniquePool: const [],
       );

@@ -10,6 +10,7 @@ import 'package:build_engine/technique_plugin.dart';
 import '../models/loot_option_view.dart';
 import 'character_adapter.dart';
 import 'engine_session.dart';
+import 'item_adapter.dart';
 import 'reward_affix.dart';
 import 'technique_adapter.dart';
 import 'tome_adapter.dart';
@@ -20,11 +21,13 @@ class RewardAdapter {
     required TomeAdapter tomeAdapter,
     required TechniqueAdapter techniqueAdapter,
     required CharacterAdapter characterAdapter,
+    required ItemAdapter itemAdapter,
     required List<String> itemPool,
     required List<String> techniquePool,
   })  : _tomeAdapter = tomeAdapter,
         _techniqueAdapter = techniqueAdapter,
         _characterAdapter = characterAdapter,
+        _itemAdapter = itemAdapter,
         _pool = [
           for (final id in itemPool) (isItem: true, id: id),
           for (final id in techniquePool) (isItem: false, id: id),
@@ -34,6 +37,7 @@ class RewardAdapter {
   final TomeAdapter _tomeAdapter;
   final TechniqueAdapter _techniqueAdapter;
   final CharacterAdapter _characterAdapter;
+  final ItemAdapter _itemAdapter;
 
   /// Items and techniques the New Component reward draws from, flattened
   /// into one pool. Drawn **with replacement** — the same id can be
@@ -169,8 +173,12 @@ class RewardAdapter {
           final item = itemDefinition(next.id, _session.context);
           // A fresh instance every time — two of the same id/class can
           // then be Combined.
-          ownItem(_session.character, item.id, _session.context);
+          final instance =
+              ownItem(_session.character, item.id, _session.context);
           discoverItem(_session.character, item, _session.context);
+          // Bind the rolled affix name to this copy so the Tome shows it.
+          _itemAdapter.recordAffix(instance.value,
+              prefix: _prefix?.label, suffix: _suffix?.label);
           primaryStat =
               WeaponStatTags.matchOrFallback(item.tags, 'item:${item.id}');
         } else {

@@ -20,6 +20,7 @@ void main() {
     tomeAdapter = TomeAdapter(session)..createInitialTome();
     rewardAdapter = RewardAdapter(
       session,
+      itemAdapter: ItemAdapter(session),
       characterAdapter: cha,
       tomeAdapter: tomeAdapter,
       techniqueAdapter: TechniqueAdapter(session),
@@ -59,6 +60,7 @@ void main() {
     final cha = CharacterAdapter(s)..createCharacter('F');
     final ra = RewardAdapter(
       s,
+      itemAdapter: ItemAdapter(s),
       characterAdapter: cha,
       tomeAdapter: TomeAdapter(s)..createInitialTome(),
       techniqueAdapter: TechniqueAdapter(s),
@@ -87,11 +89,47 @@ void main() {
     expect(mods, isNotEmpty, reason: 'the roll bumps the sword\'s bite');
   });
 
+  test('a taken affixed item carries its rolled name into ItemView', () {
+    final s = EngineSession(2);
+    final cha = CharacterAdapter(s)..createCharacter('F');
+    final items = ItemAdapter(s);
+    final ra = RewardAdapter(
+      s,
+      itemAdapter: items,
+      characterAdapter: cha,
+      tomeAdapter: TomeAdapter(s)..createInitialTome(),
+      techniqueAdapter: TechniqueAdapter(s),
+      itemPool: const [ItemIds.ironSword],
+      techniquePool: const [],
+    );
+
+    // Take rolls until we get one that actually has an affix in the title.
+    String? affixedTitle;
+    for (var i = 0; i < 40 && affixedTitle == null; i++) {
+      final card =
+          ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent);
+      if (card.title != 'Iron Sword') {
+        affixedTitle = card.title;
+        ra.applyLoot(LootKind.newComponent);
+      } else {
+        ra.applyLoot(LootKind.upgradePoints);
+      }
+    }
+    expect(affixedTitle, isNotNull);
+
+    final sword = items
+        .ownedItems()
+        .firstWhere((v) => v.definitionId == ItemIds.ironSword);
+    expect(sword.displayName, affixedTitle,
+        reason: 'the Tome shows the rolled name, not a basic Iron Sword');
+  });
+
   test('some New Component cards roll plain — no affix at all', () {
     final s = EngineSession(9);
     final cha = CharacterAdapter(s)..createCharacter('F');
     final ra = RewardAdapter(
       s,
+      itemAdapter: ItemAdapter(s),
       characterAdapter: cha,
       tomeAdapter: TomeAdapter(s)..createInitialTome(),
       techniqueAdapter: TechniqueAdapter(s),
@@ -121,6 +159,7 @@ void main() {
     final item = ItemAdapter(s);
     final ra = RewardAdapter(
       s,
+      itemAdapter: ItemAdapter(s),
       characterAdapter: cha,
       tomeAdapter: TomeAdapter(s)..createInitialTome(),
       techniqueAdapter: TechniqueAdapter(s),
@@ -147,6 +186,7 @@ void main() {
     final cha = CharacterAdapter(s)..createCharacter('F');
     final ra = RewardAdapter(
       s,
+      itemAdapter: ItemAdapter(s),
       characterAdapter: cha,
       tomeAdapter: TomeAdapter(s)..createInitialTome(),
       techniqueAdapter: TechniqueAdapter(s),
@@ -176,6 +216,7 @@ void main() {
     final techniques = TechniqueAdapter(s);
     final ra = RewardAdapter(
       s,
+      itemAdapter: ItemAdapter(s),
       characterAdapter: cha,
       tomeAdapter: TomeAdapter(s)..createInitialTome(),
       techniqueAdapter: techniques,
@@ -213,6 +254,7 @@ void main() {
       final cha = CharacterAdapter(s)..createCharacter('F');
       final ra = RewardAdapter(
         s,
+        itemAdapter: ItemAdapter(s),
         characterAdapter: cha,
         tomeAdapter: TomeAdapter(s)..createInitialTome(),
         techniqueAdapter: TechniqueAdapter(s),
@@ -251,6 +293,7 @@ void main() {
     final cha = CharacterAdapter(s)..createCharacter('F');
     final ra = RewardAdapter(
       s,
+      itemAdapter: ItemAdapter(s),
       characterAdapter: cha,
       tomeAdapter: TomeAdapter(s)..createInitialTome(),
       techniqueAdapter: TechniqueAdapter(s),

@@ -21,6 +21,23 @@ class ItemAdapter {
   /// reference run).
   final Map<String, int> _upgradesByDefinition = {};
 
+  /// Prefix / suffix labels for a rewarded item instance — keyed by the
+  /// `ItemInstance` entity's raw value, so two copies of the same id can
+  /// carry different rolls. Set by `RewardAdapter` when the card is taken.
+  final Map<int, ({String? prefix, String? suffix})> _affixByInstance = {};
+
+  /// Records the rolled affix name for the instance minted when a
+  /// rewarded item was taken.
+  void recordAffix(int instanceEntityValue, {String? prefix, String? suffix}) {
+    if (prefix == null && suffix == null) return;
+    _affixByInstance[instanceEntityValue] = (prefix: prefix, suffix: suffix);
+  }
+
+  String _prettyDef(String id) => id
+      .split('_')
+      .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
+
   /// The `+N` ceiling for [definitionId]: `2 * c + 1` where `c` is the
   /// highest class among the owned copies (1 if none) — class 1 -> 3,
   /// class 2 -> 5, class 3 -> 7, and +2 for each class beyond.
@@ -143,7 +160,17 @@ class ItemAdapter {
       eligibleToCombine: eligibleToCombine,
       upgradeCount: _upgradesByDefinition[definitionId] ?? 0,
       upgradeCap: 2 * itemClass + 1,
+      displayName: _displayName(definitionId, instanceEntity?.value),
     );
+  }
+
+  String _displayName(String definitionId, int? instanceValue) {
+    final base = _prettyDef(definitionId);
+    final affix = instanceValue == null ? null : _affixByInstance[instanceValue];
+    if (affix == null) return base;
+    return [affix.prefix, base, affix.suffix]
+        .where((s) => s != null && s.isNotEmpty)
+        .join(' ');
   }
 
   List<ItemView> ownedItems() {

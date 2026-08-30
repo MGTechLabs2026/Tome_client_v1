@@ -17,6 +17,7 @@ class ItemView {
     required this.eligibleToCombine,
     this.upgradeCount = 0,
     this.upgradeCap = 3,
+    this.displayName = '',
   });
 
   final String definitionId;
@@ -55,4 +56,9 @@ class ItemView {
   final int upgradeCap;
 
   bool get canUpgrade => upgradeCount < upgradeCap;
+
+  /// The name to show — the rolled-affix name for a rewarded copy
+  /// (`Keen Iron Sword of the Ember`), or empty to fall back to the
+  /// prettified [definitionId].
+  final String displayName;
 }

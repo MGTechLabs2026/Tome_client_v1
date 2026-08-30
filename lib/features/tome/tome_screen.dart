@@ -158,7 +158,7 @@ class _TomeScreenState extends State<TomeScreen> {
                   SnackBar(
                     duration: const Duration(seconds: 2),
                     content: Text(
-                      '${item.name.replaceAll('_', ' ')} +$next  ·  '
+                      '${item.displayName.isEmpty ? item.name.replaceAll('_', ' ') : item.displayName} +$next  ·  '
                       '${next >= item.upgradeCap ? 'at class cap' : '+2 to its stat'}',
                       style: context.hall.body,
                     ),

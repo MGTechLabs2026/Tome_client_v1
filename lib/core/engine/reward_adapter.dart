@@ -14,51 +14,52 @@ class RewardAdapter {
     required TechniqueAdapter techniqueAdapter,
     required List<String> itemPool,
     required List<String> techniquePool,
-  }) : _tomeAdapter = tomeAdapter,
-       _techniqueAdapter = techniqueAdapter,
-       _itemPool = List.of(itemPool),
-       _techniquePool = List.of(techniquePool) {
-    // Shuffle each pool once, up front, with the run's own seeded RNG:
-    // the New Component reward's identity is then random per run but
-    // still fully reproducible from the seed (and the shuffle is done
-    // here, not re-rolled per draw, so a run never re-offers a component
-    // it already spent).
-    _shuffleInPlace(_itemPool);
-    _shuffleInPlace(_techniquePool);
-  }
-
-  /// Fisher-Yates over [_session.rng] — the package's only sanctioned
-  /// randomness source, so this stays inside the seed's determinism.
-  void _shuffleInPlace(List<String> list) {
-    for (var i = list.length - 1; i > 0; i--) {
-      final j = _session.rng.nextInt(i + 1);
-      final tmp = list[i];
-      list[i] = list[j];
-      list[j] = tmp;
-    }
-  }
+  })  : _tomeAdapter = tomeAdapter,
+        _techniqueAdapter = techniqueAdapter,
+        _itemPool = List.of(itemPool),
+        _techniquePool = List.of(techniquePool);
 
   final EngineSession _session;
   final TomeAdapter _tomeAdapter;
   final TechniqueAdapter _techniqueAdapter;
   final List<String> _itemPool;
   final List<String> _techniquePool;
-  var _itemPoolIndex = 0;
-  var _techniquePoolIndex = 0;
 
-  /// The next pooled reward — items first, then techniques. Both pools
-  /// were seed-shuffled once in the constructor (mirroring
-  /// `game_run.dart`'s own seed-shuffled-then-linear-draw reward pool
-  /// pattern), so this linear walk hands back a run-random order that is
-  /// still reproducible from the seed.
-  ({bool isItem, String id})? _peekNextPoolEntry() {
-    if (_itemPoolIndex < _itemPool.length) {
-      return (isItem: true, id: _itemPool[_itemPoolIndex]);
+  final _grantedItems = <String>{};
+  final _grantedTechniques = <String>{};
+
+  /// The New Component on offer this loot screen, rolled once and held
+  /// until it is either taken or the screen is left. Rebuilds of the
+  /// loot screen read the same held value; only [applyLoot] with
+  /// [LootKind.newComponent] consumes it and lets the next screen roll
+  /// afresh.
+  ({bool isItem, String id})? _pending;
+  var _rolled = false;
+
+  /// Rolls the next New Component: a uniformly random pick (via the run's
+  /// seeded RNG) from the pooled items the player has not been granted
+  /// yet — items first while any remain, then techniques. Returns null
+  /// once every pooled reward has been handed out.
+  ({bool isItem, String id})? _rollNext() {
+    final items =
+        _itemPool.where((id) => !_grantedItems.contains(id)).toList();
+    if (items.isNotEmpty) {
+      return (isItem: true, id: items[_session.rng.nextInt(items.length)]);
     }
-    if (_techniquePoolIndex < _techniquePool.length) {
-      return (isItem: false, id: _techniquePool[_techniquePoolIndex]);
+    final techs =
+        _techniquePool.where((id) => !_grantedTechniques.contains(id)).toList();
+    if (techs.isNotEmpty) {
+      return (isItem: false, id: techs[_session.rng.nextInt(techs.length)]);
     }
     return null;
+  }
+
+  ({bool isItem, String id})? _peekNextPoolEntry() {
+    if (!_rolled) {
+      _pending = _rollNext();
+      _rolled = true;
+    }
+    return _pending;
   }
 
   List<LootOptionView> offerLoot() {
@@ -107,11 +108,13 @@ class RewardAdapter {
           final item = itemDefinition(next.id, _session.context);
           ownItem(_session.character, item.id, _session.context);
           discoverItem(_session.character, item, _session.context);
-          _itemPoolIndex++;
+          _grantedItems.add(next.id);
         } else {
           _techniqueAdapter.discover(next.id);
-          _techniquePoolIndex++;
+          _grantedTechniques.add(next.id);
         }
+        _pending = null;
+        _rolled = false;
     }
   }
 }

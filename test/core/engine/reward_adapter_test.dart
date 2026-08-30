@@ -53,8 +53,8 @@ void main() {
     expect(ItemAdapter(session).ownedItems().map((v) => v.definitionId), contains(ItemIds.ironSword));
   });
 
-  test('the New Component pool is seed-shuffled: reproducible per seed, '
-      'random across seeds', () {
+  test('the New Component is a random pick from the unspent pool: '
+      'reproducible per seed, varies across seeds, never repeats', () {
     const pool = [ItemIds.ironSword, ItemIds.gloves, ItemIds.trainingStaff];
 
     List<String> drawOrder(int seed) {

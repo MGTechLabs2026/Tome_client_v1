@@ -15,11 +15,18 @@ import '../features/training/training_bloc.dart';
 import '../routing/app_router.dart';
 import 'theme.dart';
 
-/// Starting reward pools, mirroring `run_content.dart`'s own
-/// rewardPool*Ids — plain game-content id lists. `RewardAdapter`
-/// seed-shuffles each pool at construction, so the New Component
-/// reward's identity is run-random (reproducible from the seed).
-const _rewardItemPool = ['iron_sword', 'gloves', 'leather_armor'];
+/// Reward pools the New Component loot draws from — real registered
+/// `build_engine` content ids. `RewardAdapter` rolls one at random (via
+/// the run's seeded RNG) from whatever the player has not been granted
+/// yet, each loot screen, so the offered component varies run to run
+/// and pick to pick.
+const _rewardItemPool = [
+  'iron_sword',
+  'gloves',
+  'training_staff',
+  'cloth_armor',
+  'training_shoes',
+];
 const _rewardTechniquePool = ['basic_slash', 'basic_guard'];
 
 class TomeApp extends StatefulWidget {

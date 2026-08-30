@@ -92,11 +92,12 @@ class RewardAdapter {
         detail: 'No new components remain in the pool.',
       );
     } else {
-      final prefix = _prefix = rollAffix(
+      // Either slot can come up empty — a plain, unadorned piece.
+      final prefix = _prefix = rollAffixOrNone(
           next.isItem ? itemPrefixes : techniquePrefixes,
           affinity,
           _session.rng);
-      final suffix = _suffix = rollAffix(
+      final suffix = _suffix = rollAffixOrNone(
           next.isItem ? itemSuffixes : techniqueSuffixes,
           affinity,
           _session.rng);
@@ -116,13 +117,20 @@ class RewardAdapter {
         detail = 'A form to hang, then train and evolve.';
       }
 
+      final title = [prefix?.label, baseName, suffix?.label]
+          .where((s) => s != null && s.isNotEmpty)
+          .join(' ');
       componentCard = LootOptionView(
         kind: LootKind.newComponent,
-        title: '${prefix.label} $baseName ${suffix.label}',
+        title: title,
         detail: detail,
         badge: badge,
         seed: next.id.hashCode,
-        effects: [prefix.blurb, suffix.blurb],
+        effects: [
+          if (prefix != null) prefix.blurb,
+          if (suffix != null) suffix.blurb,
+          if (prefix == null && suffix == null) 'plain — no bonuses rolled',
+        ],
       );
     }
 

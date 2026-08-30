@@ -54,7 +54,7 @@ void main() {
     expect(ItemAdapter(session).ownedItems().map((v) => v.definitionId), contains(ItemIds.ironSword));
   });
 
-  test('taking an affixed New Component applies its prefix modifier', () {
+  test('a stat-bump affix on a taken New Component reaches the sword', () {
     final s = EngineSession(13);
     final cha = CharacterAdapter(s)..createCharacter('F');
     final ra = RewardAdapter(
@@ -66,18 +66,52 @@ void main() {
       techniquePool: const [],
     );
 
-    final card = ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent);
-    expect(card.effects, hasLength(2), reason: 'prefix + suffix blurbs');
-    expect(card.badge, 'CLASS I');
+    // Roll until a card with a "bite +N" (statUp) affix comes up, take it.
+    var took = false;
+    for (var i = 0; i < 40 && !took; i++) {
+      final card =
+          ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent);
+      expect(card.badge, 'CLASS I');
+      if (card.effects.any((e) => e.contains('bite +'))) {
+        ra.applyLoot(LootKind.newComponent);
+        took = true;
+      } else {
+        ra.applyLoot(LootKind.upgradePoints);
+      }
+    }
+    expect(took, isTrue);
 
-    ra.applyLoot(LootKind.newComponent);
-
-    // iron_sword isn't hung, so the only 'blade' modifier now is the
-    // rolled quality prefix (always a stat bump).
+    // iron_sword isn't hung, so any 'blade' modifier now is the affix's.
     final mods = s.context.modifiers
         .activeModifiersFor(s.character, 'blade', s.context.components);
-    expect(mods, isNotEmpty,
-        reason: 'the rolled quality bumps the sword\'s bite');
+    expect(mods, isNotEmpty, reason: 'the roll bumps the sword\'s bite');
+  });
+
+  test('some New Component cards roll plain — no affix at all', () {
+    final s = EngineSession(9);
+    final cha = CharacterAdapter(s)..createCharacter('F');
+    final ra = RewardAdapter(
+      s,
+      characterAdapter: cha,
+      tomeAdapter: TomeAdapter(s)..createInitialTome(),
+      techniqueAdapter: TechniqueAdapter(s),
+      itemPool: const [ItemIds.ironSword],
+      techniquePool: const [],
+    );
+
+    var sawPlain = false;
+    for (var i = 0; i < 60 && !sawPlain; i++) {
+      final card =
+          ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent);
+      // plain = title is exactly the bare name, effects say so
+      if (card.title == 'Iron Sword') {
+        expect(card.effects, ['plain — no bonuses rolled']);
+        sawPlain = true;
+      }
+      ra.applyLoot(LootKind.upgradePoints);
+    }
+    expect(sawPlain, isTrue,
+        reason: 'an unadorned Iron Sword should turn up within 60 rolls');
   });
 
   test('the New Component draws with replacement — a duplicate can be '

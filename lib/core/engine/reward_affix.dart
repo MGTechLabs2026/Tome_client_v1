@@ -90,6 +90,22 @@ const techniqueSuffixes = <Affix>[
   Affix('of the Coiled Spring', AffixLean.flow, AffixEffect.initiativeUp, 3, 'stored, then released — act sooner (+3)'),
 ];
 
+/// How often a prefix / suffix slot comes up empty — a plain, unadorned
+/// piece ("Iron Sword", "Basic Slash"). Rolled independently for each
+/// slot, so most cards carry one affix, some carry two, and a few carry
+/// none at all.
+const kNoAffixChance = 0.34;
+
+/// [rollAffix], but with a [noneChance] probability of returning null —
+/// no prefix / no suffix on this slot.
+Affix? rollAffixOrNone(
+  List<Affix> pool,
+  String affinity,
+  RngService rng, {
+  double noneChance = kNoAffixChance,
+}) =>
+    rng.nextDouble() < noneChance ? null : rollAffix(pool, affinity, rng);
+
 /// A weighted draw from [pool]: Neutral affixes weigh 2, the lean that
 /// matches [affinity] weighs 3, the opposite lean weighs 1. [affinity]
 /// is `'western'` / `'eastern'` (from the physique) — anything else

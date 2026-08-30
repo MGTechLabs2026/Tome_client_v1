@@ -49,4 +49,18 @@ void main() {
     final w = c[AffixLean.flow]!;
     expect((f - w).abs() / (f + w), lessThan(0.25));
   });
+
+  test('rollAffixOrNone leaves the slot empty roughly kNoAffixChance of '
+      'the time', () {
+    final rng = RngService(7);
+    var none = 0;
+    const n = 8000;
+    for (var i = 0; i < n; i++) {
+      if (rollAffixOrNone(itemPrefixes, 'western', rng) == null) none++;
+    }
+    final rate = none / n;
+    expect(rate, greaterThan(0.0), reason: 'some cards are plain');
+    expect(rate, lessThan(1.0), reason: 'most cards still roll an affix');
+    expect((rate - kNoAffixChance).abs(), lessThan(0.05));
+  });
 }

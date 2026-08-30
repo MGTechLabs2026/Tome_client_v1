@@ -21,6 +21,11 @@ class TechniqueAdapter {
     _discoveredIds.add(definitionId);
   }
 
+  /// Whether [definitionId] is on this run's roster yet (granted as a
+  /// reward or produced by an evolution). Used by `RewardAdapter` to
+  /// stop re-offering a technique the player already has.
+  bool isOnRoster(String definitionId) => _discoveredIds.contains(definitionId);
+
   TechniqueView viewOf(String definitionId) {
     final technique = techniqueDefinition(definitionId, _session.context);
     return TechniqueView(

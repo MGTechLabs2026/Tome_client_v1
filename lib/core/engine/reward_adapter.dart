@@ -38,10 +38,19 @@ class RewardAdapter {
   /// taken — and [applyLoot] grants exactly the id that was shown.
   ({bool isItem, String id})? _offered;
 
-  /// A uniformly random pick (via the run's seeded RNG) from the whole
-  /// reward pool, with replacement.
-  ({bool isItem, String id})? _rollNext() =>
-      _pool.isEmpty ? null : _pool[_session.rng.nextInt(_pool.length)];
+  /// A uniformly random pick (via the run's seeded RNG) from the reward
+  /// pool. Items are always eligible (a duplicate feeds Combine); a
+  /// technique drops out once the player already has it — a second copy
+  /// would do nothing.
+  ({bool isItem, String id})? _rollNext() {
+    final candidates = [
+      for (final entry in _pool)
+        if (entry.isItem || !_techniqueAdapter.isOnRoster(entry.id)) entry,
+    ];
+    return candidates.isEmpty
+        ? null
+        : candidates[_session.rng.nextInt(candidates.length)];
+  }
 
   List<LootOptionView> offerLoot() {
     final next = _offered = _rollNext();

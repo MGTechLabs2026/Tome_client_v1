@@ -176,13 +176,33 @@ class TomeAdapter {
     );
   }
 
+  /// Hangs a technique by dropping its `BuildComponentRef` straight into
+  /// the slot — the low-level `TomeService.insert`, not `addTechniqueToTome`.
+  /// The client gates on *discovered* (only discovered techniques are in
+  /// the tray to drag), not on the vertical slice's *learned* rule, so a
+  /// rewarded technique and an evolved branch (which has no learning
+  /// threshold at all) can both be hung.
   void insertTechnique(String definitionId, String slotId) {
-    final technique = techniqueDefinition(definitionId, _session.context);
-    addTechniqueToTome(
+    _session.context.tome.insert(
       _session.character,
       SlotId(slotId),
-      technique,
-      _session.context,
+      BuildComponentRef(
+        referenceType: techniqueReferenceType,
+        contentId: definitionId,
+      ),
+    );
+  }
+
+  /// Swaps the technique in [slotId] for [definitionId] in place — used
+  /// when training evolves a hung technique into its next form.
+  void replaceTechnique(String slotId, String definitionId) {
+    _session.context.tome.replace(
+      _session.character,
+      SlotId(slotId),
+      BuildComponentRef(
+        referenceType: techniqueReferenceType,
+        contentId: definitionId,
+      ),
     );
   }
 

@@ -6,6 +6,7 @@ import 'package:build_engine/technique_plugin.dart';
 
 import '../models/training_result_view.dart';
 import 'engine_session.dart';
+import 'technique_adapter.dart';
 import 'tome_adapter.dart';
 
 /// Drives a real headless `TrainingSession` for one item or technique
@@ -21,11 +22,16 @@ import 'tome_adapter.dart';
 /// resolver and never publishes) and swapping the evolved form into the
 /// Tome slot the base technique occupied.
 class TrainingAdapter {
-  TrainingAdapter(this._session, {required TomeAdapter tomeAdapter})
-    : _tomeAdapter = tomeAdapter;
+  TrainingAdapter(
+    this._session, {
+    required TomeAdapter tomeAdapter,
+    TechniqueAdapter? techniqueAdapter,
+  })  : _tomeAdapter = tomeAdapter,
+        _techniqueAdapter = techniqueAdapter ?? TechniqueAdapter(_session);
 
   final EngineSession _session;
   final TomeAdapter _tomeAdapter;
+  final TechniqueAdapter _techniqueAdapter;
 
   TrainingResultView trainItem(
     String definitionId,
@@ -96,6 +102,11 @@ class TrainingAdapter {
       );
       if (evolution.evolved) {
         evolvedInto = evolution.chosenCandidate!.targetId;
+        // Put the evolved form on the roster so it shows in the tray and
+        // its detail sheet. Evolved branches have no independent LEARNING
+        // threshold in the engine — "learned" never applies to them — so
+        // the client tracks them by discovery alone.
+        _techniqueAdapter.discover(evolvedInto);
         // evolveTechnique is a pure resolver — it never publishes
         // TechniqueEvolved (game_run.dart's TrainingStage does that as an
         // orchestration decision). EngineSession's lineage subscription
@@ -103,11 +114,11 @@ class TrainingAdapter {
         _session.context.events.publish(
           TechniqueEvolved(fromId: definitionId, toId: evolvedInto),
         );
+        // Swap it into the base form's slot in place (the same
+        // `tome.replace` the reference run's TomeManager uses — bypasses
+        // the "must be learned" gate that would reject an evolved form).
         final slot = _slotOfTechnique(definitionId);
-        if (slot != null) {
-          _tomeAdapter.remove(slot);
-          _tomeAdapter.insertTechnique(evolvedInto, slot);
-        }
+        if (slot != null) _tomeAdapter.replaceTechnique(slot, evolvedInto);
       }
     }
 

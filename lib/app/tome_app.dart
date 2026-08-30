@@ -82,6 +82,7 @@ class _TomeAppState extends State<TomeApp> {
               (ctx) => TrainingAdapter(
                 session,
                 tomeAdapter: ctx.read<TomeAdapter>(),
+                techniqueAdapter: ctx.read<TechniqueAdapter>(),
               ),
         ),
         RepositoryProvider<CombatAdapter>(

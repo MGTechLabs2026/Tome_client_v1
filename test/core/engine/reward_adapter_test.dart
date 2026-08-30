@@ -107,6 +107,41 @@ void main() {
         reason: 'a technique should surface within 30 loot screens');
   });
 
+  test('a technique already on the roster is not offered again', () {
+    final s = EngineSession(3);
+    CharacterAdapter(s).createCharacter('F');
+    final techniques = TechniqueAdapter(s);
+    final ra = RewardAdapter(
+      s,
+      tomeAdapter: TomeAdapter(s)..createInitialTome(),
+      techniqueAdapter: techniques,
+      itemPool: const [ItemIds.ironSword],
+      techniquePool: const ['basic_slash'],
+    );
+
+    // Grant basic_slash once.
+    var got = false;
+    for (var i = 0; i < 50 && !got; i++) {
+      final next = ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent);
+      if (next.detail.toLowerCase().contains('slash')) {
+        ra.applyLoot(LootKind.newComponent);
+        got = true;
+      } else {
+        ra.applyLoot(LootKind.upgradePoints);
+      }
+    }
+    expect(got, isTrue);
+    expect(techniques.isOnRoster('basic_slash'), isTrue);
+
+    // From here it should never be offered again — only the item comes up.
+    for (var i = 0; i < 40; i++) {
+      final d = ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent).detail;
+      expect(d.toLowerCase().contains('slash'), isFalse,
+          reason: 'basic_slash must not be re-offered');
+      ra.applyLoot(LootKind.upgradePoints);
+    }
+  });
+
   test('same seed -> same New Component sequence', () {
     List<String> seq(int seed) {
       final s = EngineSession(seed);

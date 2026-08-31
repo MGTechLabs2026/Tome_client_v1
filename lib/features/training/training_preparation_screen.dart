@@ -5,61 +5,86 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/models/game_phase.dart';
 import '../run/run_bloc.dart';
 import '../run/run_event.dart';
-import 'presentation/timing_bar_training_presentation.dart';
+import '../tome/hall/hall_controls.dart';
+import '../tome/hall/hall_theme.dart';
 import 'training_bloc.dart';
 import 'training_event.dart';
 
+/// The brief pause before the exercise: what's being trained and why,
+/// then straight in. No menus.
 class TrainingPreparationScreen extends StatelessWidget {
-  const TrainingPreparationScreen({super.key, required this.subject, required this.isTechnique});
+  const TrainingPreparationScreen({
+    super.key,
+    required this.subject,
+    required this.isTechnique,
+  });
+
   final String subject;
   final bool isTechnique;
 
+  String get _pretty => subject
+      .split('_')
+      .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
+
   @override
   Widget build(BuildContext context) {
+    final hall = context.hall;
     return Scaffold(
-      body: Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Prepare to train: $subject'),
-          FilledButton(
-            onPressed: () {
-              context.read<TrainingBloc>().add(TrainingSessionStarted(subject, isTechnique));
-              context.read<RunBloc>().add(const PhaseCompleted(GamePhase.training));
-            },
-            child: const Text('Begin Training'),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-class TrainingExerciseScreen extends StatelessWidget {
-  const TrainingExerciseScreen({super.key});
-
-  static const _requiredAttempts = 3;
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocConsumer<TrainingBloc, TrainingState>(
-      listenWhen: (prev, next) => prev.result == null && next.result != null,
-      listener: (context, state) =>
-          context.read<RunBloc>().add(const PhaseCompleted(GamePhase.trainingResult)),
-      builder: (context, state) {
-        return Scaffold(
-          body: Column(children: [
-            TimingBarTrainingPresentation(
-              onTap: (t) {
-                final bloc = context.read<TrainingBloc>();
-                bloc.add(AttemptSubmitted(t));
-                if (state.attemptsSubmitted + 1 >= _requiredAttempts) {
-                  bloc.add(const TrainingCompleted());
-                }
-              },
+      backgroundColor: hall.lacquer,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('TRAINING',
+                      style: hall.label
+                          .copyWith(color: hall.boneDim, letterSpacing: 3)),
+                  const SizedBox(height: 14),
+                  Text(_pretty.toUpperCase(),
+                      style: hall.displayLarge.copyWith(fontSize: 30)),
+                  const SizedBox(height: 6),
+                  Text(
+                    isTechnique
+                        ? 'A form — train to learn it, then to master it.'
+                        : 'A piece — train to raise its mastery.',
+                    style: hall.measure.copyWith(color: hall.boneDim),
+                  ),
+                  const SizedBox(height: 22),
+                  Container(height: 1, color: hall.bone.withValues(alpha: 0.14)),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Three sets of three. Strike each mark fast and near '
+                    'its centre.',
+                    style: hall.reading.copyWith(color: hall.boneDim),
+                  ),
+                  const SizedBox(height: 24),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: InkButton(
+                      label: 'Train',
+                      tone: InkTone.seal,
+                      onPressed: () {
+                        context
+                            .read<TrainingBloc>()
+                            .add(TrainingSessionStarted(subject, isTechnique));
+                        context
+                            .read<RunBloc>()
+                            .add(const PhaseCompleted(GamePhase.training));
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
-            Text('Attempts: ${state.attemptsSubmitted} / $_requiredAttempts'),
-          ]),
-        );
-      },
+          ),
+        ),
+      ),
     );
   }
 }

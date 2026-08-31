@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/core/engine/character_adapter.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
 import 'package:tome_client/core/engine/item_adapter.dart';
+import 'package:tome_client/core/engine/target_strike_exercise.dart';
 import 'package:tome_client/core/engine/technique_adapter.dart';
 import 'package:tome_client/core/engine/tome_adapter.dart';
 import 'package:tome_client/core/engine/training_adapter.dart';
@@ -55,6 +56,48 @@ void main() {
     } while (!result.crossedIntoUsableOrLearned && attempts < 20);
 
     expect(TechniqueAdapter(session).viewOf(TechniqueIds.basicPunch).learned, isTrue);
+  });
+
+  test('the target-strike exercise feeds trainItem / trainTechnique — real '
+      'spatial+temporal attempts raise mastery, no engine change', () {
+    ownItem(session.character, ItemIds.knife, session.context);
+    discoverItem(session.character,
+        itemDefinition(ItemIds.knife, session.context), session.context);
+
+    List<TrainingAttempt> strikes({required bool clean}) => [
+          for (var i = 0; i < 9; i++)
+            TrainingAttempt({
+              'targetX': 0.5,
+              'targetY': 0.5,
+              'actionX': clean ? 0.5 : 0.9,
+              'actionY': 0.5,
+              'tolerance': 0.09,
+              'signalTimestamp': 0.0,
+              'responseTimestamp': clean ? 120.0 : 1100.0,
+              'maxAcceptable': 1200.0,
+            }),
+        ];
+
+    final before = ItemAdapter(session).viewOf(ItemIds.knife).masteryLevel;
+    final res = trainingAdapter.trainItem(
+      ItemIds.knife,
+      strikes(clean: true),
+      base: const TargetStrikeExercise(),
+    );
+    expect(res.dimensions.keys, containsAll(<String>['accuracy', 'reaction']));
+    expect(res.gain, greaterThan(0));
+    expect(ItemAdapter(session).viewOf(ItemIds.knife).masteryLevel,
+        greaterThanOrEqualTo(before));
+
+    // A clean run out-gains a sloppy one.
+    final s2 = EngineSession(5);
+    CharacterAdapter(s2).createCharacter('B');
+    final t2 = TrainingAdapter(s2, tomeAdapter: TomeAdapter(s2)..createInitialTome());
+    ownItem(s2.character, ItemIds.knife, s2.context);
+    discoverItem(s2.character, itemDefinition(ItemIds.knife, s2.context), s2.context);
+    final sloppy = t2.trainItem(ItemIds.knife, strikes(clean: false),
+        base: const TargetStrikeExercise());
+    expect(res.gain, greaterThan(sloppy.gain));
   });
 
   test('trainTechnique raises that technique\'s own mastery rank, per '

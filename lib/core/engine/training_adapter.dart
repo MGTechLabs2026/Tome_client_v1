@@ -4,9 +4,11 @@ import 'package:build_engine/game.dart';
 import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/technique_plugin.dart';
 
+import '../models/seeded_random.dart';
 import '../models/training_result_view.dart';
 import '../persistence/codex_repository.dart';
 import 'engine_session.dart';
+import 'target_strike_exercise.dart';
 import 'technique_adapter.dart';
 import 'tome_adapter.dart';
 
@@ -39,13 +41,19 @@ class TrainingAdapter {
   /// Cross-run record of met content — an evolved form is a discovery.
   final CodexRepository? _codex;
 
+  /// The seeded random source the interactive exercise draws its wave
+  /// layout from — a run's own RNG, so the target sequence is
+  /// deterministic for a given seed.
+  SeededRandom get random => EngineSeededRandom(_session.rng);
+
   TrainingResultView trainItem(
     String definitionId,
-    List<TrainingAttempt> attempts,
-  ) {
+    List<TrainingAttempt> attempts, {
+    TrainingExercise base = const TimingExercise(),
+  }) {
     final item = itemDefinition(definitionId, _session.context);
     final wasUsable = isItemUsable(_session.character, item, _session.context);
-    final exercise = itemTrainingExerciseFor(item, const TimingExercise());
+    final exercise = itemTrainingExerciseFor(item, base);
     final session = TrainingSession(
       trainee: _session.character,
       subject: itemSubject(definitionId),
@@ -73,13 +81,11 @@ class TrainingAdapter {
 
   TrainingResultView trainTechnique(
     String definitionId,
-    List<TrainingAttempt> attempts,
-  ) {
+    List<TrainingAttempt> attempts, {
+    TrainingExercise base = const TimingExercise(),
+  }) {
     final technique = techniqueDefinition(definitionId, _session.context);
-    final exercise = techniqueTrainingExerciseFor(
-      technique,
-      const TimingExercise(),
-    );
+    final exercise = techniqueTrainingExerciseFor(technique, base);
     final session = TrainingSession(
       trainee: _session.character,
       subject: techniqueSubject(definitionId),

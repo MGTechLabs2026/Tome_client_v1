@@ -27,6 +27,7 @@ import '../features/run/run_event.dart';
 import '../features/title/title_screen.dart';
 import '../features/tome/tome_bloc.dart';
 import '../features/tome/tome_screen.dart';
+import '../features/training/active_training_screen.dart';
 import '../features/training/training_preparation_screen.dart';
 import '../features/training/training_result_screen.dart';
 
@@ -137,7 +138,7 @@ Widget _screenFor(GamePhase phase, BuildContext context) {
         isTechnique: run.state.trainingIsTechnique,
       );
     case GamePhase.training:
-      return const TrainingExerciseScreen();
+      return const ActiveTrainingScreen();
     case GamePhase.trainingResult:
       return const TrainingResultScreen();
     case GamePhase.combatPreparation:

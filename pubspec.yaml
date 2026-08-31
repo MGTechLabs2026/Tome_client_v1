@@ -40,7 +40,11 @@ dependencies:
   shared_preferences: ^2.3.0
   build_engine:
     git:
-      url: git@github-built-engine:MGTechLabs2026/built_engine.git
+      # HTTPS (not an SSH host alias) so a clean CI checkout can fetch it
+      # with a token via `git config url."https://x-access-token:$TOKEN@github.com/".insteadOf`.
+      # The engine repo is private — CI needs a read-scoped PAT
+      # (BUILD_ENGINE_TOKEN); see .github/workflows/ci.yml.
+      url: https://github.com/MGTechLabs2026/built_engine.git
       # Pinned so a blanket `flutter pub upgrade` can't move the engine.
       # Bump deliberately: edit this ref, then `flutter pub get`.
       ref: 314f75af0485845b7e6aabf75f9ab750b2c8cc1e

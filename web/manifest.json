@@ -1,12 +1,12 @@
 {
-    "name": "tome_client",
-    "short_name": "tome_client",
+    "name": "Tome: Martial Arts",
+    "short_name": "Tome",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#14110d",
+    "theme_color": "#14110d",
+    "description": "A build-and-discovery martial-arts roguelike. Arrange your Tome, train to evolve techniques, and fight your lineage forward.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

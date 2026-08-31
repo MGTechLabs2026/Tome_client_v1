@@ -20,6 +20,19 @@ void main() {
         reason: 'consume the plugin barrels, never src/: $offenders');
   });
 
+  test('web-safe: lib/ imports no native-only dart libraries', () {
+    // The game ships to browsers (itch.io HTML5, Devvit Web). dart:io /
+    // dart:ffi / dart:isolate / dart:mirrors have no web implementation.
+    final banned = RegExp(
+        r'''import\s+['"]dart:(io|ffi|isolate|mirrors|developer|cli)['"]''');
+    final offenders = [
+      for (final f in _dartFiles('lib'))
+        if (banned.hasMatch(f.readAsStringSync())) f.path,
+    ];
+    expect(offenders, isEmpty,
+        reason: 'native-only dart: library in a web build: $offenders');
+  });
+
   test('build_engine is imported only from lib/core/engine/, '
       'lib/core/models/seeded_random.dart, and the documented training_bloc '
       'exception', () {

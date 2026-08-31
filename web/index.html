@@ -1,46 +1,119 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
+    Base href is rewritten at build time from the `--base-href` argument
+    to `flutter build web` (default "/"). The game does not assume it is
+    hosted at the domain root — itch.io serves it from an iframe path and
+    Devvit from a webview path.
   -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description"
+    content="Tome: Martial Arts — a build-and-discovery roguelike. Arrange items and techniques on your Tome, train to evolve them, and fight your lineage forward.">
+  <meta name="theme-color" content="#14110d">
+  <meta name="color-scheme" content="dark">
 
-  <!-- iOS meta tags & icons -->
+  <!-- Mobile web app -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="tome_client">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tome: Martial Arts">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>tome_client</title>
+  <title>Tome: Martial Arts</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: #14110d;
+      color: #d9cdb8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overscroll-behavior: none;
+    }
+    /* Pre-boot shell — plain HTML/CSS, no JS, no remote assets. Removed
+       once Flutter paints its first frame (see the script below). */
+    #loading {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 22px;
+      background: #14110d;
+      z-index: 2147483647;
+      transition: opacity .35s ease;
+    }
+    #loading.gone { opacity: 0; pointer-events: none; }
+    #loading .wordmark {
+      text-align: center;
+      letter-spacing: .42em;
+      text-transform: uppercase;
+      line-height: 1.9;
+      color: #e7dcc6;
+    }
+    #loading .wordmark .a { font-size: 15px; font-weight: 600; }
+    #loading .wordmark .b { font-size: 10px; color: #9c8f76; letter-spacing: .5em; }
+    #loading .rule {
+      width: 44px; height: 1px; background: #6b5f49; margin: 4px auto 0;
+    }
+    #loading .spin {
+      width: 20px; height: 20px;
+      border: 2px solid #3a3226;
+      border-top-color: #a8482f;
+      border-radius: 50%;
+      animation: tome-spin 900ms linear infinite;
+    }
+    @keyframes tome-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      #loading .spin { animation: none; border-top-color: #6b5f49; }
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="loading" role="status" aria-label="Loading Tome: Martial Arts">
+    <div class="wordmark">
+      <div class="a">Tome</div>
+      <div class="rule"></div>
+      <div class="b">Martial Arts</div>
+    </div>
+    <div class="spin"></div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <script>
+    // Remove the pre-boot shell once Flutter is up. Three triggers, so a
+    // single failing path can't leave the shell stuck:
+    //   1. Flutter's own 'flutter-first-frame' event
+    //   2. a MutationObserver watching for the flutter view element
+    //   3. a 20s failsafe
+    (function () {
+      var removed = false;
+      function hide() {
+        if (removed) return;
+        removed = true;
+        var el = document.getElementById('loading');
+        if (!el) return;
+        el.classList.add('gone');
+        setTimeout(function () { el.remove(); }, 400);
+      }
+      window.addEventListener('flutter-first-frame', hide);
+      var obs = new MutationObserver(function () {
+        if (document.querySelector('flutter-view, flt-glass-pane')) {
+          obs.disconnect();
+          hide();
+        }
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+      setTimeout(hide, 20000);
+    })();
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

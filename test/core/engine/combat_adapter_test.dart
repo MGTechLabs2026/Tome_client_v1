@@ -1,4 +1,6 @@
 // test/core/engine/combat_adapter_test.dart
+import 'package:build_engine/martial_arts_plugin.dart'
+    show BurstChainState, StyleCombatRules, offSpecialtyDamageFactor;
 import 'package:build_engine/technique_plugin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/core/engine/character_adapter.dart';
@@ -154,6 +156,23 @@ void main() {
       expect(kunlun, greaterThan(0));
       // same seed -> same hit/miss pattern -> only the 0.85 factor differs
       expect(shaolin, closeTo(kunlun * 0.85, 0.001));
+    });
+
+    test('A2 parity: the ratio the adapter applies is exactly the engine '
+        "StyleCombatRules' factor — one implementation, not two", () {
+      double factor(String style, String tag) => StyleCombatRules(
+        {'martial', 'style:$style'},
+      ).outgoingDamageFactor(['technique', tag]);
+
+      // The adapter multiplies AttackAction.baseDamage by this same call.
+      expect(factor('shaolin', 'blade'), offSpecialtyDamageFactor);
+      expect(factor('kunlun', 'blade'), 1.0);
+      expect(factor('shaolin', 'fist'), 1.0);
+      // Burst Chain state machine is the engine's too.
+      final rules = StyleCombatRules({'martial', 'style:kunlun', 'spec:burst_chain'});
+      var s = BurstChainState.broken;
+      s = rules.burstChainOnHit(s, true).state;
+      expect(rules.burstChainOnHit(s, true).bonus, 2);
     });
 
     test('a fist technique is unpenalised for shaolin (fist is in its lane)', () {

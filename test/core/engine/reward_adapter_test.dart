@@ -325,4 +325,39 @@ void main() {
             (id) => t.toLowerCase().replaceAll(' ', '_').contains(id))),
         isTrue);
   });
+
+  test('contextual weighting (V1 §I): a build-gap + style-lane candidate is '
+      'offered far more often than an off-lane one', () {
+    int slashCountFor(String style) {
+      final s = EngineSession(19);
+      final cha = CharacterAdapter(s)
+        ..createCharacter('F')
+        ..chooseStyle(style);
+      final ra = RewardAdapter(
+        s,
+        itemAdapter: ItemAdapter(s),
+        characterAdapter: cha,
+        tomeAdapter: TomeAdapter(s)..createInitialTome(),
+        techniqueAdapter: TechniqueAdapter(s),
+        // blade vs palm — one is in kunlun's lane, the other in shaolin's.
+        itemPool: const [],
+        techniquePool: const ['basic_slash', 'basic_palm'],
+      );
+      var slash = 0;
+      for (var i = 0; i < 60; i++) {
+        final t = ra
+            .offerLoot()
+            .firstWhere((o) => o.kind == LootKind.newComponent)
+            .title
+            .toLowerCase();
+        if (t.contains('slash')) slash++;
+        ra.applyLoot(LootKind.upgradePoints);
+      }
+      return slash;
+    }
+
+    // kunlun: blade is in-lane -> basic_slash weighted up -> chosen more.
+    // shaolin: palm is in-lane -> basic_slash weighted down -> chosen less.
+    expect(slashCountFor('kunlun'), greaterThan(slashCountFor('shaolin')));
+  });
 }

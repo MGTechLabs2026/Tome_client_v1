@@ -33,8 +33,21 @@ const kRewardItemPool = [
   'training_staff',
   'cloth_armor',
   'training_shoes',
+  // Content Expansion V1 — new combinable base + the two starter
+  // weapons that gained a combine chain.
+  'hand_wraps',
+  'polearm',
+  'rapier',
 ];
-const kRewardTechniquePool = ['basic_slash', 'basic_guard', 'basic_punch'];
+const kRewardTechniquePool = [
+  'basic_slash',
+  'basic_guard',
+  'basic_punch',
+  // Content Expansion V1 — the three new foundational families.
+  'basic_palm',
+  'basic_finger',
+  'basic_kick',
+];
 
 class TomeApp extends StatefulWidget {
   const TomeApp({super.key, required this.runBloc, this.session, this.store});

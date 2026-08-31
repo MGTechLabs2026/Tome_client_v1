@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:build_engine/build_engine.dart';
 import 'package:build_engine/build_interpretation.dart' show WeaponStatTags;
 import 'package:build_engine/item_plugin.dart';
+import 'package:build_engine/martial_arts_plugin.dart' show styleAlignedFamilies;
 import 'package:build_engine/technique_plugin.dart';
 
 import '../models/loot_option_view.dart';
@@ -60,18 +61,78 @@ class RewardAdapter {
   Affix? _prefix;
   Affix? _suffix;
 
-  /// A uniformly random pick (via the run's seeded RNG) from the reward
-  /// pool. Items are always eligible (a duplicate feeds Combine); a
-  /// technique drops out once the player already has it — a second copy
-  /// would do nothing.
+  /// A contextually weighted pick (via the run's seeded RNG) from the
+  /// reward pool — Content Expansion V1, matrix §I. Items are always
+  /// eligible (a duplicate feeds Combine); a technique drops out once
+  /// the player already has it. Weight = a flat rarity base, then:
+  ///
+  /// * ×2.0 if the candidate's family tag is in the fighter's style lane
+  ///   ([styleAlignedFamilies]);
+  /// * ×1.5 if it carries the fighter's `aff:<physique>` tag;
+  /// * ×2.0 if it fills a hole in the current Tome (no weapon / no
+  ///   armour / no technique);
+  /// * ÷2.0 if the codex has already seen it (favour novelty).
   ({bool isItem, String id})? _rollNext() {
     final candidates = [
       for (final entry in _pool)
         if (entry.isItem || !_techniqueAdapter.isOnRoster(entry.id)) entry,
     ];
-    return candidates.isEmpty
-        ? null
-        : candidates[_session.rng.nextInt(candidates.length)];
+    if (candidates.isEmpty) return null;
+
+    final weights = [for (final c in candidates) _weightOf(c)];
+    final total = weights.fold<double>(0, (a, b) => a + b);
+    if (total <= 0) return candidates[_session.rng.nextInt(candidates.length)];
+    var roll = _session.rng.nextDouble() * total;
+    for (var i = 0; i < candidates.length; i++) {
+      roll -= weights[i];
+      if (roll <= 0) return candidates[i];
+    }
+    return candidates.last;
+  }
+
+  Set<String> _tagsOf(({bool isItem, String id}) e) => e.isItem
+      ? itemDefinition(e.id, _session.context).tags
+      : techniqueDefinition(e.id, _session.context).tags;
+
+  double _weightOf(({bool isItem, String id}) e) {
+    final view = _characterAdapter.currentView();
+    final tags = _tagsOf(e);
+    var w = 100.0; // rarity base — every pooled entry is a common base form
+
+    final aligned = styleAlignedFamilies[view.styleId] ?? const <String>{};
+    if (aligned.isNotEmpty && tags.any(aligned.contains)) w *= 2.0;
+
+    if (view.physiqueId.isNotEmpty && tags.contains('aff:${view.physiqueId}')) {
+      w *= 1.5;
+    }
+
+    if (_fillsBuildGap(e)) w *= 2.0;
+
+    final seen = _codex?.snapshot
+            .of(e.isItem ? CodexKind.item : CodexKind.technique)
+            .contains(e.id) ??
+        false;
+    if (seen) w /= 2.0;
+
+    return w;
+  }
+
+  /// True when taking [e] would plug a hole in the current Tome — no
+  /// technique hung, or no weapon / no armour to match [e]'s category.
+  bool _fillsBuildGap(({bool isItem, String id}) e) {
+    var hasWeapon = false, hasArmour = false, hasTechnique = false;
+    for (final p in _session.context.tome.inspect(_session.character)) {
+      final ref = p.buildComponentRef;
+      if (ref.referenceType == techniqueReferenceType) {
+        hasTechnique = true;
+      } else if (ref.referenceType == itemReferenceType) {
+        final cat = itemDefinition(ref.contentId, _session.context).category;
+        cat == 'armor' ? hasArmour = true : hasWeapon = true;
+      }
+    }
+    if (!e.isItem) return !hasTechnique;
+    final cat = itemDefinition(e.id, _session.context).category;
+    return cat == 'armor' ? !hasArmour : !hasWeapon;
   }
 
   String _prettyId(String id) => id

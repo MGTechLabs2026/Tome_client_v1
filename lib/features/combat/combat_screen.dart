@@ -76,9 +76,10 @@ class CombatScreen extends StatelessWidget {
             : LogReplayCombatPresentation(
                 log: state.log,
                 onFinished: () {
-                  context
-                      .read<RecordsRepository>()
-                      .recordBlow(_heaviestBlow(state.log));
+                  final records = context.read<RecordsRepository>();
+                  records.recordBlow(_heaviestBlow(state.log));
+                  final tally = state.tally;
+                  if (tally != null) records.recordCombat(tally);
                   // `won` is always set once a fight has run (the replay
                   // only shows after FightStarted resolved it) — assert
                   // that rather than defaulting a null to a win, which

@@ -16,7 +16,12 @@ class CombatBloc extends Bloc<CombatEvent, CombatState> {
         enemyDamage: event.enemyDamage,
         enemyDamageStat: event.enemyDamageStat,
       );
-      emit(CombatState(inProgress: false, won: outcome.won, log: outcome.log));
+      emit(CombatState(
+        inProgress: false,
+        won: outcome.won,
+        log: outcome.log,
+        tally: outcome.tally,
+      ));
     });
   }
 

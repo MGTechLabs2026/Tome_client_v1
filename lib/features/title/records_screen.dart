@@ -32,13 +32,21 @@ class RecordsScreen extends StatelessWidget {
             value: r.longestRunBouts == 0 ? '—' : '${r.longestRunBouts} bouts',
           ),
           LedgerRow(label: 'Heaviest blow', value: n(r.heaviestBlow)),
+          LedgerRow(label: 'Blows landed', value: n(r.blowsLanded)),
+          LedgerRow(label: 'Defences held', value: n(r.defencesHeld)),
+          LedgerRow(
+            label: 'Mastery from combat',
+            value: r.combatMastery == 0
+                ? '—'
+                : (r.combatMastery / 10).toStringAsFixed(1),
+          ),
           const SizedBox(height: 14),
           Text(
             r.isEmpty
                 ? 'No runs on the board yet. Clear a hard fight and the '
                     'first marks land here.'
-                : 'More marks — defence held, speed, combines forged — join '
-                    'the ledger as the game fills out.',
+                : 'Every fight trains the build it was fought with — a clean '
+                    'hit is a little mastery, a fumble is more.',
             style: hall.reading.copyWith(color: hall.boneDim),
           ),
         ],

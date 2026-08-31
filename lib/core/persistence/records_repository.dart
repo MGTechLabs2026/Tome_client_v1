@@ -1,9 +1,10 @@
 // lib/core/persistence/records_repository.dart
 //
 // The lineage's bests, shown on the RECORDS page of the title screen.
-// Every field is a "keep it if it beats what's stored" scalar, written
-// at run boundaries (a run cleared, a run ended) and once per fight
-// (the heaviest single blow). Nothing here needs the engine.
+// Most fields are "keep it if it beats what's stored"; a few are
+// lifetime tallies. Written at run boundaries (a run cleared / ended)
+// and once per fight (the heaviest blow, plus the fight's combat tally).
+import '../models/combat_tally_view.dart';
 import 'game_store.dart';
 
 const _kKey = 'records.v1';
@@ -16,6 +17,9 @@ class RecordsSnapshot {
     this.furthestRun = 0,
     this.longestRunBouts = 0,
     this.heaviestBlow = 0,
+    this.blowsLanded = 0,
+    this.defencesHeld = 0,
+    this.combatMastery = 0,
   });
 
   /// How many runs have been carried to their hard fight and won.
@@ -30,23 +34,42 @@ class RecordsSnapshot {
   /// The largest amount of damage dealt in one blow, across all fights.
   final int heaviestBlow;
 
+  /// Lifetime count of successful strikes landed in auto-combat.
+  final int blowsLanded;
+
+  /// Lifetime count of guard casts / armour blocks that held.
+  final int defencesHeld;
+
+  /// Lifetime mastery earned from fighting (0.1 per hit, 0.3 per miss),
+  /// stored ×10 as an int so it survives JSON round-trips exactly.
+  final int combatMastery;
+
   bool get isEmpty =>
       runsCleared == 0 &&
       furthestRun == 0 &&
       longestRunBouts == 0 &&
-      heaviestBlow == 0;
+      heaviestBlow == 0 &&
+      blowsLanded == 0 &&
+      defencesHeld == 0 &&
+      combatMastery == 0;
 
   RecordsSnapshot _copyWith({
     int? runsCleared,
     int? furthestRun,
     int? longestRunBouts,
     int? heaviestBlow,
+    int? blowsLanded,
+    int? defencesHeld,
+    int? combatMastery,
   }) =>
       RecordsSnapshot(
         runsCleared: runsCleared ?? this.runsCleared,
         furthestRun: furthestRun ?? this.furthestRun,
         longestRunBouts: longestRunBouts ?? this.longestRunBouts,
         heaviestBlow: heaviestBlow ?? this.heaviestBlow,
+        blowsLanded: blowsLanded ?? this.blowsLanded,
+        defencesHeld: defencesHeld ?? this.defencesHeld,
+        combatMastery: combatMastery ?? this.combatMastery,
       );
 
   Map<String, Object?> _toJson() => {
@@ -54,6 +77,9 @@ class RecordsSnapshot {
         'furthestRun': furthestRun,
         'longestRunBouts': longestRunBouts,
         'heaviestBlow': heaviestBlow,
+        'blowsLanded': blowsLanded,
+        'defencesHeld': defencesHeld,
+        'combatMastery': combatMastery,
       };
 
   static RecordsSnapshot _fromJson(Map<String, Object?> json) => RecordsSnapshot(
@@ -61,6 +87,9 @@ class RecordsSnapshot {
         furthestRun: (json['furthestRun'] as num?)?.toInt() ?? 0,
         longestRunBouts: (json['longestRunBouts'] as num?)?.toInt() ?? 0,
         heaviestBlow: (json['heaviestBlow'] as num?)?.toInt() ?? 0,
+        blowsLanded: (json['blowsLanded'] as num?)?.toInt() ?? 0,
+        defencesHeld: (json['defencesHeld'] as num?)?.toInt() ?? 0,
+        combatMastery: (json['combatMastery'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -99,6 +128,14 @@ class RecordsRepository {
     if (amount <= _snapshot.heaviestBlow) return;
     await _update(_snapshot._copyWith(heaviestBlow: amount));
   }
+
+  /// Fold one fight's tally into the lifetime combat counters.
+  Future<void> recordCombat(CombatTally tally) => _update(_snapshot._copyWith(
+        blowsLanded: _snapshot.blowsLanded + tally.hitsLanded,
+        defencesHeld: _snapshot.defencesHeld + tally.defenceHeld,
+        combatMastery:
+            _snapshot.combatMastery + (tally.masteryAwarded * 10).round(),
+      ));
 
   Future<void> _update(RecordsSnapshot next) {
     _snapshot = next;

@@ -43,7 +43,7 @@ void main() {
       enemyDamageStat: 'fist',
     );
 
-    expect(outcome.log.any((e) => e.text.contains('Enemy takes')), isTrue,
+    expect(outcome.log.any((e) => e.text.contains('You land')), isTrue,
         reason: 'the player still hits back despite a defence-only Tome');
     expect(outcome.won, isTrue);
   });

@@ -7,7 +7,7 @@ import 'package:build_engine/build_interpretation.dart';
 import 'package:build_engine/combat_plugin.dart';
 import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/martial_arts_plugin.dart'
-    show MartialSpecs, offSpecialtyDamageFactor, recognisedFamilyTags, styleAlignedFamilies;
+    show BurstChainState, StyleCombatRules;
 import 'package:build_engine/technique_plugin.dart';
 
 import '../models/combat_log_entry_view.dart';
@@ -69,22 +69,12 @@ class CombatAdapter {
     _ctx.components
         .add(enemy, HealthComponent(current: enemyHealth, max: enemyHealth));
 
-    // The fighter's style lane and specialty tags (Content Expansion V1,
-    // matrix §E). Read straight off the entity's tags — no new adapter
-    // dependency. A component whose family tag falls outside the style's
-    // aligned set is used at [offSpecialtyDamageFactor]; neutral content
-    // (no recognised family tag) is never penalised.
+    // A2: the style-scoped combat rules (off-specialty penalty, Shaolin
+    // Conditioning, Kunlun Burst Chain) are engine-owned. Build the rules
+    // object from the fighter's tags and let it answer; this adapter no
+    // longer computes any of the numbers itself.
     final myTags = _ctx.components.get<TagSet>(_me)?.tags ?? const <String>{};
-    final styleId = myTags
-        .firstWhere((t) => t.startsWith('style:'), orElse: () => 'style:')
-        .substring(6);
-    final aligned = styleAlignedFamilies[styleId] ?? const <String>{};
-    double offSpec(Set<String> tags) {
-      if (aligned.isEmpty) return 1.0;
-      final fam = tags.where(recognisedFamilyTags.contains);
-      if (fam.isEmpty) return 1.0;
-      return fam.any(aligned.contains) ? 1.0 : offSpecialtyDamageFactor;
-    }
+    final styleRules = StyleCombatRules(myTags);
 
     final build = _ctx.tome.resolve(_me);
     // Items contribute passive stat modifiers (weapon attack, affixes) —
@@ -123,12 +113,12 @@ class CombatAdapter {
             actor: _me,
             targets: [enemy],
             // The enemy's armour shrugs off a fraction of every landed
-            // hit; a technique outside the style's lane lands softer.
-            // Both baked into the action so player-facing numbers and
-            // the tally already reflect them.
+            // hit; a technique outside the style's lane lands softer
+            // (engine-owned rule). Both baked into the action so
+            // player-facing numbers and the tally already reflect them.
             baseDamage: tech.properties['damage']! *
                 (1 - enemyArmour) *
-                offSpec(tech.tags),
+                styleRules.outgoingDamageFactor(tech.tags),
             damageStat:
                 WeaponStatTags.matchOrFallback(tech.tags, techniqueSubject(tech.id)),
           ),
@@ -146,7 +136,8 @@ class CombatAdapter {
         AttackAction(
           actor: _me,
           targets: [enemy],
-          baseDamage: 4 * (1 - enemyArmour) * offSpec(weaponTags),
+          baseDamage:
+              4 * (1 - enemyArmour) * styleRules.outgoingDamageFactor(weaponTags),
           damageStat: weapon.isEmpty
               ? 'fist'
               : WeaponStatTags.matchOrFallback(weaponTags, 'item:$weapon'),
@@ -179,8 +170,7 @@ class CombatAdapter {
       enemyMissPunish: enemyMissPunish,
       enemyRegen: enemyRegen,
       enemyHits: enemyHits,
-      conditioning: myTags.contains(MartialSpecs.conditioning),
-      burstChain: myTags.contains(MartialSpecs.burstChain),
+      styleRules: styleRules,
     );
     resolver.run();
 
@@ -249,8 +239,7 @@ class _Resolver {
     this.enemyMissPunish = 0,
     this.enemyRegen = 0,
     this.enemyHits = 1,
-    this.conditioning = false,
-    this.burstChain = false,
+    required this.styleRules,
   });
 
   final PluginContext ctx;
@@ -269,14 +258,14 @@ class _Resolver {
   final num enemyRegen;
   final int enemyHits;
 
-  /// Style specialties that fit the client combat model (matrix §E.1):
-  /// shaolin Conditioning (−1 to every incoming hit, floor 1) and kunlun
-  /// Burst Chain (+2 damage per consecutive landed `blade` hit). The
-  /// stance-gated specialties need the player to enter a martial stance
-  /// mid-fight, which this loop doesn't model yet — deferred (§L).
-  final bool conditioning;
-  final bool burstChain;
-  int _bladeStreak = 0;
+  /// The engine-owned style-scoped combat rules (A2): off-specialty
+  /// penalty (applied at pool build above), Shaolin Conditioning and
+  /// Kunlun Burst Chain. This loop only threads state through them; the
+  /// numbers are the engine's. The stance-gated specialties still need
+  /// mid-fight stance entry this loop doesn't model — deferred (matrix
+  /// §L), unchanged.
+  final StyleCombatRules styleRules;
+  BurstChainState _burst = BurstChainState.broken;
 
   // Scored so the player prefers a real attack over re-casting a guard
   // while the enemy is up; falls back to whatever is legal otherwise.
@@ -347,8 +336,6 @@ class _Resolver {
     final success = rng.chance(_chance(comp) * (1 - enemyDodge));
     final name = _pretty(comp.id.isEmpty ? 'a bare-handed strike' : comp.id);
 
-    final isBladeHit = burstChain && chosen.tags.contains('blade');
-
     if (success) {
       // 4. damage / recovery — the engine runs the real effects.
       final foeBefore =
@@ -356,11 +343,10 @@ class _Resolver {
       system.executeAction(battle, chosen.action);
       var dealt =
           foeBefore - (ctx.components.get<HealthComponent>(enemy)?.current ?? 0);
-      // kunlun Burst Chain: each successive landed blade hit stacks +2.
-      if (isBladeHit && _bladeStreak > 0) {
-        dealt += _chip(enemy, _bladeStreak * 2);
-      }
-      if (isBladeHit) _bladeStreak++;
+      // kunlun Burst Chain (engine rule) — thread the streak through it.
+      final bc = styleRules.burstChainOnHit(_burst, chosen.tags.contains('blade'));
+      if (bc.bonus > 0) dealt += _chip(enemy, bc.bonus);
+      _burst = bc.state;
       _award(comp, kCombatMasterySuccess);
       _count(comp, hit: true);
       log.add(entry(
@@ -370,7 +356,7 @@ class _Resolver {
             : 'You land $name — $dealt damage.',
       ));
     } else {
-      _bladeStreak = 0; // a miss breaks the chain
+      _burst = BurstChainState.broken; // a miss breaks the chain
       // A miss still spends the turn (a no-op self action advances it).
       system.executeAction(battle, SelfEffectAction(actor: me));
       _award(comp, kCombatMasteryFail);
@@ -402,7 +388,7 @@ class _Resolver {
   }
 
   void _enemyTurn() {
-    _bladeStreak = 0; // the enemy acting breaks a kunlun blade chain
+    _burst = BurstChainState.broken; // the enemy acting breaks a blade chain
     // The turn-spending strike (rolls the player's armour).
     _enemyStrike();
     // A fast striker / flash duelist adds a flurry — extra chip that
@@ -427,10 +413,12 @@ class _Resolver {
     final before = _hp;
     system.executeAction(battle, enemyAttack);
     var dealt = before - _hp;
-    // shaolin Conditioning: shrug 1 off every incoming hit (floor 1).
-    if (conditioning && dealt > 1) {
-      _heal(1);
-      dealt -= 1;
+    // Shaolin Conditioning (engine rule): shrug 1 off the incoming hit,
+    // and restore the point already taken from HP.
+    final mitigated = styleRules.mitigateIncoming(dealt);
+    if (mitigated < dealt) {
+      _heal((dealt - mitigated).round());
+      dealt = mitigated;
     }
     if (dealt <= 0 || armour.isEmpty) {
       if (dealt > 0) {
@@ -464,7 +452,7 @@ class _Resolver {
     if (h == null || h.current <= 0) return;
     final raw = enemyAttack.baseDamage;
     var dmg = raw is int ? raw : raw.round();
-    if (conditioning && dmg > 1) dmg -= 1;
+    dmg = styleRules.mitigateIncoming(dmg).round(); // Shaolin Conditioning
     dmg = dmg.clamp(0, h.current.toInt());
     if (dmg <= 0) return;
     ctx.components.add(me, HealthComponent(current: h.current - dmg, max: h.max));

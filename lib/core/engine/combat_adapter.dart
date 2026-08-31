@@ -6,6 +6,8 @@ import 'package:build_engine/build_engine.dart';
 import 'package:build_engine/build_interpretation.dart';
 import 'package:build_engine/combat_plugin.dart';
 import 'package:build_engine/item_plugin.dart';
+import 'package:build_engine/martial_arts_plugin.dart'
+    show MartialSpecs, offSpecialtyDamageFactor, recognisedFamilyTags, styleAlignedFamilies;
 import 'package:build_engine/technique_plugin.dart';
 
 import '../models/combat_log_entry_view.dart';
@@ -67,6 +69,23 @@ class CombatAdapter {
     _ctx.components
         .add(enemy, HealthComponent(current: enemyHealth, max: enemyHealth));
 
+    // The fighter's style lane and specialty tags (Content Expansion V1,
+    // matrix §E). Read straight off the entity's tags — no new adapter
+    // dependency. A component whose family tag falls outside the style's
+    // aligned set is used at [offSpecialtyDamageFactor]; neutral content
+    // (no recognised family tag) is never penalised.
+    final myTags = _ctx.components.get<TagSet>(_me)?.tags ?? const <String>{};
+    final styleId = myTags
+        .firstWhere((t) => t.startsWith('style:'), orElse: () => 'style:')
+        .substring(6);
+    final aligned = styleAlignedFamilies[styleId] ?? const <String>{};
+    double offSpec(Set<String> tags) {
+      if (aligned.isEmpty) return 1.0;
+      final fam = tags.where(recognisedFamilyTags.contains);
+      if (fam.isEmpty) return 1.0;
+      return fam.any(aligned.contains) ? 1.0 : offSpecialtyDamageFactor;
+    }
+
     final build = _ctx.tome.resolve(_me);
     // Items contribute passive stat modifiers (weapon attack, affixes) —
     // run that side effect, and note which items are weapons vs armour.
@@ -104,30 +123,36 @@ class CombatAdapter {
             actor: _me,
             targets: [enemy],
             // The enemy's armour shrugs off a fraction of every landed
-            // hit — baked into the action so player-facing numbers and
-            // the tally already reflect it.
-            baseDamage: tech.properties['damage']! * (1 - enemyArmour),
+            // hit; a technique outside the style's lane lands softer.
+            // Both baked into the action so player-facing numbers and
+            // the tally already reflect them.
+            baseDamage: tech.properties['damage']! *
+                (1 - enemyArmour) *
+                offSpec(tech.tags),
             damageStat:
                 WeaponStatTags.matchOrFallback(tech.tags, techniqueSubject(tech.id)),
           ),
           _Comp.technique(tech.id),
+          tags: tech.tags,
         ));
       }
     }
     if (!pool.any((t) => t.action is AttackAction)) {
       final weapon = weapons.isEmpty ? '' : weapons.first;
+      final weaponTags = weapon.isEmpty
+          ? const <String>{'fist'}
+          : itemDefinitionFromContent(_ctx.content.find(weapon)!).tags;
       pool.add(_Tagged(
         AttackAction(
           actor: _me,
           targets: [enemy],
-          baseDamage: 4 * (1 - enemyArmour),
+          baseDamage: 4 * (1 - enemyArmour) * offSpec(weaponTags),
           damageStat: weapon.isEmpty
               ? 'fist'
-              : WeaponStatTags.matchOrFallback(
-                  itemDefinitionFromContent(_ctx.content.find(weapon)!).tags,
-                  'item:$weapon'),
+              : WeaponStatTags.matchOrFallback(weaponTags, 'item:$weapon'),
         ),
         weapon.isEmpty ? const _Comp.fist() : _Comp.weapon(weapon),
+        tags: weaponTags,
       ));
     }
 
@@ -154,6 +179,8 @@ class CombatAdapter {
       enemyMissPunish: enemyMissPunish,
       enemyRegen: enemyRegen,
       enemyHits: enemyHits,
+      conditioning: myTags.contains(MartialSpecs.conditioning),
+      burstChain: myTags.contains(MartialSpecs.burstChain),
     );
     resolver.run();
 
@@ -176,11 +203,14 @@ class CombatAdapter {
   }
 }
 
-/// A combat action paired with the Tome component that produced it.
+/// A combat action paired with the Tome component that produced it, plus
+/// that component's content tags (for the style specialty / off-lane
+/// checks).
 class _Tagged {
-  _Tagged(this.action, this.comp);
+  _Tagged(this.action, this.comp, {this.tags = const <String>{}});
   final CombatAction action;
   final _Comp comp;
+  final Set<String> tags;
 }
 
 enum _CompKind { technique, guard, weapon, fist }
@@ -219,6 +249,8 @@ class _Resolver {
     this.enemyMissPunish = 0,
     this.enemyRegen = 0,
     this.enemyHits = 1,
+    this.conditioning = false,
+    this.burstChain = false,
   });
 
   final PluginContext ctx;
@@ -236,6 +268,15 @@ class _Resolver {
   final double enemyMissPunish;
   final num enemyRegen;
   final int enemyHits;
+
+  /// Style specialties that fit the client combat model (matrix §E.1):
+  /// shaolin Conditioning (−1 to every incoming hit, floor 1) and kunlun
+  /// Burst Chain (+2 damage per consecutive landed `blade` hit). The
+  /// stance-gated specialties need the player to enter a martial stance
+  /// mid-fight, which this loop doesn't model yet — deferred (§L).
+  final bool conditioning;
+  final bool burstChain;
+  int _bladeStreak = 0;
 
   // Scored so the player prefers a real attack over re-casting a guard
   // while the enemy is up; falls back to whatever is legal otherwise.
@@ -306,13 +347,20 @@ class _Resolver {
     final success = rng.chance(_chance(comp) * (1 - enemyDodge));
     final name = _pretty(comp.id.isEmpty ? 'a bare-handed strike' : comp.id);
 
+    final isBladeHit = burstChain && chosen.tags.contains('blade');
+
     if (success) {
       // 4. damage / recovery — the engine runs the real effects.
       final foeBefore =
           ctx.components.get<HealthComponent>(enemy)?.current ?? 0;
       system.executeAction(battle, chosen.action);
-      final dealt =
+      var dealt =
           foeBefore - (ctx.components.get<HealthComponent>(enemy)?.current ?? 0);
+      // kunlun Burst Chain: each successive landed blade hit stacks +2.
+      if (isBladeHit && _bladeStreak > 0) {
+        dealt += _chip(enemy, _bladeStreak * 2);
+      }
+      if (isBladeHit) _bladeStreak++;
       _award(comp, kCombatMasterySuccess);
       _count(comp, hit: true);
       log.add(entry(
@@ -322,6 +370,7 @@ class _Resolver {
             : 'You land $name — $dealt damage.',
       ));
     } else {
+      _bladeStreak = 0; // a miss breaks the chain
       // A miss still spends the turn (a no-op self action advances it).
       system.executeAction(battle, SelfEffectAction(actor: me));
       _award(comp, kCombatMasteryFail);
@@ -353,6 +402,7 @@ class _Resolver {
   }
 
   void _enemyTurn() {
+    _bladeStreak = 0; // the enemy acting breaks a kunlun blade chain
     // The turn-spending strike (rolls the player's armour).
     _enemyStrike();
     // A fast striker / flash duelist adds a flurry — extra chip that
@@ -376,7 +426,12 @@ class _Resolver {
   void _enemyStrike() {
     final before = _hp;
     system.executeAction(battle, enemyAttack);
-    final dealt = before - _hp;
+    var dealt = before - _hp;
+    // shaolin Conditioning: shrug 1 off every incoming hit (floor 1).
+    if (conditioning && dealt > 1) {
+      _heal(1);
+      dealt -= 1;
+    }
     if (dealt <= 0 || armour.isEmpty) {
       if (dealt > 0) {
         log.add(entry(CombatLogEntryKind.damage, 'Enemy hits for $dealt.'));
@@ -408,11 +463,27 @@ class _Resolver {
     final h = ctx.components.get<HealthComponent>(me);
     if (h == null || h.current <= 0) return;
     final raw = enemyAttack.baseDamage;
-    final dmg = (raw is int ? raw : raw.round()).clamp(0, h.current.toInt());
+    var dmg = raw is int ? raw : raw.round();
+    if (conditioning && dmg > 1) dmg -= 1;
+    dmg = dmg.clamp(0, h.current.toInt());
     if (dmg <= 0) return;
     ctx.components.add(me, HealthComponent(current: h.current - dmg, max: h.max));
     ctx.events.publish(EntityDamaged(me, dmg));
     log.add(entry(CombatLogEntryKind.damage, 'Enemy hits again for $dmg.'));
+  }
+
+  /// Direct damage to [target]'s HealthComponent (used for effects that
+  /// must not consume a turn — e.g. a Burst Chain bonus). Returns the HP
+  /// actually removed.
+  num _chip(EntityId target, num amount) {
+    final h = ctx.components.get<HealthComponent>(target);
+    if (h == null || h.current <= 0 || amount <= 0) return 0;
+    final removed = math.min(amount, h.current);
+    ctx.components
+        .add(target, HealthComponent(current: h.current - removed, max: h.max));
+    ctx.events
+        .publish(EntityDamaged(target, removed is int ? removed : removed.round()));
+    return removed;
   }
 
   void _heal(int amount) {

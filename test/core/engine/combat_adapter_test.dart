@@ -114,4 +114,64 @@ void main() {
       expect(enemyHitLines(hits: 2), greaterThan(enemyHitLines()));
     });
   });
+
+  group('style specialties in combat (Content Expansion V1, §E)', () {
+    CombatAdapter styled(int seed, String style, String hangTechnique) {
+      final session = EngineSession(seed);
+      CharacterAdapter(session)
+        ..createCharacter('Test Fighter')
+        ..chooseStyle(style);
+      final tome = TomeAdapter(session)..createInitialTome();
+      final tech = techniqueDefinition(hangTechnique, session.context);
+      discoverTechnique(session.character, tech, session.context);
+      attemptToLearnTechnique(session.character, tech, 9999, session.context);
+      tome.insertTechnique(hangTechnique, '1,1');
+      return CombatAdapter(session, tomeAdapter: tome);
+    }
+
+    /// Total damage the player dealt across the whole fight, read off the
+    /// "You land … — N damage." lines (N may be fractional).
+    double totalPlayerDamage(String style, String tech) {
+      final out = styled(4, style, tech).runFight(
+        'x',
+        enemyHealth: 100000, // never dies — the loop caps at maxSteps
+        enemyDamage: 0,
+        enemyDamageStat: 'fist',
+      );
+      var sum = 0.0;
+      for (final e in out.log) {
+        final m = RegExp(r'— ([\d.]+) damage').firstMatch(e.text);
+        if (m != null) sum += double.parse(m.group(1)!);
+      }
+      return sum;
+    }
+
+    test('a blade technique lands softer for shaolin (off-lane) than for '
+        'kunlun (in-lane) — the off-specialty penalty', () {
+      final shaolin = totalPlayerDamage('shaolin', 'basic_slash');
+      final kunlun = totalPlayerDamage('kunlun', 'basic_slash');
+      expect(shaolin, greaterThan(0));
+      expect(kunlun, greaterThan(0));
+      // same seed -> same hit/miss pattern -> only the 0.85 factor differs
+      expect(shaolin, closeTo(kunlun * 0.85, 0.001));
+    });
+
+    test('a fist technique is unpenalised for shaolin (fist is in its lane)', () {
+      final shaolin = totalPlayerDamage('shaolin', 'basic_punch');
+      final kunlun = totalPlayerDamage('kunlun', 'basic_punch');
+      expect(shaolin, closeTo(kunlun, 0.001));
+    });
+
+    test('shaolin Conditioning leaves the fighter with more HP than an '
+        'otherwise identical run', () {
+      final withCond = styled(2, 'shaolin', 'basic_punch').runFight(
+          'x', enemyHealth: 500, enemyDamage: 6, enemyDamageStat: 'fist');
+      final without = styled(2, 'kunlun', 'basic_punch').runFight(
+          'x', enemyHealth: 500, enemyDamage: 6, enemyDamageStat: 'fist');
+      int lastHp(List<dynamic> log) =>
+          log.reversed.map((e) => e.playerHp).whereType<num>().first.round();
+      expect(lastHp(withCond.log), greaterThan(lastHp(without.log)),
+          reason: 'the -1/hit conditioning floor adds up over a fight');
+    });
+  });
 }

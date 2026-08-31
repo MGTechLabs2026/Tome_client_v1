@@ -53,6 +53,13 @@ class CombatAdapter {
     required num enemyDamage,
     required String enemyDamageStat,
     int enemyInitiative = 8,
+    // Content Expansion V1 — enemy archetype behaviour (matrix §G/§H).
+    // All default to "no effect" so existing callers are unchanged.
+    double enemyArmour = 0,
+    double enemyDodge = 0,
+    double enemyMissPunish = 0,
+    num enemyRegen = 0,
+    int enemyHits = 1,
   }) {
     final enemy = _ctx.entities.create();
     _ctx.components
@@ -96,7 +103,10 @@ class CombatAdapter {
           AttackAction(
             actor: _me,
             targets: [enemy],
-            baseDamage: tech.properties['damage']!,
+            // The enemy's armour shrugs off a fraction of every landed
+            // hit — baked into the action so player-facing numbers and
+            // the tally already reflect it.
+            baseDamage: tech.properties['damage']! * (1 - enemyArmour),
             damageStat:
                 WeaponStatTags.matchOrFallback(tech.tags, techniqueSubject(tech.id)),
           ),
@@ -110,7 +120,7 @@ class CombatAdapter {
         AttackAction(
           actor: _me,
           targets: [enemy],
-          baseDamage: 4,
+          baseDamage: 4 * (1 - enemyArmour),
           damageStat: weapon.isEmpty
               ? 'fist'
               : WeaponStatTags.matchOrFallback(
@@ -140,6 +150,10 @@ class CombatAdapter {
       pool: pool,
       enemyAttack: enemyAttack,
       armour: armour,
+      enemyDodge: enemyDodge,
+      enemyMissPunish: enemyMissPunish,
+      enemyRegen: enemyRegen,
+      enemyHits: enemyHits,
     );
     resolver.run();
 
@@ -201,6 +215,10 @@ class _Resolver {
     required this.pool,
     required this.enemyAttack,
     required this.armour,
+    this.enemyDodge = 0,
+    this.enemyMissPunish = 0,
+    this.enemyRegen = 0,
+    this.enemyHits = 1,
   });
 
   final PluginContext ctx;
@@ -212,6 +230,12 @@ class _Resolver {
   final List<_Tagged> pool;
   final AttackAction enemyAttack;
   final List<String> armour;
+
+  /// Enemy archetype behaviour (matrix §G/§H).
+  final double enemyDodge;
+  final double enemyMissPunish;
+  final num enemyRegen;
+  final int enemyHits;
 
   // Scored so the player prefers a real attack over re-casting a guard
   // while the enemy is up; falls back to whatever is legal otherwise.
@@ -278,8 +302,8 @@ class _Resolver {
     final chosen = legal.firstWhere((t) => identical(t.action, chosenAction));
     final comp = chosen.comp;
 
-    // 3. success / fail.
-    final success = rng.chance(_chance(comp));
+    // 3. success / fail — an evasive enemy shaves the hit chance down.
+    final success = rng.chance(_chance(comp) * (1 - enemyDodge));
     final name = _pretty(comp.id.isEmpty ? 'a bare-handed strike' : comp.id);
 
     if (success) {
@@ -306,11 +330,50 @@ class _Resolver {
         CombatLogEntryKind.actionResolved,
         comp.isDefence ? 'Your $name breaks.' : 'Your $name goes wide.',
       ));
+      // A counter fighter makes you pay for the opening.
+      if (enemyMissPunish > 0 && _active) {
+        final before = _hp;
+        system.executeAction(
+          battle,
+          AttackAction(
+            actor: enemy,
+            targets: [me],
+            baseDamage: enemyAttack.baseDamage * enemyMissPunish,
+            damageStat: enemyAttack.damageStat,
+          ),
+        );
+        final bit = before - _hp;
+        if (bit > 0) {
+          log.add(entry(CombatLogEntryKind.damage,
+              'It reads the opening — $bit on the counter.'));
+        }
+      }
     }
     return true;
   }
 
   void _enemyTurn() {
+    // The turn-spending strike (rolls the player's armour).
+    _enemyStrike();
+    // A fast striker / flash duelist adds a flurry — extra chip that
+    // does not go through the engine's one-action-per-turn machinery.
+    for (var i = 1; i < enemyHits && _hp > 0; i++) {
+      _enemyFlurryHit();
+    }
+    // An endurance fighter knits itself back together each turn.
+    if (enemyRegen > 0) {
+      final h = ctx.components.get<HealthComponent>(enemy);
+      if (h != null && h.current > 0 && h.current < h.max) {
+        final back = math.min(enemyRegen, h.max - h.current);
+        ctx.components.add(enemy,
+            HealthComponent(current: h.current + back, max: h.max));
+        ctx.events.publish(EntityHealed(enemy, back is int ? back : back.round()));
+        log.add(entry(CombatLogEntryKind.heal, 'Enemy recovers $back.'));
+      }
+    }
+  }
+
+  void _enemyStrike() {
     final before = _hp;
     system.executeAction(battle, enemyAttack);
     final dealt = before - _hp;
@@ -336,6 +399,20 @@ class _Resolver {
       log.add(entry(CombatLogEntryKind.damage,
           'Enemy hits for $dealt — your ${_pretty(piece)} gives.'));
     }
+  }
+
+  /// An extra hit in a multi-strike turn — applied straight to the
+  /// player's HealthComponent so it doesn't trip the engine's
+  /// one-action-per-turn guard.
+  void _enemyFlurryHit() {
+    final h = ctx.components.get<HealthComponent>(me);
+    if (h == null || h.current <= 0) return;
+    final raw = enemyAttack.baseDamage;
+    final dmg = (raw is int ? raw : raw.round()).clamp(0, h.current.toInt());
+    if (dmg <= 0) return;
+    ctx.components.add(me, HealthComponent(current: h.current - dmg, max: h.max));
+    ctx.events.publish(EntityDamaged(me, dmg));
+    log.add(entry(CombatLogEntryKind.damage, 'Enemy hits again for $dmg.'));
   }
 
   void _heal(int amount) {

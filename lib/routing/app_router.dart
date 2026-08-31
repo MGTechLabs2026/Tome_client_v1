@@ -11,6 +11,7 @@ import '../core/engine/item_adapter.dart';
 import '../core/engine/reward_adapter.dart';
 import '../core/engine/technique_adapter.dart';
 import '../core/engine/tome_adapter.dart';
+import '../core/models/enemy_roster.dart';
 import '../core/models/game_phase.dart';
 import '../core/persistence/codex_repository.dart';
 import '../core/persistence/records_repository.dart';
@@ -43,43 +44,6 @@ String _pathFor(GamePhase phase) => switch (phase) {
       GamePhase.loot => '/loot',
       GamePhase.defeat => '/defeat',
     };
-
-/// The enemy for the current bout. Ordinary bouts draw from a small
-/// roster that toughens a little each run; the final bout of every run
-/// ([RunState.isHardFight]) is a boss with markedly more health and
-/// bite. Difficulty is a function of `runNumber` and bout position — not
-/// of any lifetime fight tally.
-({String id, num health, num damage, String stat}) _enemyFor(RunState run) {
-  final ramp = run.runNumber - 1; // 0 on run 1
-  if (run.isHardFight) {
-    return (
-      id: 'rival_master',
-      health: 34 + ramp * 6 + run.fightIndex * 4,
-      damage: 5 + ramp,
-      stat: 'fist',
-    );
-  }
-  return switch (run.fightIndex) {
-    0 => (
-        id: 'sparring_partner',
-        health: 12 + ramp * 2,
-        damage: 2 + ramp ~/ 2,
-        stat: 'fist',
-      ),
-    1 => (
-        id: 'street_brawler',
-        health: 18 + ramp * 3,
-        damage: 3 + ramp ~/ 2,
-        stat: 'fist',
-      ),
-    final n => (
-        id: 'club_veteran',
-        health: 22 + ramp * 3 + n * 2,
-        damage: 3 + ramp ~/ 2,
-        stat: 'fist',
-      ),
-  };
-}
 
 /// "RUN 1 · BOUT 2 / 3" — the run/bout position for the prep screen.
 String _boutLabel(RunState run) {
@@ -142,22 +106,16 @@ Widget _screenFor(GamePhase phase, BuildContext context) {
     case GamePhase.trainingResult:
       return const TrainingResultScreen();
     case GamePhase.combatPreparation:
-      final enemy = _enemyFor(run.state);
       return CombatPreparationScreen(
-        enemyId: enemy.id,
-        enemyHealth: enemy.health,
+        enemy: enemyFor(run.state),
         isHardFight: run.state.isHardFight,
         boutLabel: _boutLabel(run.state),
       );
     case GamePhase.combat:
-      final enemy = _enemyFor(run.state);
       return BlocProvider(
         create: (_) => CombatBloc(context.read<CombatAdapter>()),
         child: CombatScreen(
-          enemyId: enemy.id,
-          enemyHealth: enemy.health,
-          enemyDamage: enemy.damage,
-          enemyDamageStat: enemy.stat,
+          enemy: enemyFor(run.state),
           playerName: context.read<CharacterAdapter>().currentView().name,
           isHardFight: run.state.isHardFight,
           // A won bout goes on to loot (RunBloc decides on LootResolved

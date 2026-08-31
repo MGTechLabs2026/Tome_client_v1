@@ -5,6 +5,7 @@ import 'package:tome_client/core/engine/character_adapter.dart';
 import 'package:tome_client/core/engine/combat_adapter.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
 import 'package:tome_client/core/engine/tome_adapter.dart';
+import 'package:tome_client/core/models/enemy_view.dart';
 import 'package:tome_client/features/combat/combat_bloc.dart';
 import 'package:tome_client/features/combat/combat_event.dart';
 
@@ -17,7 +18,13 @@ void main() {
       final tomeAdapter = TomeAdapter(session)..createInitialTome();
       return CombatBloc(CombatAdapter(session, tomeAdapter: tomeAdapter));
     },
-    act: (bloc) => bloc.add(const FightStarted('training_dummy', 10, 1, 'fist')),
+    act: (bloc) => bloc.add(const FightStarted(EnemyView(
+      id: 'training_dummy',
+      archetype: EnemyArchetype.brute,
+      health: 10,
+      damage: 1,
+      damageStat: 'fist',
+    ))),
     verify: (bloc) => expect(bloc.state.won, isTrue),
   );
 }

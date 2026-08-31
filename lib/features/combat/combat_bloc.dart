@@ -10,11 +10,18 @@ export 'combat_state.dart';
 class CombatBloc extends Bloc<CombatEvent, CombatState> {
   CombatBloc(this._adapter) : super(const CombatState()) {
     on<FightStarted>((event, emit) {
+      final e = event.enemy;
       final outcome = _adapter.runFight(
-        event.enemyId,
-        enemyHealth: event.enemyHealth,
-        enemyDamage: event.enemyDamage,
-        enemyDamageStat: event.enemyDamageStat,
+        e.id,
+        enemyHealth: e.health,
+        enemyDamage: e.damage,
+        enemyDamageStat: e.damageStat,
+        enemyInitiative: e.initiative.round(),
+        enemyArmour: e.armour,
+        enemyDodge: e.dodge,
+        enemyMissPunish: e.missPunish,
+        enemyRegen: e.regen,
+        enemyHits: e.hits,
       );
       emit(CombatState(
         inProgress: false,

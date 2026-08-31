@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/models/combat_log_entry_view.dart';
+import '../../core/models/enemy_view.dart';
 import '../../core/persistence/records_repository.dart';
 import '../tome/hall/hall_theme.dart';
 import 'combat_bloc.dart';
@@ -12,19 +13,13 @@ import 'presentation/log_replay_combat_presentation.dart';
 class CombatScreen extends StatelessWidget {
   const CombatScreen({
     super.key,
-    required this.enemyId,
-    required this.enemyHealth,
-    required this.enemyDamage,
-    required this.enemyDamageStat,
+    required this.enemy,
     required this.onFinished,
     this.playerName = '',
     this.isHardFight = false,
   });
 
-  final String enemyId;
-  final num enemyHealth;
-  final num enemyDamage;
-  final String enemyDamageStat;
+  final EnemyView enemy;
 
   /// Fired when the replay finishes, with the outcome: `true` if the
   /// fighter won this bout. A win goes on to loot; a loss ends the run.
@@ -52,18 +47,15 @@ class CombatScreen extends StatelessWidget {
     return worst.round();
   }
 
-  /// `sparring_partner` -> `Sparring Partner`.
-  String get _enemyName => enemyId
-      .split('_')
-      .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-      .join(' ');
+  /// The archetype's display name (e.g. 'Heavy Brute', 'The Iron Wall').
+  String get _enemyName => enemy.label;
 
   @override
   Widget build(BuildContext context) {
     final hall = context.hall;
     final bloc = context.read<CombatBloc>();
     if (bloc.state.log.isEmpty && bloc.state.won == null) {
-      bloc.add(FightStarted(enemyId, enemyHealth, enemyDamage, enemyDamageStat));
+      bloc.add(FightStarted(enemy));
     }
     return BlocBuilder<CombatBloc, CombatState>(
       builder: (context, state) => Scaffold(

@@ -24,8 +24,13 @@ rm -rf build/web "${OUT_DIR}"
 mkdir -p "${OUT_DIR}"
 
 echo "==> build (Devvit profile)"
+# --no-web-resources-cdn: bundle CanvasKit + engine resources into the
+# build instead of fetching them from www.gstatic.com at runtime. Devvit's
+# webview CSP (connect-src/script-src 'self' + devvit only) blocks every
+# external origin, so a CDN-loading build hangs on the loading shell.
 flutter build web --release \
   --base-href / \
+  --no-web-resources-cdn \
   --dart-define=TOME_PLATFORM=devvit
 
 cp -R build/web/. "${OUT_DIR}/"

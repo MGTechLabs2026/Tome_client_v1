@@ -1,4 +1,4 @@
-import 'package:build_engine/src/plugins/game/run_events.dart' show TechniqueEvolved;
+import 'package:build_engine/technique_plugin.dart' show TechniqueEvolved;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
 

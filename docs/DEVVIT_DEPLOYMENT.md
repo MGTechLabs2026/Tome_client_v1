@@ -54,6 +54,11 @@ docs / API guidance while the `Tome_devvit` project is built. Approve it
 on the next Claude Code start (project-scoped MCP servers require
 consent). It provides documentation/tooling only — it does not deploy.
 
+The version is **pinned** (`@devvit/mcp@0.0.27`) — `npx` still fetches
+from the registry, but a pin means an upgrade is a deliberate, reviewed
+edit, not silent code execution on every launch. Bump it the same way
+the `build_engine` ref is bumped: change the version, verify, commit.
+
 ## Known platform constraints (design around these)
 
 | Constraint | Consequence for Tome |

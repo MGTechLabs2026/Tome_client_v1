@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Determinism comes from the pinned build_engine ref + pubspec.lock,
+          # not the Flutter version; stable is fine and self-reports below.
+          channel: stable
+          cache: true
+
+      - run: flutter --version
+
+      # build_engine is a PRIVATE git dependency fetched over HTTPS.
+      # BUILD_ENGINE_TOKEN is a read-scoped PAT for MGTechLabs2026/built_engine.
+      # This is a build necessity, not a deploy credential — deploy secrets
+      # (itch butler key, Devvit auth) live in a separate release workflow.
+      - name: Authenticate the private engine dependency
+        env:
+          BUILD_ENGINE_TOKEN: ${{ secrets.BUILD_ENGINE_TOKEN }}
+        run: |
+          git config --global \
+            url."https://x-access-token:${BUILD_ENGINE_TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
+
+      - run: flutter pub get
+
+      - run: flutter analyze
+
+      - run: flutter test
+
+      # The web release must build. Then run the same audit the itch
+      # packager does (entrypoint, relative paths, file count, size).
+      - name: Web release build + itch artifact audit
+        run: |
+          chmod +x scripts/*.sh
+          scripts/package_itch.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tome-web
+          path: dist/itch/tome-web.zip
+          if-no-files-found: error
+          retention-days: 14

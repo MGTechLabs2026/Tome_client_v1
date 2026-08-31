@@ -177,7 +177,6 @@ build/
 **/macos/Flutter/ephemeral
 
 # Web related
-lib/generated_plugin_registrant.dart
 
 # Coverage
 coverage/
@@ -201,3 +200,4 @@ app.*.symbols
 .impeccable/review/
 .impeccable/mocks/
 .impeccable/config.local.json
+dist/

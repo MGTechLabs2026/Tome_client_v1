@@ -14,16 +14,19 @@ import 'tome_adapter.dart';
 
 /// Drives a real headless `TrainingSession` for one item or technique
 /// with the player's actual submitted `TrainingAttempt`s, then applies
-/// the exact same mastery/learning/evolution side effects
-/// `TrainingStage.runTraining` does — reusing the engine's own
-/// `trainingGain` (from `package:build_engine/game.dart`, the same
-/// composition barrel this client's adapters already draw stage classes
-/// from) so the [8, 25]-ish threshold scaling never drifts from the
-/// reference run. The only orchestration this adapter owns that the
-/// engine's stage leaves to a caller: publishing `TechniqueEvolved` on a
-/// successful evolution (the engine's `evolveTechnique` is a pure
-/// resolver and never publishes) and swapping the evolved form into the
-/// Tome slot the base technique occupied.
+/// the mastery/learning side effects and asks the engine
+/// (`resolveTechniqueEvolutionAfterTraining`) whether the technique just
+/// evolved — reusing the engine's own `trainingGain` (from
+/// `package:build_engine/game.dart`) so the threshold scaling never
+/// drifts from the reference run.
+///
+/// A4: the client does **not** decide whether a technique evolves and no
+/// longer publishes `TechniqueEvolved` itself. That decision and that
+/// event are owned by the Technique domain
+/// ([resolveTechniqueEvolutionAfterTraining]); this adapter only does the
+/// client-facing follow-up on a successful evolution — putting the
+/// evolved form on the roster / codex and swapping it into the Tome slot
+/// the base technique occupied.
 class TrainingAdapter {
   TrainingAdapter(
     this._session, {
@@ -110,35 +113,28 @@ class TrainingAdapter {
       _session.context,
     );
 
+    // A4: one authoritative evolution decision, in the Technique domain.
+    // It runs the resolver only when eligible (learned + has candidates)
+    // and publishes TechniqueEvolved itself, exactly once, on success —
+    // EngineSession's lineage subscription still hears it, just from the
+    // engine rather than from here.
+    final evolution = resolveTechniqueEvolutionAfterTraining(
+      _session.character,
+      technique,
+      result.profile,
+      _session.context,
+    );
     String? evolvedInto;
-    if (learning.learned && technique.evolutionCandidates.isNotEmpty) {
-      final evolution = evolveTechnique(
-        _session.character,
-        technique,
-        result.profile,
-        _session.context,
-      );
-      if (evolution.evolved) {
-        evolvedInto = evolution.chosenCandidate!.targetId;
-        // Put the evolved form on the roster so it shows in the tray and
-        // its detail sheet. Evolved branches have no independent LEARNING
-        // threshold in the engine — "learned" never applies to them — so
-        // the client tracks them by discovery alone.
-        _techniqueAdapter.discover(evolvedInto);
-        _codex?.discover(CodexKind.technique, evolvedInto);
-        // evolveTechnique is a pure resolver — it never publishes
-        // TechniqueEvolved (game_run.dart's TrainingStage does that as an
-        // orchestration decision). EngineSession's lineage subscription
-        // depends on this event, so publish it here.
-        _session.context.events.publish(
-          TechniqueEvolved(fromId: definitionId, toId: evolvedInto),
-        );
-        // Swap it into the base form's slot in place (the same
-        // `tome.replace` the reference run's TomeManager uses — bypasses
-        // the "must be learned" gate that would reject an evolved form).
-        final slot = _slotOfTechnique(definitionId);
-        if (slot != null) _tomeAdapter.replaceTechnique(slot, evolvedInto);
-      }
+    if (evolution.evolved) {
+      evolvedInto = evolution.chosenCandidate!.targetId;
+      // Client follow-up only: put the evolved form on the roster / codex
+      // (evolved branches have no LEARNING threshold, so the client
+      // tracks them by discovery) and swap it into the base form's Tome
+      // slot in place (`tome.replace` bypasses the "must be learned" gate).
+      _techniqueAdapter.discover(evolvedInto);
+      _codex?.discover(CodexKind.technique, evolvedInto);
+      final slot = _slotOfTechnique(definitionId);
+      if (slot != null) _tomeAdapter.replaceTechnique(slot, evolvedInto);
     }
 
     return TrainingResultView(

@@ -5,6 +5,7 @@ import '../../core/engine/character_adapter.dart';
 import '../../core/engine/item_adapter.dart';
 import '../../core/engine/technique_adapter.dart';
 import '../../core/engine/tome_adapter.dart';
+import '../../core/persistence/codex_repository.dart';
 import 'tome_event.dart';
 import 'tome_state.dart';
 
@@ -16,12 +17,20 @@ class TomeBloc extends Bloc<TomeEvent, TomeState> {
     required ItemAdapter itemAdapter,
     required CharacterAdapter characterAdapter,
     required TechniqueAdapter techniqueAdapter,
+    CodexRepository? codex,
   }) : _tomeAdapter = tomeAdapter,
        _itemAdapter = itemAdapter,
        _characterAdapter = characterAdapter,
        _techniqueAdapter = techniqueAdapter,
+       _codex = codex,
        super(const TomeState()) {
-    on<TomeRefreshRequested>((event, emit) => emit(_snapshot()));
+    on<TomeRefreshRequested>((event, emit) {
+      // Opening the Tome is the first point the fighter's style is
+      // settled — log it to the cross-run codex (idempotent).
+      final styleId = _characterAdapter.currentView().styleId;
+      if (styleId.isNotEmpty) _codex?.discover(CodexKind.style, styleId);
+      emit(_snapshot());
+    });
     on<FirstRunCalloutDismissed>((event, emit) {
       _calloutDismissed = true;
       emit(_snapshot());
@@ -68,6 +77,7 @@ class TomeBloc extends Bloc<TomeEvent, TomeState> {
   final ItemAdapter _itemAdapter;
   final CharacterAdapter _characterAdapter;
   final TechniqueAdapter _techniqueAdapter;
+  final CodexRepository? _codex;
 
   bool _calloutDismissed = false;
   Set<int>? _prevOwned;

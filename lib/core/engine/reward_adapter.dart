@@ -3,7 +3,6 @@ import 'dart:math' as math;
 
 import 'package:build_engine/build_engine.dart';
 import 'package:build_engine/build_interpretation.dart' show WeaponStatTags;
-import 'package:build_engine/combat_plugin.dart';
 import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/technique_plugin.dart';
 
@@ -60,10 +59,6 @@ class RewardAdapter {
   ({bool isItem, String id})? _offered;
   Affix? _prefix;
   Affix? _suffix;
-
-  /// Monotonic tag so a card's affix Modifiers get unique sources and
-  /// stack across a run.
-  int _affixSeq = 0;
 
   /// A uniformly random pick (via the run's seeded RNG) from the reward
   /// pool. Items are always eligible (a duplicate feeds Combine); a
@@ -198,13 +193,12 @@ class RewardAdapter {
         } else {
           _techniqueAdapter.discover(next.id);
           _codex?.discover(CodexKind.technique, next.id);
-          final tech = techniqueDefinition(next.id, _session.context);
-          // Techniques aren't instanced — their affixes stay client-side
-          // character modifiers for now.
-          final primaryStat = WeaponStatTags.matchOrFallback(
-              tech.tags, techniqueSubject(next.id));
-          _applyAffix(_prefix, primaryStat);
-          _applyAffix(_suffix, primaryStat);
+          // A technique isn't instanced, so its affixes are one-shot
+          // boons claimed with the card — never a persistent modifier
+          // (that was a leak: nothing removed it when the technique was
+          // unhung or dropped).
+          _applyTechniqueAffix(_prefix);
+          _applyTechniqueAffix(_suffix);
         }
         _offered = null;
         _prefix = null;
@@ -212,31 +206,13 @@ class RewardAdapter {
     }
   }
 
-  /// Turns one rolled technique [affix] into a real effect on the fighter.
-  void _applyAffix(Affix? affix, String primaryStat) {
+  /// Applies one rolled technique [affix] — an immediate, non-persistent
+  /// boon. Only `healNow` / `bankPoint` reach here; `statUp` /
+  /// `initiativeUp` have no per-technique home and are deliberately
+  /// no-ops if the affix data ever reintroduces them.
+  void _applyTechniqueAffix(Affix? affix) {
     if (affix == null || affix.amount == 0) return;
-    _affixSeq++;
-    final src = ModifierSource(
-        'reward:${affix.label}:${_session.character.value}:$_affixSeq');
     switch (affix.effect) {
-      case AffixEffect.statUp:
-        _session.context.modifiers.add(Modifier(
-          source: src,
-          target: _session.character,
-          stat: primaryStat,
-          operation: ModifierOperation.add,
-          value: affix.amount,
-        ));
-      case AffixEffect.initiativeUp:
-        final c = _session.context.components
-            .get<CombatantComponent>(_session.character);
-        if (c != null) {
-          _session.context.components.add(
-            _session.character,
-            CombatantComponent(
-                team: c.team, initiative: c.initiative + affix.amount),
-          );
-        }
       case AffixEffect.healNow:
         final h = _session.context.components
             .get<HealthComponent>(_session.character);
@@ -255,6 +231,10 @@ class RewardAdapter {
           ItemResources.upgradePoints,
           affix.amount,
         );
+      case AffixEffect.statUp:
+      case AffixEffect.initiativeUp:
+        // No persistent per-technique effect — see the doc above.
+        break;
     }
   }
 }

@@ -15,16 +15,16 @@ import '../../core/persistence/codex_repository.dart';
 import '../tome/hall/hall_theme.dart';
 import 'threshold_page.dart';
 
-const _styles = <(String, String)>[
+const almanacStyles = <(String, String)>[
   ('polearming', 'Polearming'),
   ('wrestling', 'Wrestling'),
   ('fencing', 'Fencing'),
   ('shaolin', 'Shaolin'),
-  ('taichi', 'Tai Chi'),
+  ('taiChi', 'Tai Chi'),
   ('kunlun', 'Kunlun'),
 ];
 
-const _items = <(String, String)>[
+const almanacItems = <(String, String)>[
   ('polearm', 'Polearm'),
   ('chair', 'Chair'),
   ('mask', 'Mask'),
@@ -40,7 +40,7 @@ const _items = <(String, String)>[
   ('training_shoes', 'Training Shoes'),
 ];
 
-const _techniques = <(String, String)>[
+const almanacTechniques = <(String, String)>[
   ('basic_punch', 'Basic Punch'),
   ('basic_slash', 'Basic Slash'),
   ('basic_guard', 'Basic Guard'),
@@ -54,7 +54,7 @@ class AlmanacScreen extends StatelessWidget {
     final hall = context.hall;
     final codex = context.read<CodexRepository>().snapshot;
     final met = codex.total;
-    final known = _styles.length + _items.length + _techniques.length;
+    final known = almanacStyles.length + almanacItems.length + almanacTechniques.length;
 
     return ThresholdPage(
       heading: 'Almanac',
@@ -67,11 +67,11 @@ class AlmanacScreen extends StatelessWidget {
             style: hall.measure.copyWith(color: hall.boneDim),
           ),
           const SizedBox(height: 18),
-          _Group(title: 'Styles', entries: _styles, known: codex.styles),
-          _Group(title: 'Items', entries: _items, known: codex.items),
+          _Group(title: 'Styles', entries: almanacStyles, known: codex.styles),
+          _Group(title: 'Items', entries: almanacItems, known: codex.items),
           _Group(
             title: 'Techniques',
-            entries: _techniques,
+            entries: almanacTechniques,
             known: codex.techniques,
           ),
         ],

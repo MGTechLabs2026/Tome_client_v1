@@ -1,0 +1,8 @@
+# The `visual` tag marks the dev-only screenshot harness
+# (test/tome_visual_capture_test.dart). It needs an on-screen render
+# surface that the headless test sandbox doesn't provide, so it is
+# skipped by default. Run it explicitly:
+#   flutter test --run-skipped test/tome_visual_capture_test.dart
+tags:
+  visual:
+    skip: "dev-only screenshot harness; run with --run-skipped"

@@ -1,5 +1,4 @@
 // lib/core/engine/technique_adapter.dart
-import 'package:build_engine/build_engine.dart';
 import 'package:build_engine/technique_plugin.dart';
 
 import '../models/technique_view.dart';
@@ -20,16 +19,8 @@ class TechniqueAdapter {
     final technique = techniqueDefinition(definitionId, _session.context);
     discoverTechnique(_session.character, technique, _session.context);
     _discoveredIds.add(definitionId);
-    // `TechniquePlugin` registers a MASTERY axis only for the 3 base
-    // forms; evolved branches get none, so their rank would stay 0
-    // forever. Give every technique on the roster the same [5, 15, 30]
-    // rank axis so training shows a per-technique rank.
-    final subject = techniqueSubject(definitionId);
-    if (_session.context.mastery.definitionOf(subject) == null) {
-      _session.context.mastery.define(
-        MasteryDefinition(subject: subject, thresholds: const [5, 15, 30]),
-      );
-    }
+    // The MASTERY rank axis (every technique, base and evolved) is owned
+    // by `TechniquePlugin.initialize` — nothing to register here.
   }
 
   /// Whether [definitionId] is on this run's roster yet (granted as a

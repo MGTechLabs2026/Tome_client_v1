@@ -23,6 +23,17 @@ void main() {
     }
   });
 
+  test('technique affixes are one-shot boons only — never a persistent '
+      'stat/initiative modifier (a technique has no per-copy home for one)', () {
+    for (final a in [...techniquePrefixes, ...techniqueSuffixes]) {
+      expect(
+        a.effect,
+        anyOf(AffixEffect.healNow, AffixEffect.bankPoint),
+        reason: '${a.label} must be an instant effect',
+      );
+    }
+  });
+
   Map<AffixLean, int> tally(String affinity, int seed) {
     final rng = RngService(seed);
     final counts = {for (final l in AffixLean.values) l: 0};

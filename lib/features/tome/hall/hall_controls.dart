@@ -58,6 +58,7 @@ class _InkButtonState extends State<InkButton> {
         button: true,
         enabled: enabled,
         label: widget.label,
+        excludeSemantics: true,
         child: MouseRegion(
           cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
           onEnter: (_) => setState(() => _hover = true),

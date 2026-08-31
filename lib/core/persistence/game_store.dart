@@ -10,8 +10,15 @@
 // tests. If this ever needs per-run history rows it can be swapped for
 // SQLite behind the same two `Map<String, Object?>` accessors without
 // touching a repository.
+//
+// Each repository owns a single versioned key (`records.v1`, `codex.v1`,
+// `settings.v1`) and tolerates missing fields on read, so a forward-
+// compatible field add needs no migration. A breaking shape change would
+// bump the suffix and add a one-time read of the old key — there is no
+// such migration yet (nothing shipped a `v2`).
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 abstract class GameStore {
@@ -49,8 +56,16 @@ class _PrefsGameStore implements GameStore {
   }
 
   @override
-  Future<void> write(String key, Map<String, Object?> value) =>
-      _prefs.setString(key, jsonEncode(value));
+  Future<void> write(String key, Map<String, Object?> value) async {
+    // Records / codex / settings writes are fire-and-forget from the
+    // caller's side. A platform write failure must not surface as an
+    // unhandled async error — degrade to "this change didn't persist".
+    try {
+      await _prefs.setString(key, jsonEncode(value));
+    } catch (e, st) {
+      debugPrint('GameStore: failed to persist "$key": $e\n$st');
+    }
+  }
 }
 
 class _MemoryGameStore implements GameStore {

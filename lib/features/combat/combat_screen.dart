@@ -79,7 +79,11 @@ class CombatScreen extends StatelessWidget {
                   context
                       .read<RecordsRepository>()
                       .recordBlow(_heaviestBlow(state.log));
-                  onFinished(state.won ?? true);
+                  // `won` is always set once a fight has run (the replay
+                  // only shows after FightStarted resolved it) — assert
+                  // that rather than defaulting a null to a win, which
+                  // would silently skip the defeat path.
+                  onFinished(state.won!);
                 },
                 playerName: playerName,
                 enemyName: isHardFight ? '$_enemyName  ·  HARD' : _enemyName,

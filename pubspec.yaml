@@ -41,6 +41,9 @@ dependencies:
   build_engine:
     git:
       url: git@github-built-engine:MGTechLabs2026/built_engine.git
+      # Pinned so a blanket `flutter pub upgrade` can't move the engine.
+      # Bump deliberately: edit this ref, then `flutter pub get`.
+      ref: fd8a229
 
 dev_dependencies:
   flutter_test:

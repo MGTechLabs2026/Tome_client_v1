@@ -24,8 +24,10 @@ Future<void> _pumpUntil(
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
+  // `retry`: the macOS harness occasionally reports "No tests ran" when
+  // it fails to foreground the app window on the first attempt.
   testWidgets('a run is 3 back-to-back bouts (no Tome mid-run); the Tome only '
-      'opens once the run is cleared', (tester) async {
+      'opens once the run is cleared', retry: 2, (tester) async {
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1.0;

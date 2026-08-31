@@ -119,18 +119,15 @@ Widget _screenFor(GamePhase phase, BuildContext context) {
         child: const CharacterCreationScreen(),
       );
     case GamePhase.tome:
-      // Opening the Tome is the first point the fighter's style is
-      // settled — log it to the cross-run codex (idempotent).
-      try {
-        final styleId = context.read<CharacterAdapter>().currentView().styleId;
-        context.read<CodexRepository>().discover(CodexKind.style, styleId);
-      } catch (_) {/* style not chosen yet — nothing to record */}
       return BlocProvider(
         create: (_) => TomeBloc(
           tomeAdapter: context.read<TomeAdapter>(),
           itemAdapter: context.read<ItemAdapter>(),
           characterAdapter: context.read<CharacterAdapter>(),
           techniqueAdapter: context.read<TechniqueAdapter>(),
+          // Records the fighter's style to the cross-run codex on the
+          // first refresh (idempotent) — see TomeBloc.
+          codex: context.read<CodexRepository>(),
         ),
         child: const TomeScreen(),
       );

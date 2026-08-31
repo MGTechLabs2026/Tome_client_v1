@@ -3,6 +3,12 @@
 // Dev harness: renders the real app (real fonts, real engine data) at
 // the two shipped form factors and writes PNGs to .impeccable/review/
 // for the batched inspection round. Not a behavioural test.
+//
+// Tagged `visual` and skipped by default (dart_test.yaml): offscreen
+// `RenderRepaintBoundary.toImage()` is unavailable in the headless test
+// sandbox, so this reliably times out there. Run it deliberately:
+//   flutter test --run-skipped test/tome_visual_capture_test.dart
+@Tags(['visual'])
 @Timeout(Duration(minutes: 3))
 library;
 

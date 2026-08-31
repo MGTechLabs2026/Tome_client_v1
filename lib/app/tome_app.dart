@@ -26,14 +26,14 @@ import 'theme.dart';
 /// the run's seeded RNG) from the flattened pool every loot screen,
 /// **with replacement**: the same id can be offered and taken again, so
 /// a duplicate can be farmed for Combine and techniques stay in the mix.
-const _rewardItemPool = [
+const kRewardItemPool = [
   'iron_sword',
   'gloves',
   'training_staff',
   'cloth_armor',
   'training_shoes',
 ];
-const _rewardTechniquePool = ['basic_slash', 'basic_guard', 'basic_punch'];
+const kRewardTechniquePool = ['basic_slash', 'basic_guard', 'basic_punch'];
 
 class TomeApp extends StatefulWidget {
   const TomeApp({super.key, required this.runBloc, this.session, this.store});
@@ -67,33 +67,36 @@ class _TomeAppState extends State<TomeApp> {
   late final CodexRepository _codex = CodexRepository(_store);
   late final SettingsRepository _settings = SettingsRepository(_store);
 
-  /// -1 marks a test-pinned session that never rebuilds.
-  late int _seed = widget.session != null ? -1 : _runBloc.state.sessionSeed;
+  /// A test-pinned session never rebuilds; otherwise the session tracks
+  /// [RunState.sessionSeed] and is rebuilt on NEW RUN.
+  late final bool _pinned = widget.session != null;
+  late int _seed = _runBloc.state.sessionSeed;
   late EngineSession _session = widget.session ?? EngineSession(_seed);
   StreamSubscription<RunState>? _runSub;
 
   @override
   void initState() {
     super.initState();
-    if (widget.session == null) {
-      _runSub = _runBloc.stream.listen((s) {
-        if (s.sessionSeed == _seed) return;
-        // NEW RUN: rebuild the engine session (fighter, build, RNG).
-        final old = _session;
-        setState(() {
-          _seed = s.sessionSeed;
-          _session = EngineSession(_seed);
-        });
-        WidgetsBinding.instance
-            .addPostFrameCallback((_) => old.dispose());
+    if (_pinned) return;
+    _runSub = _runBloc.stream.listen((s) {
+      if (s.sessionSeed == _seed) return;
+      // NEW RUN: swap in a fresh engine session (fighter, build, RNG).
+      // Capture the outgoing session *before* setState so overlapping
+      // rebuilds each dispose their own predecessor exactly once.
+      final old = _session;
+      setState(() {
+        _seed = s.sessionSeed;
+        _session = EngineSession(_seed);
       });
-    }
+      WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    });
   }
 
   @override
   void dispose() {
     _runSub?.cancel();
     _session.dispose();
+    _router.dispose();
     super.dispose();
   }
 
@@ -147,8 +150,8 @@ class _TomeAppState extends State<TomeApp> {
               techniqueAdapter: ctx.read<TechniqueAdapter>(),
               characterAdapter: ctx.read<CharacterAdapter>(),
               itemAdapter: ctx.read<ItemAdapter>(),
-              itemPool: _rewardItemPool,
-              techniquePool: _rewardTechniquePool,
+              itemPool: kRewardItemPool,
+              techniquePool: kRewardTechniquePool,
               codex: _codex,
             ),
           ),

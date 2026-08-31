@@ -70,28 +70,31 @@ const itemSuffixes = <Affix>[
 ];
 
 // ── Technique (card) affixes ─────────────────────────────────────────
+//
+// A technique isn't an instanced entity, so it has no per-copy home for
+// a persistent stat/initiative bonus — a rewarded technique's *power*
+// grows through training and evolution, not affixes. Technique affixes
+// are therefore **one-shot boons** claimed with the card: a heal now, or
+// banked upgrade points. `statUp` / `initiativeUp` are never used here
+// (they belong to items, bound to `ItemInstance.statBonuses`).
 
 const techniquePrefixes = <Affix>[
-  Affix('Rough', AffixLean.neutral, AffixEffect.statUp, 1, 'half-remembered — force +1'),
-  Affix('Clean', AffixLean.neutral, AffixEffect.statUp, 2, 'no wasted motion — force +2'),
-  Affix('Sharp', AffixLean.neutral, AffixEffect.statUp, 3, 'lands where aimed — force +3'),
-  Affix('Perfected', AffixLean.neutral, AffixEffect.statUp, 5, 'drilled to the bone — force +5'),
-  Affix('Crushing', AffixLean.force, AffixEffect.statUp, 5, 'meant to end things — force +5'),
-  Affix('Thunderous', AffixLean.force, AffixEffect.statUp, 6, 'you feel it in the floor — force +6'),
-  Affix('Darting', AffixLean.flow, AffixEffect.initiativeUp, 3, 'struck before seen — act sooner (+3)'),
+  Affix('Hard-Won', AffixLean.neutral, AffixEffect.bankPoint, 1, 'paid for in bruises — +1 upgrade point'),
+  Affix('Clean', AffixLean.neutral, AffixEffect.bankPoint, 1, 'no wasted motion — +1 upgrade point'),
+  Affix('Drilled', AffixLean.neutral, AffixEffect.bankPoint, 2, 'a thousand repetitions — +2 upgrade points'),
+  Affix('Grounding', AffixLean.force, AffixEffect.healNow, 12, 'settles the breath — restore 12 vitality'),
+  Affix('Iron-Willed', AffixLean.force, AffixEffect.bankPoint, 2, 'forged through, not around — +2 upgrade points'),
   Affix('Serene', AffixLean.flow, AffixEffect.healNow, 10, 'the calm to keep going — restore 10 vitality'),
-  Affix('Ghosting', AffixLean.flow, AffixEffect.initiativeUp, 4, 'never quite there — act sooner (+4)'),
+  Affix('Flowing', AffixLean.flow, AffixEffect.healNow, 14, 'yield, then recover — restore 14 vitality'),
 ];
 
 const techniqueSuffixes = <Affix>[
-  Affix('of the First Form', AffixLean.neutral, AffixEffect.statUp, 2, 'the root of the style — force +2'),
-  Affix('of Seven Stars', AffixLean.neutral, AffixEffect.statUp, 3, 'a set path, well worn — force +3'),
-  Affix('of the Broken Guard', AffixLean.neutral, AffixEffect.initiativeUp, 3, 'punishes hesitation — act sooner (+3)'),
-  Affix('of the Rising Sun', AffixLean.force, AffixEffect.statUp, 4, 'opens with everything — force +4'),
-  Affix('of the Iron Ox', AffixLean.force, AffixEffect.statUp, 5, 'slow, certain, heavy — force +5'),
-  Affix('of the Turning Wheel', AffixLean.flow, AffixEffect.initiativeUp, 4, 'momentum feeds itself — act sooner (+4)'),
+  Affix('of the First Form', AffixLean.neutral, AffixEffect.bankPoint, 1, 'the root of the style — +1 upgrade point'),
+  Affix('of Seven Stars', AffixLean.neutral, AffixEffect.bankPoint, 2, 'a set path, well worn — +2 upgrade points'),
+  Affix('of the Rising Sun', AffixLean.force, AffixEffect.healNow, 14, 'opens the day fresh — restore 14 vitality'),
+  Affix('of the Iron Ox', AffixLean.force, AffixEffect.bankPoint, 2, 'slow, certain, heavy — +2 upgrade points'),
   Affix('of Still Water', AffixLean.flow, AffixEffect.healNow, 16, 'yield, then recover — restore 16 vitality'),
-  Affix('of the Coiled Spring', AffixLean.flow, AffixEffect.initiativeUp, 3, 'stored, then released — act sooner (+3)'),
+  Affix('of the Coiled Spring', AffixLean.flow, AffixEffect.bankPoint, 2, 'stored, then released — +2 upgrade points'),
 ];
 
 /// How often a prefix / suffix slot comes up empty — a plain, unadorned

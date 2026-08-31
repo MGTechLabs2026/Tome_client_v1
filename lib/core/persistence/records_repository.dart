@@ -95,9 +95,9 @@ class RecordsRepository {
       ));
 
   /// The single largest hit seen in a fight just replayed.
-  Future<void> recordBlow(int amount) {
-    if (amount <= _snapshot.heaviestBlow) return Future.value();
-    return _update(_snapshot._copyWith(heaviestBlow: amount));
+  Future<void> recordBlow(int amount) async {
+    if (amount <= _snapshot.heaviestBlow) return;
+    await _update(_snapshot._copyWith(heaviestBlow: amount));
   }
 
   Future<void> _update(RecordsSnapshot next) {

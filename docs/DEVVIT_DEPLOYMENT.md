@@ -46,6 +46,14 @@ Create with the Devvit CLI (`devvit new`, Web template). It needs:
 - `devvit playtest <subreddit>` for iteration; `devvit upload` +
   `devvit publish` for release.
 
+### Devvit MCP server (Claude Code assist)
+
+`.mcp.json` in this repo registers Reddit's official Devvit MCP server
+(`@devvit/mcp`, telemetry off) so Claude Code can pull current Devvit
+docs / API guidance while the `Tome_devvit` project is built. Approve it
+on the next Claude Code start (project-scoped MCP servers require
+consent). It provides documentation/tooling only — it does not deploy.
+
 ## Known platform constraints (design around these)
 
 | Constraint | Consequence for Tome |

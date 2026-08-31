@@ -49,7 +49,9 @@ void main() {
     },
     act: (bloc) {
       bloc.add(const TomeRefreshRequested());
-      bloc.add(const ComponentUpgraded('knife'));
+      final knifeValue =
+          ItemAdapter(session).viewOf('knife').instanceEntityValue!;
+      bloc.add(ComponentUpgraded(knifeValue));
     },
     verify: (bloc) => expect(bloc.state.upgradePoints, 2),
   );

@@ -152,6 +152,11 @@ components:
     padding: "4px 8px"
   synergy-tag-mismatch:
     textColor: "{colors.slate}"
+  reward-card:
+    textColor: "{colors.bone}"
+    typography: "{typography.display}"
+    rounded: "{rounded.plate}"
+    padding: "18px 18px 16px"
 ---
 
 # Design System: Tome — Martial Arts
@@ -160,7 +165,7 @@ components:
 
 **Creative North Star: "The Lineage Hall"**
 
-The surface is a dim hall of lacquered boards with martial forms mounted on it — bone plates hung on a coordinate lattice, cords tied between the ones that combine, seals chopped into each plate to name it. It refuses the two obvious neighbours: the neon-glass build screen and the monochrome data grid. Every mark in the build is drawn — chops, rank rings, cords, state marks, button edges, the vitality gauge, the hammer glyph — from one small set of ink primitives on canvas. There are no stock Material widgets, no icon fonts, and no glyph typefaces in the committed surface.
+The surface is a dim hall of lacquered boards with martial forms mounted on it — bone plates hung on a coordinate lattice, cords tied between the ones that combine, seals chopped into each plate to name it. It refuses the two obvious neighbours: the neon-glass build screen and the monochrome data grid. Every mark in the build is drawn — chops, rank rings, cords, state marks, button edges, the vitality gauge, the hammer glyph — from one small set of ink primitives on canvas. There are no stock Material widgets, no icon fonts, and no glyph typefaces in the committed surface. The lone exception is the threshold — the title screen and the menus it opens — which is pre-diegetic and may float one oiled-paper panel blurred over the background art behind it; the hall proper never does.
 
 Density is high but never crowded: the board is a pannable lattice with a 22px gutter between 132px cells, and every panel around it is a flat lacquer plane divided from its neighbour by a single 1px bone hairline at 16% alpha. The world is lit by exactly one raking light from the upper-left (`Alignment(-0.72, -0.86)`), and that constant is what makes it read as a physical room rather than a dark theme: the ground's light pool, its answering shade, each plate's inner light-to-shade gradient, and every cast shadow are derived from that one vector.
 
@@ -174,6 +179,7 @@ The palette is deliberately near-monochrome in the field and saturated only at t
 - Structural chrome is square and hairline-ruled; only drawn marks get corners
 - Deterministic hand-wobble seeded by content id — never animated, never jittering
 - State is always shape before colour (four fixed ink marks: filled / hollow / struck / sealed)
+- The wordmark is type, not a drawn logogram — *TOME* in Cinzel over the edition line in the mono, with the seal chop as its only identity mark
 
 ## Colors
 
@@ -214,7 +220,7 @@ A near-monochrome hall — lacquered black ground, aged bone material, and two i
 **Character:** A carved Roman capital for names, a quiet drawing-office grotesque for everything read, and a measurement hand for anything that is a quantity. The pairing reads as an inscription plate above a technical annotation — inherited weight over engineering precision, with no third voice.
 
 ### Hierarchy
-- **Display Large** (`{typography.display-large}`): The lineage's own name, and only that — the frontispiece rail's character name, set at 27px there. Uppercase always.
+- **Display Large** (`{typography.display-large}`): The lineage's own name — the frontispiece rail's character name, set at 27px there — and the game wordmark *TOME* on the title screen, set large. Nothing else. Uppercase always.
 - **Display** (`{typography.display}`): Sheet titles and the compact frontispiece name (16px). Uppercase.
 - **Heading** (`{typography.heading}`): Section titles inside overlays and sheets — the first-run callout head, the combine-reveal verdict, sheet sub-headers. Runs down to 11–12px in place; the 2.6px tracking is what keeps it a heading at that size.
 - **Body** (`{typography.body}`): Every readout and control value — physique, style, tradition, hint lines. Steps to 11–12.5px in dense contexts.
@@ -227,6 +233,8 @@ A near-monochrome hall — lacquered black ground, aged bone material, and two i
 **The Three Hands Rule.** Three faces, three jobs, never crossed. Cinzel letters names and section titles and nothing else. Archivo carries all prose, labels, and control captions. Spline Sans Mono is reserved for quantities, classes, ranks, and grid addresses — if a number is a measurement, it is set in the mono; if it is part of a sentence, it is not.
 
 **The Tracking-Carries-Rank Rule.** The size ramp is deliberately flat — 34 / 22 / 15 / 14.5 / 13.5 / 12 / 10.5, most of the surface living between 9 and 14.5px. Hierarchy is carried by tracking and case instead: tracking climbs as size falls (1.0 → 1.4 → 2.6 → 1.9), and anything at label rank is uppercase. Do not reach for a bigger size to make something important; reach for caps and letterspacing.
+
+**The Wordmark-Is-Type Rule.** The game's name is set, never drawn: *TOME* in Cinzel Display Large, the edition line (*The Martial Art Edition*) in Spline Sans Mono at label size beneath a hairline rule. No logogram, monogram, or icon lockup — the seal chop is the only identity mark the product carries.
 
 ## Layout
 
@@ -241,6 +249,8 @@ The board itself is a fixed coordinate lattice inside an `InteractiveViewer` (sc
 The loose rack is a horizontal list of **104px** pieces at a **12px** gap, and always shows at least **12** mounting positions — a rack with visible capacity, never a black void.
 
 Spacing runs on a two-tick rhythm — 4, 6, 8, 10, 12, 14, 16, 18, 22, 24 — with panel padding sitting at 14–24 and inline gaps at 4–12. Sheets pad `22 / 18 / 22 / 22` (detail) and `24 / 16 / 24 / 24` (commit); the combine reveal is the one place that opens to 28/24.
+
+**Threshold surfaces** — the title screen and the menus it opens — do not use the four-region layout. They centre one oiled-paper panel in the field, wordmark and a vertical action column stacked inside it, with space kept around it for a background painting. That composition is theirs alone; the in-game surface never adopts it.
 
 **The Hairline Division Rule.** Regions are separated by exactly one 1px bone rule at 16% alpha on the shared edge — never by a gap, a shadow, a colour step, or a rounded card. The only heavier rule in the build is a sheet's 2px top edge, which is what makes a sheet read as arriving rather than as another panel.
 
@@ -257,6 +267,7 @@ Three cues stack, in this order:
 - **Plate shadow** (`translate(4.4, 5.4)`, blur 9, black @ 44%): The mounted form's own shadow on the board. The single most-used depth mark in the build.
 - **Control shadow** (`translate(2.4, 3)`, blur 5, black @ 34%): Under an `InkButton` at rest. Removed entirely while pressed — a button sits down into the board rather than changing colour.
 - **Raking shadow, elevation 1** (`offset(4.3, 5.2)` blur 14 @ 42% + `offset(1.4, 1.7)` blur 4 @ 22%): The two-layer stack from `rakingShadow()`, used on floating overlays such as the first-run callout. Both layers derive their offset from `-kRakingLight`, scaled by an `elevation` multiplier.
+- **Threshold panel** (`BackdropFilter` blur ~10 + bone fill @ 66–82% + `rakingShadow(elevation: 1.2)`): The oiled-paper panel behind the title screen and its menus — the only `BackdropFilter` in the project.
 
 ### Named Rules
 
@@ -264,11 +275,13 @@ Three cues stack, in this order:
 
 **The Press-Is-Depth Rule.** A pressed control loses its shadow and thickens its edge stroke (1.6 → 2px); it does not change colour. Hover raises the fill alpha (0.05 → 0.12 outlined, 0.92 → 1.0 filled) and the edge alpha (0.7 → 0.95). Disabled drops the whole control to 40% opacity.
 
+**The Frost-Is-Threshold-Only Rule.** A `BackdropFilter` blur appears on exactly one class of surface: the pre-diegetic threshold — the title screen and the menus it opens — where a panel must stay legible over background art not yet placed. It reads as oiled paper, not glass: a warm bone tint, a matte `handRect` edge, a soft raking shadow — never a bright rim-light, a specular streak, or a high-chroma wash. The hall proper — board, rails, rack, foot bar, sheets — stays opaque flat lacquer.
+
 ## Shapes
 
 Two form languages, kept strictly apart.
 
-**Drawn marks** are hand-cut. Every one of them is a `handRect` — a rounded rectangle with a **2–3px radius** and a deterministic ±0.9px wobble on all eight control points, seeded by the element's content id or label hash. This is the corner language of mount plates (r3), button edges (r2), the chop border (r3), the board's own carved frame (r2), and the four state marks (r1–2). Because the wobble comes from a hash and not a random source, a given form's plate looks identical on every rebuild and every frame.
+**Drawn marks** are hand-cut. Every one of them is a `handRect` — a rounded rectangle with a **2–3px radius** and a deterministic ±0.9px wobble on all eight control points, seeded by the element's content id or label hash. This is the corner language of mount plates (r3), button edges (r2), the chop border (r3), the board's own carved frame (r2), the four state marks (r1–2), and the two plates that are not mounts — the reward card and the threshold panel, both drawn `handRect` outlines at r3, never Material cards. Because the wobble comes from a hash and not a random source, a given form's plate looks identical on every rebuild and every frame.
 
 **Structural chrome** is square. The frontispiece rail, loose rack, foot bar, bottom sheets, tooltips, and synergy tag all have **0px radius** and no fill variation — flat lacquer planes divided by 1px bone hairlines. The scrollbar thumb is a 3px square-cornered bar at 22% bone.
 
@@ -290,7 +303,7 @@ Struck ink edges, never Material. Four tones off one painter.
 - **Disabled:** The whole control at 40% opacity, non-interactive, cursor stays default.
 
 ### Cards / Containers
-There are no cards. Regions are flat lacquer planes with a single 1px bone hairline at 16% alpha on the edge they share with the next region, zero radius, and no shadow. Anything that needs to look like an object is a **mount**, not a card.
+There are no Material cards and no rounded structural chrome. Regions are flat lacquer planes with a single 1px bone hairline at 16% alpha on the edge they share with the next region, zero radius, and no shadow. The two container-like objects that do exist — the **reward card** and the **threshold panel**, both documented below — are drawn plates (`handRect` outline, r3), not cards. Anything else that needs to look like an object is a **mount**.
 
 ### Sheets
 - **Style:** Bottom sheets on `{colors.lacquer}`, zero radius, zero elevation, no surface tint, over a 62% black barrier. A 28px × 3px bone grab-rule at 28% alpha sits at the top.
@@ -326,6 +339,15 @@ Four corner brackets plus a "+" at 22% bone. When a piece is armed or hovering, 
 ### The Frontispiece
 Carved uppercase name over hairline rules, then **struck marks** (a 9px uppercase label above a 13px body value, 12px apart), the **synergy tag** (a bordered box carrying a directional triangle glyph and the mono multiplier — gold and pointing up when matched, slate and pointing down-and-struck when not), and the **vitality gauge**: a 132×6 rule filled to fraction in bone at 85% over bone at 18%, notched at the quarters.
 
+### The Reward Card
+The one plate used away from the board, on the FIGHT REWARDS screen — three abreast on wide, a stack on narrow. A drawn `handRect` outline at r3 in bone at 50%, no fill, padded `18 / 18 / 18 / 16`. Top to bottom inside: a 52px vermilion **seal chop** keyed to the reward's identity, the reward title in Cinzel Display at 16px, an optional vermilion uppercase **badge** (`CLASS I`, `TECHNIQUE`), the explanation in dimmed-bone body, one row per rolled effect (a 5px solid vermilion square before a mono line), and a seal-tone **Take** button at the bottom-left. The whole card is a tap target, not only the button.
+
+### The Vitality Bar
+The combatants' health on the combat screen, one bar each. An uppercase **label** name, a `measure` readout (`72 / 100`, or `—` before the first snapshot), and between them an **8px track** in bone at 14% carrying a vermilion fill — slate at zero. The enemy's bar is mirrored: name, numerals and fill sit right and the fill drains from the centre outward, so the player always reads from the left edge and the enemy from the right. This is the in-fight readout; the frontispiece's 132×6 **vitality gauge** is the between-fight one.
+
+### The Threshold Panel
+The oiled-paper panel carrying the title screen and every menu opened from it. A `BackdropFilter` blur (~10px) behind a bone fill at ~72% (buttons on it deepen to ~82%), edged with a `handRect` stroke at r3 and lifted on `rakingShadow(elevation: 1.2)`. It exists so those pre-diegetic screens stay legible over a full-bleed background painting not yet placed. It is the project's only translucent surface (see The Frost-Is-Threshold-Only Rule) and must read as waxed paper, not glass. The game **wordmark** heads it — *TOME* in Cinzel Display Large over *The Martial Art Edition* in the mono, a hairline between, the **seal chop** alongside as identity — then a vertical column of `InkButton`s with the one seal-tone action (New Run) leading and Quit shown on desktop only.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -339,6 +361,8 @@ Carved uppercase name over hairline rules, then **struck marks** (a 9px uppercas
 - **Do** separate regions with a single 1px bone hairline at 16% alpha.
 - **Do** keep the commit action to exactly one seal-tone button per surface.
 - **Do** collapse animation to 1ms under `MediaQuery.disableAnimations`, as the combine reveal does.
+- **Do** set the game wordmark as type only — *TOME* in Cinzel over *The Martial Art Edition* in the mono, the seal chop as its identity mark — never a drawn logogram or an icon lockup.
+- **Do** keep `BackdropFilter` frost to the threshold (title screen and the menus it opens): a warm bone tint with a matte `handRect` edge, over the background art.
 
 ### Don't:
 - **Don't** use a Material button, icon font, or glyph typeface in the committed surface — the build ships none, and adding one breaks the one-hand claim.
@@ -350,4 +374,5 @@ Carved uppercase name over hairline rules, then **struck marks** (a 9px uppercas
 - **Don't** signal a state with colour alone, and don't introduce a fifth state mark — the four fixed cells are the vocabulary.
 - **Don't** show an empty region as a black void; show its mounting positions (the rack always renders at least 12).
 - **Don't** animate the hand-wobble, add idle motion, or use a splash/ripple — the build sets `NoSplash` and a transparent highlight deliberately.
-- **Don't** invent a logo, wordmark, or brand treatment; none exists and none has been confirmed.
+- **Don't** give the wordmark a logogram, monogram, or icon lockup, and don't let the threshold panel read as glass — no bright rim-light, specular streak, or high-chroma wash; it is oiled paper over the light.
+- **Don't** bring `BackdropFilter` or any translucency into the in-game surface — board, rails, rack, foot bar and sheets stay opaque flat lacquer.

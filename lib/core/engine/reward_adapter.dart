@@ -8,6 +8,7 @@ import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/technique_plugin.dart';
 
 import '../models/loot_option_view.dart';
+import '../persistence/codex_repository.dart';
 import 'character_adapter.dart';
 import 'engine_session.dart';
 import 'item_adapter.dart';
@@ -24,10 +25,12 @@ class RewardAdapter {
     required ItemAdapter itemAdapter,
     required List<String> itemPool,
     required List<String> techniquePool,
+    CodexRepository? codex,
   })  : _tomeAdapter = tomeAdapter,
         _techniqueAdapter = techniqueAdapter,
         _characterAdapter = characterAdapter,
         _itemAdapter = itemAdapter,
+        _codex = codex,
         _pool = [
           for (final id in itemPool) (isItem: true, id: id),
           for (final id in techniquePool) (isItem: false, id: id),
@@ -38,6 +41,10 @@ class RewardAdapter {
   final TechniqueAdapter _techniqueAdapter;
   final CharacterAdapter _characterAdapter;
   final ItemAdapter _itemAdapter;
+
+  /// Cross-run record of what the player has met — fed here when a new
+  /// component is actually taken. Optional so tests can skip it.
+  final CodexRepository? _codex;
 
   /// Items and techniques the New Component reward draws from, flattened
   /// into one pool. Drawn **with replacement** — the same id can be
@@ -175,6 +182,7 @@ class RewardAdapter {
           final instance =
               ownItem(_session.character, item.id, _session.context);
           discoverItem(_session.character, item, _session.context);
+          _codex?.discover(CodexKind.item, item.id);
           final stat =
               WeaponStatTags.matchOrFallback(item.tags, 'item:${item.id}');
           // Item affixes are all flat stat bumps — bind them to *this*
@@ -189,6 +197,7 @@ class RewardAdapter {
               prefix: _prefix?.label, suffix: _suffix?.label);
         } else {
           _techniqueAdapter.discover(next.id);
+          _codex?.discover(CodexKind.technique, next.id);
           final tech = techniqueDefinition(next.id, _session.context);
           // Techniques aren't instanced — their affixes stay client-side
           // character modifiers for now.

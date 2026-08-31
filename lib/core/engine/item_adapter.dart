@@ -11,15 +11,13 @@ class ItemAdapter {
 
   final EngineSession _session;
 
-  /// Monotonic tag so each spent point adds its own stacking Modifier
-  /// (mirrors `TomeManager.upgradeSpendCounter` in the reference run).
-  int _spendSeq = 0;
-
-  /// Upgrade points sunk into each item definition so far — the `+N` on
-  /// its name. Per-definition, matching the character-level `+2` Modifier
-  /// `spendUpgradePoint` adds (keyed by definition id, like the
-  /// reference run).
-  final Map<String, int> _upgradesByDefinition = {};
+  /// Upgrade points sunk into each *copy* so far — the `+N` on its name.
+  /// Keyed by the `ItemInstance` entity's raw value, so a freshly
+  /// rewarded copy of an already-upgraded item starts at +0 and carries
+  /// its own cap. The matching `+2` is bound to the same copy via
+  /// `addItemStatBonuses`, so it only bites while that copy is hung and
+  /// rides through Combine — exactly like an affix.
+  final Map<int, int> _upgradesByInstance = {};
 
   /// Prefix / suffix labels for a rewarded item instance — keyed by the
   /// `ItemInstance` entity's raw value, so two copies of the same id can
@@ -38,22 +36,9 @@ class ItemAdapter {
       .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
       .join(' ');
 
-  /// The `+N` ceiling for [definitionId]: `2 * c + 1` where `c` is the
-  /// highest class among the owned copies (1 if none) — class 1 -> 3,
-  /// class 2 -> 5, class 3 -> 7, and +2 for each class beyond.
-  int upgradeCapFor(String definitionId) {
-    var maxClass = 1;
-    for (final entity
-        in _session.context.components.entitiesWith<ItemInstance>()) {
-      final instance = _session.context.components.get<ItemInstance>(entity)!;
-      if (instance.owner != _session.character ||
-          instance.definitionId != definitionId) {
-        continue;
-      }
-      if (instance.itemClass > maxClass) maxClass = instance.itemClass;
-    }
-    return 2 * maxClass + 1;
-  }
+  /// The `+N` ceiling for a copy of [itemClass]: `2 * class + 1` —
+  /// class 1 -> 3, class 2 -> 5, class 3 -> 7, and +2 per class beyond.
+  int _capForClass(int itemClass) => 2 * itemClass + 1;
 
   /// The character's banked `upgrade_points` — the currency Combine and
   /// the hammer-icon upgrade path both spend. A pure read for the Tome
@@ -108,12 +93,10 @@ class ItemAdapter {
     final thresholds =
         _session.context.mastery.definitionOf(masterySubject)?.thresholds ??
         const <num>[];
-    final itemClass =
-        instanceEntity == null
-            ? 1
-            : _session.context.components
-                .get<ItemInstance>(instanceEntity)!
-                .itemClass;
+    final instanceComp = instanceEntity == null
+        ? null
+        : _session.context.components.get<ItemInstance>(instanceEntity);
+    final itemClass = instanceComp?.itemClass ?? 1;
 
     final state =
         active
@@ -158,18 +141,21 @@ class ItemAdapter {
       instanceEntityValue: instanceEntity?.value,
       combinableWith: combinableWith,
       eligibleToCombine: eligibleToCombine,
-      upgradeCount: _upgradesByDefinition[definitionId] ?? 0,
-      upgradeCap: 2 * itemClass + 1,
+      upgradeCount: _upgradesByInstance[instanceEntity?.value] ?? 0,
+      upgradeCap: _capForClass(itemClass),
       displayName: _displayName(definitionId, instanceEntity?.value),
-      affixBonus: instanceEntity == null
-          ? 0
-          : (_session.context.components
-                  .get<ItemInstance>(instanceEntity)
-                  ?.statBonuses
-                  .values
-                  .fold<num>(0, (a, b) => a + b) ??
-              0)
-              .round(),
+      // `statBonuses` now carries both rolled affixes and spent upgrade
+      // points (both land there, bound to the copy). The detail sheet's
+      // "AFFIXES while hung" row wants only the affix share, so subtract
+      // the +2-per-upgrade portion back out.
+      affixBonus: () {
+        final total = instanceComp?.statBonuses.values
+                .fold<num>(0, (a, b) => a + b) ??
+            0;
+        final upgradePortion =
+            2 * (_upgradesByInstance[instanceEntity?.value] ?? 0);
+        return (total - upgradePortion).clamp(0, total).round();
+      }(),
     );
   }
 
@@ -201,16 +187,20 @@ class ItemAdapter {
     return _viewFor(definitionId, instance, grouped);
   }
 
-  /// Spends one banked upgrade point to give [definitionId]'s combat
-  /// stat a permanent +2 — the `item:<id>` branch of `runGame`'s own
-  /// `applyUpgrade` (`tome_manager.dart`): same value, same
-  /// `WeaponStatTags` stat resolution, same `upgrade:item:...` source
-  /// shape, and the point is subtracted the same way. Returns false and
-  /// does nothing if no point is banked, or if the item is already at
-  /// its class `+N` ceiling ([upgradeCapFor]).
-  bool spendUpgradePoint(String definitionId) {
-    if ((_upgradesByDefinition[definitionId] ?? 0) >=
-        upgradeCapFor(definitionId)) {
+  /// Spends one banked upgrade point on a single owned copy — the one
+  /// whose `ItemInstance` entity has raw value [instanceEntityValue] —
+  /// giving that copy's combat stat a permanent +2. The bonus is bound
+  /// to the copy via `addItemStatBonuses` (same path rolled affixes
+  /// take): it only bites while that copy is hung, and rides through
+  /// Combine on the survivor. Returns false and does nothing when the
+  /// copy is gone or unowned, no point is banked, or the copy is
+  /// already at its class `+N` ceiling.
+  bool spendUpgradePoint(int instanceEntityValue) {
+    final entity = EntityId(instanceEntityValue);
+    final instance = _session.context.components.get<ItemInstance>(entity);
+    if (instance == null || instance.owner != _session.character) return false;
+    if ((_upgradesByInstance[instanceEntityValue] ?? 0) >=
+        _capForClass(instance.itemClass)) {
       return false;
     }
     final points = _session.context.resources
@@ -218,20 +208,12 @@ class ItemAdapter {
     if (points < 1) return false;
     _session.context.resources
         .subtract(_session.character, ItemResources.upgradePoints, 1);
-    _upgradesByDefinition[definitionId] =
-        (_upgradesByDefinition[definitionId] ?? 0) + 1;
-    _spendSeq++;
-    final item = itemDefinition(definitionId, _session.context);
-    final stat =
-        WeaponStatTags.matchOrFallback(item.tags, 'item:$definitionId');
-    _session.context.modifiers.add(Modifier(
-      source: ModifierSource(
-          'upgrade:item:$definitionId:${_session.character.value}:$_spendSeq'),
-      target: _session.character,
-      stat: stat,
-      operation: ModifierOperation.add,
-      value: 2,
-    ));
+    _upgradesByInstance[instanceEntityValue] =
+        (_upgradesByInstance[instanceEntityValue] ?? 0) + 1;
+    final item = itemDefinition(instance.definitionId, _session.context);
+    final stat = WeaponStatTags.matchOrFallback(
+        item.tags, 'item:${instance.definitionId}');
+    addItemStatBonuses(entity, {stat: 2}, _session.context);
     return true;
   }
 
@@ -254,6 +236,15 @@ class ItemAdapter {
       _session.context,
     );
     final after = _session.context.components.get<ItemInstance>(survivor)!;
+
+    // The non-survivors are destroyed — drop their per-copy bookkeeping.
+    // The survivor keeps its own upgrade count and affix labels
+    // (`combineItems` already carries its `statBonuses` forward).
+    for (final v in instanceEntityValues) {
+      if (v == survivor.value) continue;
+      _upgradesByInstance.remove(v);
+      _affixByInstance.remove(v);
+    }
 
     final kind =
         after.definitionId != before.definitionId

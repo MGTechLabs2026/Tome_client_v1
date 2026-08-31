@@ -147,12 +147,14 @@ class _TomeScreenState extends State<TomeScreen> {
           () =>
               run.add(TrainingRequested(item.definitionId, isTechnique: false)),
       onUpgrade:
-          state.upgradePoints > 0 && item.canUpgrade
+          state.upgradePoints > 0 &&
+                  item.canUpgrade &&
+                  item.instanceEntityValue != null
               ? () {
                 Navigator.of(context).pop();
                 context
                     .read<TomeBloc>()
-                    .add(ComponentUpgraded(item.definitionId));
+                    .add(ComponentUpgraded(item.instanceEntityValue!));
                 final next = item.upgradeCount + 1;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

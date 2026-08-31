@@ -12,21 +12,26 @@ import '../core/engine/reward_adapter.dart';
 import '../core/engine/technique_adapter.dart';
 import '../core/engine/tome_adapter.dart';
 import '../core/models/game_phase.dart';
+import '../core/persistence/codex_repository.dart';
+import '../core/persistence/records_repository.dart';
 import '../features/character_creation/character_creation_bloc.dart';
 import '../features/character_creation/character_creation_screen.dart';
 import '../features/combat/combat_bloc.dart';
 import '../features/combat/combat_preparation_screen.dart';
 import '../features/combat/combat_screen.dart';
+import '../features/defeat/defeat_screen.dart';
 import '../features/loot/loot_bloc.dart';
 import '../features/loot/loot_screen.dart';
 import '../features/run/run_bloc.dart';
 import '../features/run/run_event.dart';
+import '../features/title/title_screen.dart';
 import '../features/tome/tome_bloc.dart';
 import '../features/tome/tome_screen.dart';
 import '../features/training/training_preparation_screen.dart';
 import '../features/training/training_result_screen.dart';
 
 String _pathFor(GamePhase phase) => switch (phase) {
+      GamePhase.title => '/title',
       GamePhase.characterCreation => '/character-creation',
       GamePhase.tome => '/tome',
       GamePhase.trainingPreparation => '/training/prepare',
@@ -35,6 +40,7 @@ String _pathFor(GamePhase phase) => switch (phase) {
       GamePhase.combatPreparation => '/combat/prepare',
       GamePhase.combat => '/combat',
       GamePhase.loot => '/loot',
+      GamePhase.defeat => '/defeat',
     };
 
 /// The enemy for the current bout. Ordinary bouts draw from a small
@@ -105,12 +111,20 @@ class _RunBlocListenable extends ChangeNotifier {
 Widget _screenFor(GamePhase phase, BuildContext context) {
   final run = context.read<RunBloc>();
   switch (phase) {
+    case GamePhase.title:
+      return const TitleScreen();
     case GamePhase.characterCreation:
       return BlocProvider(
         create: (_) => CharacterCreationBloc(context.read<CharacterAdapter>()),
         child: const CharacterCreationScreen(),
       );
     case GamePhase.tome:
+      // Opening the Tome is the first point the fighter's style is
+      // settled — log it to the cross-run codex (idempotent).
+      try {
+        final styleId = context.read<CharacterAdapter>().currentView().styleId;
+        context.read<CodexRepository>().discover(CodexKind.style, styleId);
+      } catch (_) {/* style not chosen yet — nothing to record */}
       return BlocProvider(
         create: (_) => TomeBloc(
           tomeAdapter: context.read<TomeAdapter>(),
@@ -148,10 +162,20 @@ Widget _screenFor(GamePhase phase, BuildContext context) {
           enemyDamageStat: enemy.stat,
           playerName: context.read<CharacterAdapter>().currentView().name,
           isHardFight: run.state.isHardFight,
-          // Every bout -> loot, whatever the outcome. The run's length is
-          // fixed; RunBloc decides on LootResolved whether another bout
-          // follows or the run is complete.
-          onFinished: () => run.add(const PhaseCompleted(GamePhase.loot)),
+          // A won bout goes on to loot (RunBloc decides on LootResolved
+          // whether another bout follows or the run is cleared). A lost
+          // bout ends the run — the defeat beat, then the title screen.
+          onFinished: (won) {
+            if (won) {
+              run.add(const PhaseCompleted(GamePhase.loot));
+            } else {
+              context.read<RecordsRepository>().recordRunEnded(
+                    runNumber: run.state.runNumber,
+                    bouts: run.state.fightIndex + 1,
+                  );
+              run.add(const RunEnded());
+            }
+          },
         ),
       );
     case GamePhase.loot:
@@ -159,13 +183,23 @@ Widget _screenFor(GamePhase phase, BuildContext context) {
         create: (_) => LootBloc(context.read<RewardAdapter>()),
         child: LootScreen(
           onApplied: () {
-            // Clearing a run heals the fighter to full for the next one.
+            // Clearing a run heals the fighter to full for the next one
+            // and lands a mark on the RECORDS ledger.
             if (!run.state.hasNextFight) {
               context.read<CharacterAdapter>().restoreVitality();
+              context.read<RecordsRepository>().recordRunCleared(
+                    runNumber: run.state.runNumber,
+                    bouts: run.state.fightsInCurrentRun,
+                  );
             }
             run.add(const LootResolved());
           },
         ),
+      );
+    case GamePhase.defeat:
+      return DefeatScreen(
+        runNumber: run.state.runNumber,
+        bout: run.state.fightIndex + 1,
       );
   }
 }

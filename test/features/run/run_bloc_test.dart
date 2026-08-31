@@ -23,9 +23,10 @@ void main() {
     }
   });
 
-  test('RunState defaults: run 1, bout 0, three fights, characterCreation', () {
+  test('RunState defaults: title screen, run 1, bout 0, three fights', () {
     const s = RunState();
-    expect(s.phase, GamePhase.characterCreation);
+    expect(s.phase, GamePhase.title);
+    expect(s.sessionSeed, 1);
     expect(s.runNumber, 1);
     expect(s.fightIndex, 0);
     expect(s.fightsInCurrentRun, 3);
@@ -92,11 +93,35 @@ void main() {
   );
 
   blocTest<RunBloc, RunState>(
-    'RunReset wipes back to a fresh run 1',
+    'RunReset returns to the title screen, run tracking wiped',
     build: RunBloc.new,
     seed: () => const RunState(
         phase: GamePhase.loot, runNumber: 4, fightIndex: 6),
     act: (bloc) => bloc.add(const RunReset()),
     expect: () => [const RunState()],
+  );
+
+  blocTest<RunBloc, RunState>(
+    'NewRunRequested bumps the session seed and drops into creation',
+    build: RunBloc.new,
+    act: (bloc) => bloc.add(const NewRunRequested()),
+    verify: (bloc) {
+      expect(bloc.state.phase, GamePhase.characterCreation);
+      expect(bloc.state.sessionSeed, isNot(1));
+      expect(bloc.state.runNumber, 1);
+      expect(bloc.state.fightIndex, 0);
+    },
+  );
+
+  blocTest<RunBloc, RunState>(
+    'RunEnded moves to the defeat beat, keeping the run position',
+    build: RunBloc.new,
+    seed: () => const RunState(
+        phase: GamePhase.combat, runNumber: 3, fightIndex: 1),
+    act: (bloc) => bloc.add(const RunEnded()),
+    expect: () => [
+      const RunState(
+          phase: GamePhase.defeat, runNumber: 3, fightIndex: 1),
+    ],
   );
 }

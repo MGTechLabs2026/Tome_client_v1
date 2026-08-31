@@ -5,6 +5,7 @@ import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/technique_plugin.dart';
 
 import '../models/training_result_view.dart';
+import '../persistence/codex_repository.dart';
 import 'engine_session.dart';
 import 'technique_adapter.dart';
 import 'tome_adapter.dart';
@@ -26,12 +27,17 @@ class TrainingAdapter {
     this._session, {
     required TomeAdapter tomeAdapter,
     TechniqueAdapter? techniqueAdapter,
+    CodexRepository? codex,
   })  : _tomeAdapter = tomeAdapter,
-        _techniqueAdapter = techniqueAdapter ?? TechniqueAdapter(_session);
+        _techniqueAdapter = techniqueAdapter ?? TechniqueAdapter(_session),
+        _codex = codex;
 
   final EngineSession _session;
   final TomeAdapter _tomeAdapter;
   final TechniqueAdapter _techniqueAdapter;
+
+  /// Cross-run record of met content — an evolved form is a discovery.
+  final CodexRepository? _codex;
 
   TrainingResultView trainItem(
     String definitionId,
@@ -85,6 +91,12 @@ class TrainingAdapter {
     final result = session.complete();
     final gain = trainingGain(result.profile);
 
+    // MASTERY is a third, per-technique axis (subject `technique:<id>`),
+    // independent of LEARNING and evolution. `trainItem` raises the item
+    // axis this same way; techniques were missing the call entirely, so
+    // a technique's rank never moved no matter how much it was trained.
+    trainTechniqueMastery(_session.character, technique, gain, _session.context);
+
     final learning = attemptToLearnTechnique(
       _session.character,
       technique,
@@ -107,6 +119,7 @@ class TrainingAdapter {
         // threshold in the engine — "learned" never applies to them — so
         // the client tracks them by discovery alone.
         _techniqueAdapter.discover(evolvedInto);
+        _codex?.discover(CodexKind.technique, evolvedInto);
         // evolveTechnique is a pure resolver — it never publishes
         // TechniqueEvolved (game_run.dart's TrainingStage does that as an
         // orchestration decision). EngineSession's lineage subscription

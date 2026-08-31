@@ -20,7 +20,8 @@ int fightsForRun(int runNumber) {
 
 class RunState {
   const RunState({
-    this.phase = GamePhase.characterCreation,
+    this.phase = GamePhase.title,
+    this.sessionSeed = 1,
     this.runNumber = 1,
     this.fightIndex = 0,
     this.fightsInCurrentRun = 3,
@@ -29,6 +30,12 @@ class RunState {
   });
 
   final GamePhase phase;
+
+  /// Seeds the engine session (a fresh fighter, build and RNG). Bumped
+  /// only by starting a new run from the title screen; every screen
+  /// within a lineage shares one seed, so the session and its adapters
+  /// are rebuilt exactly once per lineage.
+  final int sessionSeed;
 
   /// Which run this is (1-based). Increments only when the player starts
   /// the next run from the run-complete screen; the character, build and
@@ -59,6 +66,7 @@ class RunState {
 
   RunState copyWith({
     GamePhase? phase,
+    int? sessionSeed,
     int? runNumber,
     int? fightIndex,
     int? fightsInCurrentRun,
@@ -67,6 +75,7 @@ class RunState {
   }) =>
       RunState(
         phase: phase ?? this.phase,
+        sessionSeed: sessionSeed ?? this.sessionSeed,
         runNumber: runNumber ?? this.runNumber,
         fightIndex: fightIndex ?? this.fightIndex,
         fightsInCurrentRun: fightsInCurrentRun ?? this.fightsInCurrentRun,
@@ -78,6 +87,7 @@ class RunState {
   bool operator ==(Object other) =>
       other is RunState &&
       other.phase == phase &&
+      other.sessionSeed == sessionSeed &&
       other.runNumber == runNumber &&
       other.fightIndex == fightIndex &&
       other.fightsInCurrentRun == fightsInCurrentRun &&
@@ -85,6 +95,6 @@ class RunState {
       other.trainingIsTechnique == trainingIsTechnique;
 
   @override
-  int get hashCode => Object.hash(phase, runNumber, fightIndex,
+  int get hashCode => Object.hash(phase, sessionSeed, runNumber, fightIndex,
       fightsInCurrentRun, trainingSubject, trainingIsTechnique);
 }

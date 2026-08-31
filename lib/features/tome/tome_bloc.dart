@@ -35,7 +35,7 @@ class TomeBloc extends Bloc<TomeEvent, TomeState> {
       emit(_snapshot());
     });
     on<ComponentUpgraded>((event, emit) {
-      _itemAdapter.spendUpgradePoint(event.definitionId);
+      _itemAdapter.spendUpgradePoint(event.instanceEntityValue);
       emit(_snapshot());
     });
     on<CombineRequested>((event, emit) {

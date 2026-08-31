@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/models/combat_log_entry_view.dart';
+import '../../core/persistence/records_repository.dart';
 import '../tome/hall/hall_theme.dart';
 import 'combat_bloc.dart';
 import 'combat_event.dart';
@@ -24,13 +26,31 @@ class CombatScreen extends StatelessWidget {
   final num enemyDamage;
   final String enemyDamageStat;
 
-  /// Fired when the replay finishes. The run always proceeds to loot
-  /// next regardless of the fight's outcome.
-  final VoidCallback onFinished;
+  /// Fired when the replay finishes, with the outcome: `true` if the
+  /// fighter won this bout. A win goes on to loot; a loss ends the run.
+  final void Function(bool won) onFinished;
   final String playerName;
 
   /// The final bout of the run — surfaced in the matchup line.
   final bool isHardFight;
+
+  /// The largest single drop in the enemy's health across the log — the
+  /// heaviest blow the fighter landed this bout. Enemy HP only falls
+  /// from player damage, so consecutive snapshot deltas are the hits.
+  static int _heaviestBlow(List<CombatLogEntryView> log) {
+    num? prev;
+    var worst = 0.0;
+    for (final e in log) {
+      final hp = e.enemyHp;
+      if (hp == null) continue;
+      if (prev != null && hp < prev) {
+        final drop = (prev - hp).toDouble();
+        if (drop > worst) worst = drop;
+      }
+      prev = hp;
+    }
+    return worst.round();
+  }
 
   /// `sparring_partner` -> `Sparring Partner`.
   String get _enemyName => enemyId
@@ -55,7 +75,12 @@ class CombatScreen extends StatelessWidget {
               )
             : LogReplayCombatPresentation(
                 log: state.log,
-                onFinished: onFinished,
+                onFinished: () {
+                  context
+                      .read<RecordsRepository>()
+                      .recordBlow(_heaviestBlow(state.log));
+                  onFinished(state.won ?? true);
+                },
                 playerName: playerName,
                 enemyName: isHardFight ? '$_enemyName  ·  HARD' : _enemyName,
               ),

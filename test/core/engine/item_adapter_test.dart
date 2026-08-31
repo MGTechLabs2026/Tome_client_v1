@@ -47,30 +47,32 @@ void main() {
     expect(views[1].combinableWith, [views[0].instanceEntityValue]);
   });
 
-  test('spendUpgradePoint consumes a banked point and buffs the item stat', () {
-    ownItem(session.character, ItemIds.knife, session.context);
+  test('spendUpgradePoint consumes a banked point and buffs that copy', () {
+    final knife = ownItem(session.character, ItemIds.knife, session.context);
     discoverItem(session.character,
         itemDefinition(ItemIds.knife, session.context), session.context);
 
     // Nothing banked yet.
-    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isFalse);
+    expect(itemAdapter.spendUpgradePoint(knife.value), isFalse);
     expect(itemAdapter.upgradePoints(), 0);
 
     session.context.resources
         .add(session.character, ItemResources.upgradePoints, 2);
 
-    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isTrue);
+    expect(itemAdapter.spendUpgradePoint(knife.value), isTrue);
     expect(itemAdapter.upgradePoints(), 1, reason: 'one point spent');
     expect(itemAdapter.viewOf(ItemIds.knife).upgradeCount, 1);
 
-    final mods = session.context.modifiers.activeModifiersFor(
-        session.character, 'blade', session.context.components);
-    expect(mods.where((m) => m.value == 2), isNotEmpty,
-        reason: '+2 to the blade stat');
+    // The +2 is bound to this copy (bites while hung), not a loose
+    // character modifier.
+    final bonuses =
+        session.context.components.get<ItemInstance>(knife)!.statBonuses;
+    expect(bonuses.values.fold<num>(0, (a, b) => a + b), 2,
+        reason: '+2 on this copy');
   });
 
-  test('a class-1 item upgrades to +3, then hits its cap', () {
-    ownItem(session.character, ItemIds.knife, session.context);
+  test('a class-1 copy upgrades to +3, then hits its cap', () {
+    final knife = ownItem(session.character, ItemIds.knife, session.context);
     discoverItem(session.character,
         itemDefinition(ItemIds.knife, session.context), session.context);
     session.context.resources
@@ -79,16 +81,44 @@ void main() {
     expect(itemAdapter.viewOf(ItemIds.knife).upgradeCap, 3,
         reason: 'class 1 -> 2*1 + 1');
 
-    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isTrue); // +1
-    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isTrue); // +2
-    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isTrue); // +3
-    expect(itemAdapter.spendUpgradePoint(ItemIds.knife), isFalse,
+    expect(itemAdapter.spendUpgradePoint(knife.value), isTrue); // +1
+    expect(itemAdapter.spendUpgradePoint(knife.value), isTrue); // +2
+    expect(itemAdapter.spendUpgradePoint(knife.value), isTrue); // +3
+    expect(itemAdapter.spendUpgradePoint(knife.value), isFalse,
         reason: 'at the class cap');
 
     final view = itemAdapter.viewOf(ItemIds.knife);
     expect(view.upgradeCount, 3);
     expect(view.canUpgrade, isFalse);
     expect(itemAdapter.upgradePoints(), 7, reason: 'only 3 points spent');
+  });
+
+  test('upgrades are per copy — a second knife starts at +0 with its own cap',
+      () {
+    final a = ownItem(session.character, ItemIds.knife, session.context);
+    final b = ownItem(session.character, ItemIds.knife, session.context);
+    discoverItem(session.character,
+        itemDefinition(ItemIds.knife, session.context), session.context);
+    session.context.resources
+        .add(session.character, ItemResources.upgradePoints, 10);
+
+    expect(itemAdapter.spendUpgradePoint(a.value), isTrue);
+    expect(itemAdapter.spendUpgradePoint(a.value), isTrue); // copy A at +2
+
+    final views = itemAdapter.ownedItems();
+    final viewA = views.firstWhere((v) => v.instanceEntityValue == a.value);
+    final viewB = views.firstWhere((v) => v.instanceEntityValue == b.value);
+    expect(viewA.upgradeCount, 2);
+    expect(viewB.upgradeCount, 0, reason: 'the fresh copy is untouched');
+    expect(viewB.canUpgrade, isTrue);
+    expect(
+        session.context.components
+            .get<ItemInstance>(b)!
+            .statBonuses
+            .values
+            .fold<num>(0, (x, y) => x + y),
+        0,
+        reason: "copy B carries none of A's upgrade");
   });
 
   test('combining two owned knives consumes one and derives a real outcome kind', () {

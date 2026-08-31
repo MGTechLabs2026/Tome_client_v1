@@ -57,6 +57,27 @@ void main() {
     expect(TechniqueAdapter(session).viewOf(TechniqueIds.basicPunch).learned, isTrue);
   });
 
+  test('trainTechnique raises that technique\'s own mastery rank, per '
+      'technique', () {
+    for (final id in [TechniqueIds.basicSlash, TechniqueIds.basicPunch]) {
+      techniqueAdapter.discover(id);
+    }
+
+    // Train only the slash.
+    var tries = 0;
+    while (techniqueAdapter.viewOf(TechniqueIds.basicSlash).masteryLevel < 1 &&
+        tries < 40) {
+      trainingAdapter.trainTechnique(TechniqueIds.basicSlash, _perfectAttempts());
+      tries++;
+    }
+
+    expect(techniqueAdapter.viewOf(TechniqueIds.basicSlash).masteryLevel,
+        greaterThanOrEqualTo(1),
+        reason: 'the trained technique gained a rank');
+    expect(techniqueAdapter.viewOf(TechniqueIds.basicPunch).masteryLevel, 0,
+        reason: 'an untrained technique is untouched — mastery is per technique');
+  });
+
   test('an evolved technique becomes real: on the roster, learned, and '
       'placed where the base was', () {
     final base = techniqueDefinition(TechniqueIds.basicPunch, session.context);

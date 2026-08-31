@@ -25,11 +25,12 @@ class ComponentRemoved extends TomeEvent {
   final String slotId;
 }
 
-/// Spend one banked upgrade point on [definitionId] — a permanent +2 to
-/// its combat stat.
+/// Spend one banked upgrade point on a single owned copy (the
+/// `ItemInstance` entity with raw value [instanceEntityValue]) — a
+/// permanent +2 to that copy's combat stat while it is hung.
 class ComponentUpgraded extends TomeEvent {
-  const ComponentUpgraded(this.definitionId);
-  final String definitionId;
+  const ComponentUpgraded(this.instanceEntityValue);
+  final int instanceEntityValue;
 }
 
 class CombineRequested extends TomeEvent {

@@ -9,6 +9,19 @@ class RunStarted extends RunEvent {
   const RunStarted();
 }
 
+/// The player chose NEW RUN on the title screen. Bumps [RunState.sessionSeed]
+/// so the engine session (fighter, build, RNG) is rebuilt from scratch,
+/// and drops into character creation.
+class NewRunRequested extends RunEvent {
+  const NewRunRequested();
+}
+
+/// The fighter fell in a bout. The run is over: show the defeat beat,
+/// which hands back to the title screen.
+class RunEnded extends RunEvent {
+  const RunEnded();
+}
+
 /// A plain phase move — combat -> loot, tome -> combatPreparation, and
 /// every step of the training flow. Progression decisions (does another
 /// bout follow? is the run over?) are NOT expressed this way; see
@@ -38,8 +51,8 @@ class TrainingRequested extends RunEvent {
   final bool isTechnique;
 }
 
-/// Reset all run tracking to a fresh run 1 (a brand-new fighter — the
-/// app rebuilds the engine session around it).
+/// Return to the title screen with all run tracking wiped. The next
+/// NEW RUN rebuilds the engine session.
 class RunReset extends RunEvent {
   const RunReset();
 }

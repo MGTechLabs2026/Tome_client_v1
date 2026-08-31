@@ -39,6 +39,11 @@ void main() {
         TomeApp(runBloc: RunBloc(), session: EngineSession(2026)));
     await tester.pumpAndSettle();
 
+    // The app boots on the title screen; NEW RUN starts the lineage.
+    expect(find.text('TOME'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('New Run'));
+    await tester.pumpAndSettle();
+
     // Character Creation -> the Tome opens once, before the run starts.
     await tester.enterText(find.byType(TextField), 'Integration Fighter');
     await tester.tap(find.text('Continue'));

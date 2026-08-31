@@ -39,6 +39,17 @@ class RunBloc extends Bloc<RunEvent, RunState> {
       }
     });
 
+    on<NewRunRequested>((event, emit) {
+      emit(RunState(
+        phase: GamePhase.characterCreation,
+        sessionSeed: DateTime.now().millisecondsSinceEpoch,
+      ));
+    });
+
+    on<RunEnded>((event, emit) {
+      emit(state.copyWith(phase: GamePhase.defeat));
+    });
+
     on<TrainingRequested>((event, emit) {
       emit(state.copyWith(
         phase: GamePhase.trainingPreparation,
@@ -47,6 +58,9 @@ class RunBloc extends Bloc<RunEvent, RunState> {
       ));
     });
 
-    on<RunReset>((event, emit) => emit(const RunState()));
+    // Back to the title screen. The seed is kept as-is so sitting on
+    // the threshold doesn't churn the (now idle) engine session; the
+    // next NEW RUN bumps it.
+    on<RunReset>((event, emit) => emit(RunState(sessionSeed: state.sessionSeed)));
   }
 }

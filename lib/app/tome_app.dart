@@ -16,6 +16,7 @@ import '../core/persistence/codex_repository.dart';
 import '../core/persistence/game_store.dart';
 import '../core/persistence/records_repository.dart';
 import '../core/persistence/settings_repository.dart';
+import '../core/persistence/training_pace_repository.dart';
 import '../features/run/run_bloc.dart';
 import '../features/training/training_bloc.dart';
 import '../routing/app_router.dart';
@@ -66,6 +67,7 @@ class _TomeAppState extends State<TomeApp> {
   late final RecordsRepository _records = RecordsRepository(_store);
   late final CodexRepository _codex = CodexRepository(_store);
   late final SettingsRepository _settings = SettingsRepository(_store);
+  late final TrainingPaceRepository _trainingPace = TrainingPaceRepository(_store);
 
   /// A test-pinned session never rebuilds; otherwise the session tracks
   /// [RunState.sessionSeed] and is rebuilt on NEW RUN.
@@ -109,6 +111,7 @@ class _TomeAppState extends State<TomeApp> {
         RepositoryProvider<RecordsRepository>.value(value: _records),
         RepositoryProvider<CodexRepository>.value(value: _codex),
         RepositoryProvider<SettingsRepository>.value(value: _settings),
+        RepositoryProvider<TrainingPaceRepository>.value(value: _trainingPace),
       ],
       child: MultiRepositoryProvider(
         // Key on the session so NEW RUN tears down and rebuilds every

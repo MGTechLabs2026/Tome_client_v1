@@ -98,6 +98,49 @@ void main() {
     expect(s.precision, lessThanOrEqualTo(1.0));
   });
 
+  test('a carried initialPace scales the first wave directly — below 1 '
+      'shortens it, above 1 lengthens it', () {
+    const base0 = 1750;
+    int firstWave(double pace) => TargetStrikeController(
+          _ScriptedRandom(_seq(13)),
+          initialPace: pace,
+        ).wave(0).first.lifetimeMs;
+
+    expect(firstWave(1.0), base0);
+    expect(firstWave(0.8), lessThan(base0));
+    expect(firstWave(1.4), greaterThan(base0));
+    // clamped
+    expect(firstWave(0.2), (base0 * 0.75).round());
+    expect(firstWave(9.0), (base0 * 1.5).round());
+  });
+
+  test('the next wave adapts to how the last one went — a clean, fast wave '
+      'shortens it; a missed wave lengthens it past the baseline', () {
+    const baseWave1 = 1313; // _baseLifetimeMs[1]
+
+    int wave1LifetimeAfter(void Function(TargetStrikeController) playWave0) {
+      final c = TargetStrikeController(_ScriptedRandom(_seq(11)));
+      playWave0(c);
+      return c.wave(1).first.lifetimeMs;
+    }
+
+    final afterClean = wave1LifetimeAfter((c) {
+      for (final t in c.wave(0)) {
+        c.resolve(_hit(t, off: 0.0, latency: 90));
+      }
+    });
+    final afterMissed = wave1LifetimeAfter((c) {
+      for (final t in c.wave(0)) {
+        c.resolve(TargetResolution(
+            target: t, tapX: t.x, tapY: t.y, latencyMs: 0, timedOut: true));
+      }
+    });
+
+    expect(afterClean, lessThan(baseWave1), reason: 'reward -> tighter window');
+    expect(afterMissed, greaterThan(baseWave1), reason: 'struggle -> more time');
+    expect(afterMissed, greaterThan(afterClean));
+  });
+
   test('one measurement bag per resolved target, carrying Precision + '
       'Reaction keys; a timeout writes a far miss', () {
     final c = TargetStrikeController(_ScriptedRandom(_seq(5)));

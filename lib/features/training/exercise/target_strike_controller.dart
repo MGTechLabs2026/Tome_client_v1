@@ -59,20 +59,36 @@ class TrainingRunSummary {
 /// The widget layer owns real timing, input and animation and feeds
 /// resolutions in; nothing here touches a `Timer` or the clock.
 class TargetStrikeController {
-  TargetStrikeController(SeededRandom rng) : waves = _layout(rng);
+  TargetStrikeController(this._rng, {double initialPace = 1.0})
+      : _initialPace = initialPace.clamp(_minPace, _maxPace).toDouble();
+
+  final SeededRandom _rng;
+
+  /// The multiplier this session starts from — the player's persisted
+  /// skill (see `TrainingPaceRepository`). Wave 1 runs at exactly this;
+  /// later waves blend it with how *this* session is going, so an
+  /// experienced player stays challenged and a slow-device player who
+  /// keeps struggling keeps their extra time.
+  final double _initialPace;
 
   static const waveCount = 3;
   static const perWave = 3;
   static const totalTargets = waveCount * perWave;
 
-  /// Per-wave difficulty: target lifetime shortens, radius tightens.
-  static const _lifetimeMs = [1400, 1050, 820];
+  /// Per-wave baseline: target lifetime shortens, radius tightens. The
+  /// lifetime is then scaled per wave by [_effectivePace].
+  static const _baseLifetimeMs = [1750, 1313, 1025];
   static const _radius = [0.095, 0.085, 0.075];
+
+  /// Adaptive lifetime is clamped to this band around the baseline.
+  static const _minPace = 0.75; // sharpest: 25% shorter
+  static const _maxPace = 1.5; // gentlest: 50% longer
 
   /// Targets kept this far in from every field edge (normalized).
   static const _inset = 0.13;
 
-  final List<List<TrainingTarget>> waves;
+  final List<List<TrainingTarget>?> _waveCache =
+      List<List<TrainingTarget>?>.filled(waveCount, null);
   final List<TargetResolution> _resolved = [];
 
   List<TargetResolution> get resolutions => List.unmodifiable(_resolved);
@@ -83,17 +99,57 @@ class TargetStrikeController {
     _resolved.add(resolution);
   }
 
-  // ── layout ────────────────────────────────────────────────────────
+  /// The [index]th wave, generated on first access so its lifetime can
+  /// react to everything resolved before it. Cached — a wave's layout
+  /// never changes once shown.
+  List<TrainingTarget> wave(int index) =>
+      _waveCache[index] ??= _wave(index, _lifetimeFor(index));
 
-  static List<List<TrainingTarget>> _layout(SeededRandom rng) {
-    var index = 0;
-    return [
-      for (var w = 0; w < waveCount; w++)
-        _wave(rng, w, () => index++),
-    ];
+  /// All three waves. Forces generation; used where no adaptation has
+  /// happened yet (tests, previews).
+  List<List<TrainingTarget>> get waves =>
+      [for (var i = 0; i < waveCount; i++) wave(i)];
+
+  int _lifetimeFor(int wave) =>
+      (_baseLifetimeMs[wave] * _effectivePace()).round();
+
+  /// The pace this wave actually runs at: the persisted [_initialPace]
+  /// blended toward *this session's* implied pace by how much of the
+  /// run has been played — early waves lean on carried skill, later
+  /// waves on the run in progress. > 1 = longer windows, < 1 = shorter.
+  double _effectivePace() {
+    if (_resolved.isEmpty) return _initialPace;
+    final w = (_resolved.length / totalTargets).clamp(0.0, 1.0);
+    final blended = _initialPace + (_sessionFactor() - _initialPace) * w;
+    return blended.clamp(_minPace, _maxPace).toDouble();
   }
 
-  static List<TrainingTarget> _wave(SeededRandom rng, int w, int Function() next) {
+  /// This session's implied pace from the mean per-strike score so far:
+  /// a clean centred fast hit ≈ 1.0, a weak slow one ≈ 0.5, a miss = 0.
+  double _sessionFactor() {
+    if (_resolved.isEmpty) return _initialPace;
+    return (1.55 - sessionScore).clamp(_minPace, _maxPace).toDouble();
+  }
+
+  /// Mean per-strike score over everything resolved so far — misses
+  /// count as 0. The number `TrainingPaceRepository` persists.
+  double get sessionScore {
+    if (_resolved.isEmpty) return 0;
+    var sum = 0.0;
+    for (final r in _resolved) {
+      if (r.quality == StrikeQuality.miss) continue;
+      final centre = (1 - r.offCentre).clamp(0.0, 1.0);
+      final speed =
+          (1 - r.latencyMs / r.target.lifetimeMs).clamp(0.0, 1.0);
+      sum += 0.35 + 0.45 * centre + 0.20 * speed;
+    }
+    return sum / _resolved.length;
+  }
+
+  // ── layout ────────────────────────────────────────────────────────
+
+  List<TrainingTarget> _wave(int w, int lifetimeMs) {
+    final rng = _rng;
     final r = _radius[w];
     // Usable centre-box for this wave's radius.
     final lo = _inset + r;
@@ -125,11 +181,11 @@ class TargetStrikeController {
           placed.add(p);
           return TrainingTarget(
             wave: w,
-            index: next(),
+            index: w * perWave + i,
             x: p.x,
             y: p.y,
             radius: r,
-            lifetimeMs: _lifetimeMs[w],
+            lifetimeMs: lifetimeMs,
           );
         }(),
     ];

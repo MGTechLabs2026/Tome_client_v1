@@ -7,6 +7,8 @@ import 'package:tome_client/core/engine/engine_session.dart';
 import 'package:tome_client/core/engine/tome_adapter.dart';
 import 'package:tome_client/core/engine/training_adapter.dart';
 import 'package:tome_client/core/models/game_phase.dart';
+import 'package:tome_client/core/persistence/game_store.dart';
+import 'package:tome_client/core/persistence/training_pace_repository.dart';
 import 'package:tome_client/features/run/run_bloc.dart';
 import 'package:tome_client/features/training/active_training_screen.dart';
 import 'package:tome_client/features/training/exercise/target_strike_controller.dart';
@@ -20,14 +22,17 @@ void main() {
   late CharacterAdapter characterAdapter;
   late RunBloc runBloc;
   late TrainingBloc trainingBloc;
+  late TrainingPaceRepository pace;
 
-  Future<void> pump(WidgetTester tester, {String style = 'polearming'}) async {
+  Future<void> pump(WidgetTester tester,
+      {String style = 'polearming', GameStore? store}) async {
     session = EngineSession(2026);
     characterAdapter = CharacterAdapter(session)..createCharacter('Fighter');
     characterAdapter.chooseStyle(style);
     final tome = TomeAdapter(session)..createInitialTome();
     trainingAdapter = TrainingAdapter(session, tomeAdapter: tome);
     runBloc = RunBloc();
+    pace = TrainingPaceRepository(store ?? GameStore.memory());
     trainingBloc = TrainingBloc(trainingAdapter)
       ..add(const TrainingSessionStarted('iron_sword', false));
 
@@ -36,6 +41,7 @@ void main() {
         providers: [
           RepositoryProvider.value(value: trainingAdapter),
           RepositoryProvider.value(value: characterAdapter),
+          RepositoryProvider.value(value: pace),
         ],
         child: MultiBlocProvider(
           providers: [
@@ -64,37 +70,58 @@ void main() {
     expect(find.text('1 / 3'), findsOneWidget);
   });
 
-  testWidgets('striking the field clears targets and finishing all 3 waves '
-      'produces a result and returns toward the Tome', (tester) async {
+  testWidgets('striking each target dead-centre clears all 3 waves, produces '
+      'a result, returns toward the Tome, and carries a tighter pace',
+      (tester) async {
     await pump(tester);
     final field = find.byType(TargetField);
     expect(field, findsOneWidget);
 
     for (var wave = 0; wave < TargetStrikeController.waveCount; wave++) {
-      for (var i = 0; i < TargetStrikeController.perWave; i++) {
-        await tester.tapAt(tester.getCenter(field));
-        await tester.pump(const Duration(milliseconds: 30));
+      final rect = tester.getRect(field);
+      final targets = (tester.widget(field) as TargetField).wave;
+      for (final t in targets) {
+        await tester.tapAt(
+          rect.topLeft + Offset(t.x * rect.width, t.y * rect.height),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
       }
-      // let the wave-complete delay + advance settle
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pump(const Duration(milliseconds: 350));
     }
 
     expect(trainingBloc.state.result, isNotNull);
-    expect(trainingBloc.state.summary, isNotNull);
     expect(trainingBloc.state.summary!.total, 9);
+    expect(trainingBloc.state.summary!.hits, 9);
     expect(runBloc.state.phase, GamePhase.trainingResult);
+    // A clean run carries forward as a tighter pace.
+    expect(pace.pace, lessThan(1.0));
   });
 
   testWidgets('an untouched wave times out into misses', (tester) async {
     await pump(tester);
-    // Never tap; just let every target's window close (wave 1 lifetime
-    // is the longest at 1400ms).
+    // Never tap; just let every target's window close (wave 1 has the
+    // longest lifetime).
     for (var wave = 0; wave < TargetStrikeController.waveCount; wave++) {
-      await tester.pump(const Duration(milliseconds: 1600));
+      // A missed run pushes the adaptive lifetime to its gentlest, so
+      // pump past the widest possible window.
+      await tester.pump(const Duration(milliseconds: 2300));
       await tester.pump(const Duration(milliseconds: 350));
     }
     expect(trainingBloc.state.summary!.misses, 9);
     expect(trainingBloc.state.summary!.hits, 0);
+    // A blank run buys the next session more time (slow device isn't
+    // punished on a hard reset).
+    expect(pace.pace, greaterThan(1.0));
+  });
+
+  testWidgets('a stored tighter pace makes the first wave shorter than the '
+      'baseline', (tester) async {
+    final store = GameStore.memory();
+    await TrainingPaceRepository(store).recordSession(1.0); // clean history
+    await pump(tester, store: store);
+    // Baseline wave-1 lifetime is 1750ms; a carried pace < 1 shortens it.
+    final t = tester.state(find.byType(TargetField));
+    expect((t as dynamic).widget.wave.first.lifetimeMs, lessThan(1750));
   });
 }

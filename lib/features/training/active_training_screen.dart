@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/engine/character_adapter.dart';
 import '../../core/engine/training_adapter.dart';
 import '../../core/models/game_phase.dart';
+import '../../core/persistence/training_pace_repository.dart';
 import '../run/run_bloc.dart';
 import '../run/run_event.dart';
 import '../tome/hall/hall_theme.dart';
@@ -35,7 +36,10 @@ class _ActiveTrainingScreenState extends State<ActiveTrainingScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = TargetStrikeController(context.read<TrainingAdapter>().random);
+    _controller = TargetStrikeController(
+      context.read<TrainingAdapter>().random,
+      initialPace: context.read<TrainingPaceRepository>().pace,
+    );
     final tradition =
         context.read<CharacterAdapter>().currentView().martialTradition;
     _scene = TrainingScene.forTradition(tradition);
@@ -53,6 +57,9 @@ class _ActiveTrainingScreenState extends State<ActiveTrainingScreen> {
     }
     if (_handedOff) return;
     _handedOff = true;
+    // Carry this run's skill forward (heavily smoothed) so the next
+    // session starts where this one left off.
+    context.read<TrainingPaceRepository>().recordSession(_controller.sessionScore);
     context.read<TrainingBloc>().add(TrainingRunCompleted(
           _controller.attemptMeasurements,
           _controller.summary,
@@ -93,7 +100,7 @@ class _ActiveTrainingScreenState extends State<ActiveTrainingScreen> {
                       child: TargetField(
                         key: ValueKey(_wave),
                         scene: _scene,
-                        wave: _controller.waves[_wave],
+                        wave: _controller.wave(_wave),
                         onResolved: _onResolved,
                         onWaveComplete: _onWaveComplete,
                       ),

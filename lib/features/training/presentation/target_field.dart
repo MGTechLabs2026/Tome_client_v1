@@ -51,6 +51,7 @@ class _TargetFieldState extends State<TargetField>
 
   int _elapsedMs = 0; // clock time
   int _waveStartMs = 0; // clock time when this wave began
+  int _lastFrameMs = 0; // clock time at the previous frame
   late List<_Runtime> _rt;
   int _lastStrikeMs = -10000;
   StrikeQuality _lastStrikeQuality = StrikeQuality.miss;
@@ -59,6 +60,16 @@ class _TargetFieldState extends State<TargetField>
 
   static const _resolveMs = 220;
   static const _decayMs = 320;
+
+  /// The largest a single frame's advance is allowed to move the wave
+  /// clock. A real frame is ~16 ms; anything past this is a stall — a
+  /// backgrounded browser tab (frames stop, then `lastElapsedDuration`
+  /// jumps by the whole wall-clock gap on resume), a GC pause, or a
+  /// debugger break. The overshoot is added back to [_waveStartMs] so
+  /// [_waveMs] never leaps: hidden/stalled time is simply not counted —
+  /// the player gets no free timing and does not lose a live wave to a
+  /// mass timeout. (Task 9/10 — browser visibility lifecycle.)
+  static const _maxFrameMs = 200;
 
   bool get _reduceMotion => MediaQuery.of(context).disableAnimations;
   int get _waveMs => _elapsedMs - _waveStartMs;
@@ -93,7 +104,16 @@ class _TargetFieldState extends State<TargetField>
   }
 
   void _onFrame() {
-    _elapsedMs = (_clock.lastElapsedDuration ?? Duration.zero).inMilliseconds;
+    final raw = (_clock.lastElapsedDuration ?? Duration.zero).inMilliseconds;
+    final delta = raw - _lastFrameMs;
+    _lastFrameMs = raw;
+    // Reject a stalled frame: advance the wave origin by the overshoot so
+    // the effective per-frame step is capped. Never move the origin
+    // backwards (a monotonic clock only ever loses time this way).
+    if (delta > _maxFrameMs) {
+      _waveStartMs += delta - _maxFrameMs;
+    }
+    _elapsedMs = raw;
     for (final r in _rt) {
       if (!r.resolved && _waveMs >= r.target.lifetimeMs) {
         _resolve(r, r.target.x, r.target.y, timedOut: true);

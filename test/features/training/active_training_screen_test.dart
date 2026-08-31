@@ -100,12 +100,15 @@ void main() {
 
   testWidgets('an untouched wave times out into misses', (tester) async {
     await pump(tester);
-    // Never tap; just let every target's window close (wave 1 has the
-    // longest lifetime).
+    // Never tap; just let every target's window close. Pump in ~60fps
+    // frames — the field's stall clamp caps a single frame at 200ms, so
+    // the wave clock only advances with a realistic frame cadence (this
+    // is exactly what protects a backgrounded browser tab; see
+    // TargetField._maxFrameMs).
     for (var wave = 0; wave < TargetStrikeController.waveCount; wave++) {
-      // A missed run pushes the adaptive lifetime to its gentlest, so
-      // pump past the widest possible window.
-      await tester.pump(const Duration(milliseconds: 2300));
+      for (var ms = 0; ms < 3200; ms += 16) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
       await tester.pump(const Duration(milliseconds: 350));
     }
     expect(trainingBloc.state.summary!.misses, 9);
@@ -113,6 +116,28 @@ void main() {
     // A blank run buys the next session more time (slow device isn't
     // punished on a hard reset).
     expect(pace.pace, greaterThan(1.0));
+  });
+
+  testWidgets('a backgrounded tab does not time out live targets — the wave '
+      'clock rejects a stalled frame', (tester) async {
+    await pump(tester);
+    // One giant frame stands in for "tab hidden for 30 s, then resumed":
+    // AnimationController.lastElapsedDuration jumps by the whole gap in a
+    // single tick. The clamp must keep the wave alive.
+    await tester.pump(const Duration(milliseconds: 30000));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(trainingBloc.state.result, isNull,
+        reason: 'no wave should have resolved from hidden time');
+    // A normal frame cadence afterwards still runs the session to its
+    // end — the stall neither advanced nor broke the clock.
+    for (var wave = 0; wave < TargetStrikeController.waveCount; wave++) {
+      for (var ms = 0; ms < 3200; ms += 16) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump(const Duration(milliseconds: 350));
+    }
+    expect(trainingBloc.state.summary!.misses, 9,
+        reason: 'every target still times out on real frames, none on the stall');
   });
 
   testWidgets('a stored tighter pace makes the first wave shorter than the '

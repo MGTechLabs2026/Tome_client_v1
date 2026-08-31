@@ -38,6 +38,9 @@ dependencies:
   flutter_bloc: ^9.0.0
   go_router: ^14.0.0
   shared_preferences: ^2.3.0
+  # Cross-platform (incl. web) HTTP — only used by the Devvit persistence
+  # transport to reach the Devvit server's /api/state, /api/identity.
+  http: ^1.2.0
   build_engine:
     git:
       # HTTPS (not an SSH host alias) so a clean CI checkout can fetch it

@@ -14,6 +14,7 @@
 //
 // The engine (`built_engine`) contains none of this and never will:
 // gameplay rules stay deterministic and platform-free.
+export 'devvit_backend.dart';
 export 'game_audio.dart';
 export 'platform_capabilities.dart';
 export 'platform_identity.dart';

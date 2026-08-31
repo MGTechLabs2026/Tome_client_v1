@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'app/tome_app.dart';
 import 'core/persistence/game_store.dart';
+import 'core/platform/platform.dart';
 import 'features/run/run_bloc.dart';
 
 Future<void> main() async {
@@ -20,16 +21,25 @@ Future<void> main() async {
     return true; // handled — do not crash the isolate
   };
 
-  GameStore store;
-  try {
-    store = await GameStore.open();
-  } catch (e, st) {
-    // Storage unavailable (private-mode localStorage, blocked site data,
-    // a locked-down webview): the game still runs, records / codex just
-    // won't persist this launch.
-    debugPrint('Tome: persistence unavailable, running unsaved: $e\n$st');
-    store = GameStore.memory();
-  }
+  runApp(TomeApp(runBloc: RunBloc(), store: await _openStore()));
+}
 
-  runApp(TomeApp(runBloc: RunBloc(), store: store));
+/// Picks the persistence backend for the current platform. Any failure
+/// degrades to an in-memory store — the game runs, this launch just
+/// doesn't persist.
+Future<GameStore> _openStore() async {
+  try {
+    if (PlatformCapabilities.current.id == 'devvit') {
+      // Durable state lives on the Devvit server (Redis), not
+      // localStorage (which the webview drops on app update). Hydrate
+      // once, then read is synchronous.
+      final remote = RemoteGameStore(DevvitGameStoreTransport(DevvitBackend()));
+      await remote.hydrate();
+      return remote;
+    }
+    return await GameStore.open();
+  } catch (e, st) {
+    debugPrint('Tome: persistence unavailable, running unsaved: $e\n$st');
+    return GameStore.memory();
+  }
 }

@@ -27,14 +27,16 @@ Done:
   it works inside the itch iframe. Branded `web/index.html` +
   `manifest.json`, plus a JS-free pre-boot “TOME / MARTIAL ARTS” loading
   shell.
-- **Devvit: contract-ready, integration NOT built.** The client seam
+- **Devvit: integrated, in-tree at `devvit/`.** The client seam
   exists, compiles, and is unit-tested: `GameStoreTransport` +
   `RemoteGameStore` (durable state via a server endpoint → Redis, not
   `localStorage`), `PlatformIdentity` (opaque per-user key, engine never
   sees it), `GameAudio` (autoplay-safe seam), `PlatformCapabilities`.
-  `scripts/build_devvit_client.sh` builds the Devvit client profile. The
-  `Tome_devvit` repo, its server, and Redis wiring are external and
-  unwritten.
+  The Devvit Web project (`devvit/` — Hono+tRPC server over Redis,
+  splash + game shells, `scripts/embed-flutter.sh`) consumes the **same**
+  `scripts/build_web.sh` output the itch.io zip ships. Runtime is chosen
+  in-app (`?platform=devvit`), not by a build flag. Still manual:
+  `devvit login` / `playtest` / `npm run deploy` / `publish`.
 - **Training hardened for the browser.** `TargetField` now rejects a
   stalled frame (`_maxFrameMs = 200`): a backgrounded tab, a GC pause, or
   a debugger break no longer leaps the wave clock — hidden time is simply
@@ -105,7 +107,7 @@ loading the zip in desktop + mobile browsers and on an itch project page
 | `localStorage` not treated as authoritative on Devvit | ✅ documented; `PlatformCapabilities.devvit.durablePersistence = false` |
 | Payload discipline | ✅ transport moves the repos' small JSON docs only; no runtime objects, no catalogue |
 | Backend-failure handling | ✅ `RemoteGameStore` swallows hydrate/save errors, plays from cache — unit-tested |
-| Client build profile | ✅ `scripts/build_devvit_client.sh` (`--dart-define=TOME_PLATFORM=devvit`) |
+| Client build profile | ✅ shared `scripts/build_web.sh`; runtime picked in-app (`?platform=devvit`), no build flag |
 | Deployment steps documented | ✅ `docs/DEVVIT_DEPLOYMENT.md` (marked “integration NOT built”) |
 
 ### Warnings
@@ -239,7 +241,7 @@ Observations:
                      │   └ PlatformCapabilities                │
                      └───────┬───────────────────┬────────────┘
                              │                   │
-              flutter build web --release        │
+              scripts/build_web.sh  (one shared build/web/)
                      ┌───────┴────────┐   ┌──────┴───────────────────┐
                      │ itch.io HTML5  │   │ Reddit Devvit Web        │
                      │ (iframe)       │   │ (webview)                │
@@ -247,8 +249,8 @@ Observations:
                      │  → localStorage│   │  → GameStoreTransport    │
                      │ LocalIdentity  │   │  → Devvit server endpoint│
                      │                │   │  → Redis                 │
-                     │ package_itch.sh│   │ build_devvit_client.sh + │
-                     │  → tome-web.zip│   │  external Tome_devvit    │
+                     │ package_itch.sh│   │ devvit/ (in-tree):      │
+                     │  → tome-web.zip│   │  embed-flutter.sh + vite │
                      └────────────────┘   └──────────────────────────┘
 ```
 
@@ -267,10 +269,10 @@ scripts/package_itch.sh
 # -> dist/itch/tome-web.zip   (upload to itch.io; check "run in browser")
 ```
 
-**Devvit client bundle:**
+**Devvit embed (same web bundle as itch):**
 ```bash
-scripts/build_devvit_client.sh
-# -> dist/devvit-client/      (copy into the external Tome_devvit webroot)
+devvit/scripts/embed-flutter.sh
+# runs scripts/build_web.sh, copies build/web/ -> devvit/public/game/
 ```
 
 **Full local check (mirrors CI):**
@@ -318,9 +320,9 @@ flutter analyze && flutter test && scripts/package_itch.sh
 | | itch.io | Devvit |
 |---|---|---|
 | code-ready | ✅ | ✅ (client contracts) |
-| build-ready | ✅ (`tome-web.zip` validated) | ✅ (`dist/devvit-client/`) |
-| platform-integration-ready | ✅ (upload only) | ⛔ (external project + server + Redis) |
-| manually verified | ⛔ | ⛔ |
+| build-ready | ✅ (`tome-web.zip` validated) | ✅ (`devvit/`, shared `build/web/`) |
+| platform-integration-ready | ✅ (upload only) | ✅ (in-tree: server + Redis wiring + embed) |
+| manually verified | ⛔ | ⛔ (needs `devvit playtest`) |
 
 ## Definition of Done — check
 

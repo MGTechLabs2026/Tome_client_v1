@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
 # Reproducible itch.io HTML5 release artifact.
 #
-#   1. clean build/web
-#   2. flutter build web --release --base-href /
-#   3. rewrite <base href="/"> -> <base href="">  so every asset URL
-#      resolves relative to index.html — itch runs the upload in an
-#      iframe from a hashed path, never the domain root. (Flutter's
-#      --base-href must itself start and end with "/", so this is a
-#      post-build edit, not a build flag.)
-#   4. validate: entrypoint present, no absolute /asset paths, and the
+#   1. scripts/build_web.sh  — the shared Flutter web release (same
+#      build/web/ the Devvit embed uses; <base href> already rewritten
+#      to "" so assets resolve relative to index.html — itch runs the
+#      upload in an iframe from a hashed path, never the domain root)
+#   2. validate: entrypoint present, no absolute /asset paths, and the
 #      itch extracted-archive limits (<=1000 files, <=500 MB total,
 #      <=200 MB per file)
-#   5. zip -> dist/itch/tome-web.zip  (index.html at the archive root)
+#   3. zip -> dist/itch/tome-web.zip  (index.html at the archive root)
 #
 # The artifact is NOT committed (dist/ is gitignored).
 set -euo pipefail
@@ -30,13 +27,8 @@ echo "==> clean"
 rm -rf "${SRC}" "${OUT_DIR}"
 mkdir -p "${OUT_DIR}"
 
-echo "==> build"
-flutter build web --release --base-href /
-
-echo "==> rewrite base href to relative for the itch iframe"
-# portable in-place sed (BSD + GNU)
-sed -i.bak 's#<base href="/">#<base href="">#' "${SRC}/index.html"
-rm -f "${SRC}/index.html.bak"
+echo "==> build (shared web release)"
+scripts/build_web.sh
 
 fail=0
 note() { echo "    - $1"; }

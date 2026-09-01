@@ -16,8 +16,8 @@ Reddit post
 Devvit Web app  ─────────────────────────────────────────────┐
    │  webview (iframe)                                        │
    ▼                                                          │
-Flutter Web client  (this repo, built by                     │
- scripts/build_devvit_client.sh)                              │
+Flutter Web client  (this repo — the SAME build/web/ that    │
+ ships to itch.io, embedded by devvit/scripts/embed-flutter) │
    │                                                          │
    ├─ gameplay ──────────► built_engine   (deterministic,     │
    │                       platform-free — UNCHANGED)         │
@@ -96,13 +96,15 @@ changes). It may back only throwaway UI state (last tab, a collapsed
 panel). **Character / lineage / mastery / run state must use the server
 path above.**
 
-## What stays external / manual
+## Where this lives
 
-- The `Tome_devvit` repository itself (Devvit CLI project: `devvit.yaml`,
-  `src/server/`, `src/client/` webroot, Redis access).
-- The server endpoint that fronts Redis and the `GameStoreTransport` +
-  `PlatformIdentity` Dart implementations that call it.
-- `devvit upload` / playtest / publish.
-- Nothing in this repo is blocked on the above; the contracts compile and
-  are unit-tested here (`test/core/persistence/game_store_test.dart`,
-  `test/core/platform/platform_test.dart`).
+- The Devvit project is in-tree at **`devvit/`** (Devvit config,
+  `src/server/` Hono+tRPC endpoints over Redis, `src/client/` splash +
+  game shells, `scripts/embed-flutter.sh`).
+- The Dart implementations of the contracts are
+  `lib/core/platform/devvit_backend.dart` (`DevvitGameStoreTransport`,
+  `DevvitIdentity`), wired into `RemoteGameStore` in `lib/main.dart`.
+- Still manual: `devvit login`, `devvit playtest`, `npm run deploy`
+  (`devvit upload`), `devvit publish` — see `DEVVIT_DEPLOYMENT.md`.
+- Contracts are unit-tested here (`test/core/persistence/game_store_test.dart`,
+  `test/core/platform/platform_test.dart`) and in `devvit/` (`vitest`).

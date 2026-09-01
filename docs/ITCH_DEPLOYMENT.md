@@ -9,16 +9,22 @@ scripts/package_itch.sh
 What it does:
 
 1. `rm -rf build/web dist/itch`
-2. `flutter build web --release --base-href /`
-3. rewrites `<base href="/">` → `<base href="">` in `build/web/index.html`
-   so every asset URL resolves **relative to `index.html`** — itch serves
-   the upload from an iframe at a hashed path, never the domain root.
-   (Flutter's own `--base-href` must start *and* end with `/`, so this is
-   a post-build edit, not a flag.)
-4. validates the entrypoint, relative paths, and the itch extracted-archive
+2. `scripts/build_web.sh` — the **shared** Flutter web release (the same
+   `build/web/` the Devvit embed copies, so the two ship byte-identical):
+   `flutter build web --release --no-web-resources-cdn --base-href /`,
+   then rewrites `<base href="/">` → `<base href="">` in
+   `build/web/index.html` so every asset URL resolves **relative to
+   `index.html`** — itch serves the upload from an iframe at a hashed
+   path, never the domain root. (Flutter's own `--base-href` must start
+   *and* end with `/`, so this is a post-build edit, not a flag.)
+3. validates the entrypoint, relative paths, and the itch extracted-archive
    limits.
-5. zips `build/web/` → `dist/itch/tome-web.zip` with `index.html` at the
+4. zips `build/web/` → `dist/itch/tome-web.zip` with `index.html` at the
    archive root.
+
+There is no itch-specific build flag. `PlatformCapabilities.current`
+resolves the runtime in-app (itch gets plain `web`; the Devvit shell adds
+`?platform=devvit`), so one bundle serves both.
 
 To test a non-root sub-path deploy locally: `scripts/build_web.sh /tome/`.
 
@@ -35,10 +41,14 @@ with the command above.
 
 | Metric | Value | itch limit |
 |---|---|---|
-| Files (extracted) | 42 | ≤ 1000 |
+| Files (extracted) | 43 | ≤ 1000 |
 | Extracted size | ~41 MB | ≤ 500 MB |
 | Largest file (`canvaskit/canvaskit.wasm`) | ~7 MB | ≤ 200 MB per file |
 | ZIP (upload) size | ~14 MB | — |
+
+CanvasKit is now bundled (`--no-web-resources-cdn`), not fetched from
+`www.gstatic.com` — one less third-party dependency, and the same bytes
+the Devvit webview needs.
 
 ### ZIP structure
 

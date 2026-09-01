@@ -80,16 +80,33 @@ class PlatformCapabilities {
     touch: true,
   );
 
-  /// A best-effort guess for the current build with no platform shell
-  /// wired. `--dart-define=TOME_PLATFORM=devvit` overrides it so the
-  /// Devvit client build reports the right thing.
+  /// The platform for the running build. Resolved at **runtime** so one
+  /// web bundle serves every target (the itch.io zip and the Devvit
+  /// embed are byte-identical). Precedence:
+  ///
+  ///   1. `--dart-define=TOME_PLATFORM=devvit|web|desktop` — an explicit
+  ///      compile-time pin, still honoured if set.
+  ///   2. web only: a `?platform=devvit` query parameter — the Devvit
+  ///      shell loads `game/index.html?platform=devvit`.
+  ///   3. web only: a `*.devvit.net` host — the webview origin, so the
+  ///      right runtime is picked even if the query param is missing.
+  ///   4. otherwise: `web` on the browser, `desktop` off it.
   static PlatformCapabilities get current {
-    const override = String.fromEnvironment('TOME_PLATFORM');
-    return switch (override) {
+    const pinned = String.fromEnvironment('TOME_PLATFORM');
+    final id = pinned.isNotEmpty ? pinned : _detect();
+    return switch (id) {
       'devvit' => devvit,
       'web' => web,
       'desktop' => desktop,
       _ => kIsWeb ? web : desktop,
     };
+  }
+
+  static String _detect() {
+    if (!kIsWeb) return 'desktop';
+    final q = Uri.base.queryParameters['platform'];
+    if (q != null && q.isNotEmpty) return q;
+    if (Uri.base.host.endsWith('devvit.net')) return 'devvit';
+    return 'web';
   }
 }

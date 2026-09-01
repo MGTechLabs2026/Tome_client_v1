@@ -1,30 +1,30 @@
 # Devvit deployment — Tome: Martial Arts
 
 Architecture and client contracts: **`devvit-integration.md`**. This file
-is the ops checklist. **Status: platform-integration NOT built** — the
-client-side boundary is ready and tested; the Devvit project is external
-work.
+is the ops checklist. The Devvit Web project now lives **in this repo** at
+`devvit/` (Devvit config, Hono/tRPC server, Redis wiring, the splash +
+game shells).
 
-## Build the client bundle
+## Build & embed the client bundle
 
 ```bash
-scripts/build_devvit_client.sh
+devvit/scripts/embed-flutter.sh
 ```
 
-Produces `dist/devvit-client/` — a Flutter web release built with:
+It runs the **shared** `scripts/build_web.sh` (the same `build/web/` the
+itch.io zip is made from — `flutter build web --release
+--no-web-resources-cdn --base-href /`, then `<base href>` rewritten to
+`""`) and copies it verbatim into `devvit/public/game/` (gitignored,
+regenerated). `vite build` then lifts `public/` into `dist/client/`.
 
-- `--base-href ./` … actually `--base-href /` then relative rewrite (same
-  as itch; Devvit serves the webview from a path)
-- `--dart-define=TOME_PLATFORM=devvit` so `PlatformCapabilities.current`
-  reports: no durable `localStorage`, no free outbound network, platform
-  identity available.
+There is **no** Devvit-specific build flag. The runtime is chosen in-app:
+`devvit/src/client/game.html` loads `game/index.html?platform=devvit`, and
+`PlatformCapabilities.current` reads that (or a `*.devvit.net` host) to
+report server-backed persistence, platform identity, no external network.
 
-Copy the contents of `dist/devvit-client/` into the `Tome_devvit`
-project's webroot.
+## The Devvit project — `devvit/`
 
-## The external `Tome_devvit` project (not in this repo)
-
-Create with the Devvit CLI (`devvit new`, Web template). It needs:
+Devvit CLI project (Web template). It provides:
 
 1. **`devvit.yaml` / config** — app name, permissions (Redis).
 2. **Server** (`src/server/`) — endpoints backed by Redis:
@@ -32,10 +32,11 @@ Create with the Devvit CLI (`devvit new`, Web template). It needs:
    - `POST /api/state`   → `{ key, value }`, writes one Redis hash field  (feeds `GameStoreTransport.save`)
    - `GET  /api/identity` → `{ key: "<stable opaque user id>" }`  (feeds `PlatformIdentity.persistenceKey`)
    Redis keys are scoped by the resolved user id. Keep responses small.
-3. **Client webroot** — the `dist/devvit-client/` bundle, plus a thin
-   Dart `GameStoreTransport` + `PlatformIdentity` that `fetch()` the
-   endpoints above and are passed into `RemoteGameStore` / the repos at
-   startup.
+3. **Client webroot** — `devvit/public/game/` (the shared `build/web/`
+   bundle from `embed-flutter.sh`), served behind `game.html`. The Dart
+   `DevvitGameStoreTransport` + `DevvitIdentity` (`lib/core/platform/
+   devvit_backend.dart`) `fetch()` the endpoints above and are wired into
+   `RemoteGameStore` at startup in `lib/main.dart`.
 4. **No gameplay on the server.** It is identity + persistence +
    platform integration only (Task 33).
 

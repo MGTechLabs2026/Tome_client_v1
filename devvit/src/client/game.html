@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Tome: Martial Arts</title>
+    <style>
+      html, body { height: 100%; margin: 0; background: #14110d; }
+      #game { border: 0; position: fixed; inset: 0; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body class="h-full">
+    <!--
+      The game is the Flutter Web bundle in `game/` — the SAME release
+      that ships to itch.io, copied in verbatim by scripts/embed-flutter.sh.
+      The `?platform=devvit` tells the bundle which runtime it is in
+      (PlatformCapabilities.current): server-backed persistence + platform
+      identity, no external network. This shell is a Vite entrypoint only
+      so Devvit has a game.html to point at; it carries no build deps of
+      its own. Relative `/api/...` fetches from inside the frame still
+      reach this app's Devvit server (same origin).
+    -->
+    <iframe
+      id="game"
+      src="game/index.html?platform=devvit"
+      allow="fullscreen; autoplay"
+      title="Tome: Martial Arts"
+    ></iframe>
+  </body>
+</html>

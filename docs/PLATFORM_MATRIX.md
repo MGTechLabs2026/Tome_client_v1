@@ -37,6 +37,9 @@ Legend: **✅ supported** · **🔌 supported with adapter** · **⛔ unavailabl
   project. `SilentAudio` is wired so call sites exist; a real backend
   (which must respect browser autoplay rules — nothing before the first
   user gesture) drops in without touching gameplay.
-- **`PlatformCapabilities.current`** guesses from `kIsWeb` and honours
-  `--dart-define=TOME_PLATFORM=devvit|web|desktop`. The Devvit client
-  build (`scripts/build_devvit_client.sh`) sets that define.
+- **`PlatformCapabilities.current`** resolves at **runtime** so one web
+  bundle serves every target: a `--dart-define=TOME_PLATFORM=…` pin wins
+  if set, else on web a `?platform=devvit` query param (added by the
+  Devvit shell's `game.html`) or a `*.devvit.net` host selects `devvit`,
+  else `web` in a browser / `desktop` off it. `scripts/build_web.sh` is
+  the single build the itch zip and the Devvit embed both consume.

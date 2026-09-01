@@ -5,7 +5,7 @@
 // these hit the Devvit Hono server's plain REST routes with relative
 // paths (`/api/...`) — the webview is served from the app origin.
 //
-// Server side: tome-martial-arts/src/server/routes/state.ts
+// Server side: devvit/src/server/routes/state.ts
 //   GET  /api/state             -> { "<key>": <doc>, ... }
 //   POST /api/state {key,value} -> { ok: true }
 //   GET  /api/identity          -> { key: "<opaque player id>" }

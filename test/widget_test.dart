@@ -25,6 +25,6 @@ void main() {
     await tester.tap(find.bySemanticsLabel('New Run'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Name your fighter'), findsOneWidget);
+    expect(find.text('NAME YOUR FIGHTER'), findsOneWidget);
   });
 }

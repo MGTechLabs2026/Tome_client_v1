@@ -20,13 +20,14 @@
 - **Determinism-property check, every PR:** after the bump, re-run `test/core/engine/combat_adapter_test.dart`, `test/core/engine/combat_mastery_test.dart`, `test/features/run/run_bloc_test.dart`, `test/core/engine/training_adapter_test.dart`. The property that must hold: **two fresh `EngineSession(seed)` instances, each driven through the same input sequence** (same submitted `TrainingAttempt`s, same combat inputs, in the same order), **must produce an identical observable result** — compare the actual outcome (final stats, damage numbers, resolution order, granted rewards, emitted events), **not just win/loss**. If a specific seed's asserted number/pattern moved **but the property holds** (the two fresh sessions still agree with each other), update the inline expectation to the observed value and note it in the PR. **If the two fresh sessions diverge from each other, STOP — real bug, do not touch the fixture.**
 - **Scope freeze (client spec §2.2).** SP4a does **NOT**: roll tiered affixes or change the reward model; touch `component_detail_sheet`; adopt `AuraBinder` or `ConsumableBinder`; register `ConsumablePlugin`; add consumable UI/reward entries; mint or hang `TechniqueVariant` instances; call `resolveTechniqueInspirationAfterTraining`; derive real `ownedRefs` (a `const []` placeholder with a `// SP4b` marker is the SP4a fix); build a `TomeClientAlmanacAdapter`. **If a stage cannot go green without one of these, STOP** and report — the SP4a/SP4b boundary needs revisiting, not the scope.
 - **Contract discipline (client spec §2.3).** Do not touch engine surface not listed as merged in that stage's contract-register rows below. If breakage points at an API outside the listed rows, STOP and report.
-- **The `pubspec_overrides.yaml` file and any `.claude/` / `.superpowers/` scratch never land.** Task 0 gitignores them. Every stage commit contains only: `pubspec.yaml` (the `ref` line), `pubspec.lock` (two SHA lines), and that stage's compat fixes / fixture re-baselines.
+- **The `pubspec_overrides.yaml` file and any `.claude/` / `.superpowers/` scratch never land.** Task 0 gitignores them. Every stage commit contains only: `pubspec.yaml` (the `ref` line), `pubspec.lock` (two SHA lines), and that stage's compat fixes / fixture re-baselines. (Task 4 may additionally add one **test-only** file, `test/core/engine/sp2_aura_inertness_test.dart` — see Task 4.)
+- **No invented compatibility fixes.** If executing a stage shows a contract-register assumption is wrong — a "NOT relied on" symbol is in fact used, a surface listed as inert changes client behaviour, or a stage predicted compile-clean breaks — do **not** patch around it. STOP, quote the specific register row that is wrong, and explain exactly why it needs re-audit. The deliverable is a correct staged engine bump, not additional SP4b work.
 - **Commit trailer** — every commit message ends with:
   ```
   Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
   Claude-Session: https://claude.ai/code/session_01E3k4BFeWXfPzkZzXinqTZk
   ```
-- **Engine ref for the final stage.** The client spec §4 table wrote Stage 5 as `1dc7e5d` ("engine HEAD" at spec-writing time). Engine HEAD has since advanced to **`b43b414`** (the SP4a Part A merge — engine-internal Almanac changes only, none of which the client consumes). Stage 5 pins `b43b414`. This is the one deliberate deviation from the spec table; it is a strict superset of `1dc7e5d` and client-inert.
+- **Engine ref for the final stage — `SP3 + SP4a engine Part A — final engine bump`.** The client spec §4 table wrote Stage 5 as `1dc7e5d` ("engine HEAD" at spec-writing time). The **actual engine HEAD is now `b43b4147bb9224b01ed5818ad0fea5b03408586b`** (short `b43b414`): the SP3 engine state **plus** the later engine-side SP4a Almanac **Part A** merge (engine-internal Almanac changes only). Stage 5 pins `b43b414`, **not** `1dc7e5d`. The Almanac Part A change is **client-inert during SP4a** — the client imports no `almanac*` barrel and builds no Almanac adapter; it does not adopt the client Almanac adapter until **SP4b**. `b43b414` is a strict superset of `1dc7e5d`, so the deviation from the spec table is safe. Throughout this plan the final stage is named **`SP3 + SP4a engine Part A — final engine bump`**.
 
 ---
 
@@ -347,7 +348,7 @@ flutter test
 ```
 Expected: `analyze` clean after the three edits; `flutter test` — mostly green. `combat_adapter_test.dart` / `combat_mastery_test.dart` inline seed expectations **may** shift (two-copy item summing, per-actor modifier scoping). For each failure:
 - Confirm it is a value/pattern shift, not a crash or wrong winner.
-- Run that test file twice — identical both times (determinism property holds).
+- Re-run that scenario in two fresh `EngineSession(seed)` instances on the same input sequence — the observable result must be identical between them (legitimate fixed-seed drift is re-baselineable; a mismatch between the two fresh runs is true nondeterminism → STOP, do not re-baseline).
 - Update the inline expected value to the observed one. Note each re-baseline in the PR body.
 
 - [ ] **Step 5: Semantic-continuity grep**
@@ -379,7 +380,8 @@ combat_adapter.dart: resolve(_me, ownedRefs: const []) (// SP4b marker),
 build.components -> build.active (x2). ItemInstance.statBonuses /
 addItemStatBonuses retained, so item/reward adapters unchanged.
 <if re-baselined: 'Re-baseline <file> seed expectations: <what moved>,
-determinism property (same seed+inputs -> identical, twice) verified.'>
+determinism property verified — two fresh EngineSession(seed) instances
+on the same input sequence produce an identical observable result.'>
 Also crosses Almanac v1 + the SP1 game-run migration — both client-inert.
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
@@ -403,21 +405,44 @@ Claude-Session: https://claude.ai/code/session_01E3k4BFeWXfPzkZzXinqTZk"
 **Files:**
 - Modify: `pubspec.yaml`, `pubspec.lock`
 - Modify: `lib/core/engine/engine_session.dart` — one comment (below)
+- Possibly add: `test/core/engine/sp2_aura_inertness_test.dart` — a small **test-only** focused regression pinning the SP2-inertness verification (Step 6). Adding it is sanctioned by this plan and touches no `lib/`. If the existing test structure can't host it without broader architectural work, use the manual procedure in Step 6 instead and record every compared field in the PR body.
+- Possibly modify: the four determinism fixtures — inline seed re-baselines **only if** a value drifts and the determinism property still holds.
 
 **Interfaces:**
-- Consumes: Task 3 merged (`main` at SP1); the SP2 full SHA from Task 0.
-- Produces: `main` with `build_engine` at SP2 `dc213d4`, init-order comment added, gate green.
+- Consumes: Task 3 merged (`main` at SP1); the SP2 full SHA from Task 0; the engine worktree at SP1 `0663e8e` (from Task 3).
+- Produces: `main` with `build_engine` at SP2 `dc213d4`, init-order comment added, SP2 inertness verified against a pre-bump baseline, gate green.
 
-- [ ] **Step 1: Branch + worktree**
+- [ ] **Step 1: Branch**
 
 ```bash
 git checkout main && git pull --ff-only && git checkout -b sp4a-bump-4-sp2
+```
+Do **not** move the engine worktree yet — Step 2 captures a pre-bump baseline while it is still at the SP1 ref.
+
+- [ ] **Step 2: Capture the pre-bump SP2-inertness baseline**
+
+With the engine worktree still at SP1 (re-checkout to be certain):
+```bash
+git -C "/Users/m4maxpro/Projects/Tome:RougelikeGame/.claude/worktrees/sp4a-client-engine" checkout 0663e8e
+flutter pub get
+```
+Construct a client combat scenario from a **fixed initial state** that **hangs at least one aura-bearing item and one aura-bearing technique** — preferably `cloth_armor` as the item and `basic_guard` (or `basic_slash`) as the technique — and drive it through a **fixed deterministic input sequence** in **two fresh `EngineSession(seed)` instances**. Record the **complete observable result** (both runs must already agree):
+- final relevant stats
+- every damage number
+- action / resolution order
+- granted rewards (where applicable)
+- emitted events (where observable)
+
+Store this baseline **outside the client repo** (SDD ledger / scratch), or bake it into the expected values of `test/core/engine/sp2_aura_inertness_test.dart` if you take the regression-test route. This is the reference Step 6 compares against.
+
+- [ ] **Step 3: Point the worktree at SP2 + bump the pin**
+
+```bash
 git -C "/Users/m4maxpro/Projects/Tome:RougelikeGame/.claude/worktrees/sp4a-client-engine" checkout dc213d4
 ```
+In `pubspec.yaml`, set `build_engine:` `ref:` → the full SP2 SHA (from the SDD ledger).
 
-- [ ] **Step 2: Bump `pubspec.yaml` `ref:` → the full SP2 SHA.**
-
-- [ ] **Step 3: Add the load-bearing-order comment**
+- [ ] **Step 4: Add the load-bearing-order comment**
 
 In `lib/core/engine/engine_session.dart`, immediately above the line `combatPlugin = CombatPlugin()..initialize(context);` (the audit places it ~line 47), add:
 ```dart
@@ -429,46 +454,67 @@ In `lib/core/engine/engine_session.dart`, immediately above the line `combatPlug
     // for this PluginContext. (build_engine CHANGELOG, SP2.)
 ```
 
-- [ ] **Step 4: Gate**
+- [ ] **Step 5: Gate**
 
 ```bash
 flutter pub get && flutter analyze && flutter test
 ```
 Expected: clean/green — all tests pass, no tests deleted/skipped/weakened vs. Task 3. `auraRules()` is a method the client never calls; the client binds no auras.
 
-- [ ] **Step 5: Inert-content check**
+- [ ] **Step 6: SP2-inertness verification (targeted)**
 
-If any determinism-sensitive test hangs one of the 7 aura-tagged ids (`cloth_armor`, `training_staff`, `training_shoes`, `warlords_iron_sword`, `crushing_gauntlets`, `basic_guard`, `basic_slash`) and its combat numbers **drift**, that means an aura contributed in the client path — which SP4a says cannot happen. **STOP and report.** A clean pass here is the confirmation that SP2 is inert.
+Re-run the **exact** aura-bearing scenario from Step 2 — same fixed initial state, same deterministic input sequence, two fresh `EngineSession(seed)` instances — now against SP2 (`dc213d4`). Compare the **complete observable result** to the Step 2 baseline, field by field:
+- final relevant stats
+- every damage number
+- action / resolution order
+- granted rewards (where applicable)
+- emitted events (where observable)
 
-- [ ] **Step 6: Determinism-property check** — the four files, run in two fresh sessions with the same input sequence; compare the actual observable result, not just win/loss.
+The comparison must be **identical**. Win/loss parity alone is **not** sufficient.
 
-- [ ] **Step 7: Guard against scope creep** — any change beyond `engine_session.dart`'s one comment + optional fixture re-baselines → STOP and report.
+> **If the client result changes solely because an aura rule fired, STOP.** `AuraBinder` is not registered or adopted in SP4a, so a fired aura here indicates an engine/client path leak or an incorrect assumption in the contract register. Do **not** invent a compatibility fix — mark the affected contract-register assumption (Stage 4 "Client compatibility work" / "Inert-content check" rows) and explain exactly why it needs re-audit. This stays inside SP4a: no `AuraBinder`, no `ConsumableBinder`, no SP4b behaviour.
 
-- [ ] **Step 8: Fix `pubspec.lock`** → full SP2 SHA.
+Route: prefer committing `test/core/engine/sp2_aura_inertness_test.dart` (test-only; expected values = the Step 2 baseline) so the check is permanent and CI-enforced. If the existing test structure can't host it without broader architectural work, run the comparison as a deterministic manual procedure and paste the before/after of every compared field into the PR body.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 7: Broad inert-content sweep (supplementary)**
+
+Additionally, if any *existing* determinism-sensitive test hangs one of the 7 aura-tagged ids (`cloth_armor`, `training_staff`, `training_shoes`, `warlords_iron_sword`, `crushing_gauntlets`, `basic_guard`, `basic_slash`) and its combat numbers **drift**, that is the same leak — **STOP and report** under the same rule as Step 6.
+
+- [ ] **Step 8: Determinism-property check** — the four files, run in two fresh sessions with the same input sequence; compare the actual observable result, not just win/loss.
+
+- [ ] **Step 9: Guard against scope creep** — allowed changes this stage: `pubspec.yaml` / `pubspec.lock`, the one `engine_session.dart` comment, optional determinism-fixture re-baselines, and the optional **test-only** `sp2_aura_inertness_test.dart`. Anything else — any other `lib/` edit, any `AuraBinder` / `ConsumableBinder` wiring, any `features/` change → STOP and report.
+
+- [ ] **Step 10: Fix `pubspec.lock`** → full SP2 SHA.
+
+- [ ] **Step 11: Commit**
 
 ```bash
 git add pubspec.yaml pubspec.lock lib/core/engine/engine_session.dart
+# + test/core/engine/sp2_aura_inertness_test.dart if you took the regression-test route
 git commit -m "build(engine): bump build_engine to SP2 (per-active auras)
 
 Ref dc213d4. Inert for the client: it binds no auras (combat_adapter
 builds its own action pool, never calls AuraBinder), and auraRules() is
 a method it never calls. Adds a comment locking the CombatPlugin-first
 init order that SP2's hasTrigger-gated aura-content load depends on.
+SP2 inertness verified: an aura-bearing build (cloth_armor + basic_guard)
+produces an identical observable combat result pre/post bump (stats,
+damage, resolution order, rewards, events), checked in two fresh
+sessions. <add: '+ sp2_aura_inertness_test.dart' OR 'manual procedure,
+compared fields in PR body'.>
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01E3k4BFeWXfPzkZzXinqTZk"
 ```
 
-- [ ] **Step 10: PR + merge** — `SP4a bump 4/5 — SP2 (per-active auras)`. CI green → merge → delete branch. Do not start Task 5 until merged.
+- [ ] **Step 12: PR + merge** — `SP4a bump 4/5 — SP2 (per-active auras)`. Body: the init-order comment, the SP2-inertness verification (route taken + the compared fields, or a link to the new test), any fixture re-baseline. CI green → merge → delete branch. Do not start Task 5 until merged.
 
 ---
 
-## Task 5: PR 5 — bump to SP3 / engine HEAD (per-fight consumables)
+## Task 5: PR 5 — `SP3 + SP4a engine Part A — final engine bump` (per-fight consumables)
 
-**Engine contract register — Stage 5 (verbatim, ref updated per Global Constraints):**
-> **Stage 5 — SP3 · pin `b43b414`** (engine HEAD; = `1dc7e5d` + the SP4a Part A merge, which is engine-internal Almanac only)
+**Engine contract register — Stage 5 (bullets verbatim; Stage-5 header re-labelled and ref updated per Global Constraints):**
+> **Stage 5 — `SP3 + SP4a engine Part A — final engine bump` · pin `b43b414`** (`b43b4147bb9224b01ed5818ad0fea5b03408586b`, the actual engine HEAD = SP3 engine state + the engine-side SP4a Almanac **Part A** merge, which is engine-internal Almanac only and **client-inert** in SP4a; the client does not adopt the client Almanac adapter until SP4b). Pin `b43b414`, **not** `1dc7e5d`.
 > - **Relied on:** nothing new. `RuleContext.modifiers` default keeps `RuleEngine._fire` identical; `AttackAction` / `SelfEffectAction` gain an optional `priority` param (client constructions unaffected).
 > - **NOT relied on:** the entire `consumable_plugin.dart` barrel (`ConsumablePlugin`, `ConsumableDefinition`, `ConsumableTarget`, `ConsumableEffectSpec` + 4 variants, `consumableReferenceType`, `consumableChargeResource`, `consumableDefinition*`, `ConsumableIds`), `RemoveAllStatuses`, `GrantModifier`, `ConsumableActionInterpreter`, `ConsumableBinder` / `ConsumableCharges`, `ConsumableAwareActionScorer`, the engine `RewardStage` / `TomeManager.placeConsumable` reward-pool wiring, the C1 `ResourceAbove` guard + fallback-strike injection.
 > - **Client compatibility work:** none. `ConsumablePlugin` is **not** registered in `engine_session.dart` and must not be in SP4a. The client's combat pool has no consumable branch; it has its own fallback strike (`combat_adapter._Resolver`), so C1 does not apply to it.
@@ -478,8 +524,8 @@ Claude-Session: https://claude.ai/code/session_01E3k4BFeWXfPzkZzXinqTZk"
 - Modify: `pubspec.yaml`, `pubspec.lock`. Nothing else expected.
 
 **Interfaces:**
-- Consumes: Task 4 merged (`main` at SP2); the SP3/HEAD full SHA (`b43b414`) from Task 0.
-- Produces: `main` with `build_engine` at engine HEAD, gate + web build green. **Client is on engine HEAD — SP4a client bump complete.**
+- Consumes: Task 4 merged (`main` at SP2); the final-stage full SHA (`b43b414` = `b43b4147bb9224b01ed5818ad0fea5b03408586b`) from Task 0.
+- Produces: `main` with `build_engine` at `b43b414` (engine HEAD = `SP3 + SP4a engine Part A`), gate + web build green. **Client is on the final engine bump — SP4a client bump complete.** The client consumes none of the Almanac Part A surface; the client Almanac adapter is SP4b.
 
 - [ ] **Step 1: Branch + worktree**
 
@@ -515,55 +561,88 @@ Expected: succeeds (produces `dist/itch/tome-web.zip` per CI). If it fails on so
 
 ```bash
 git add pubspec.yaml pubspec.lock
-git commit -m "build(engine): bump build_engine to engine HEAD (SP3 + SP4a Part A)
+git commit -m "build(engine): final engine bump — SP3 + SP4a engine Part A
 
-Ref b43b414. Inert for the client: ConsumablePlugin is not registered,
-the combat pool has no consumable branch, RuleContext.modifiers default
-preserves RuleEngine._fire. Client is now on engine HEAD — SP4a client
-bump complete. (b43b414 = the SP3 merge 1dc7e5d plus the engine-internal
-SP4a Part A Almanac change, which the client does not consume.)
+Ref b43b414 (b43b4147bb9224b01ed5818ad0fea5b03408586b, engine HEAD).
+Inert for the client: ConsumablePlugin is not registered, the combat
+pool has no consumable branch, RuleContext.modifiers default preserves
+RuleEngine._fire. b43b414 = the SP3 merge (1dc7e5d) plus the engine-side
+SP4a Almanac Part A change, which the client does not consume — the
+client Almanac adapter is SP4b. Client is now on the final engine bump —
+SP4a client bump complete.
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01E3k4BFeWXfPzkZzXinqTZk"
 ```
 
-- [ ] **Step 9: PR + merge** — `SP4a bump 5/5 — SP3 / engine HEAD`. Body notes the client is now on engine HEAD and lists any web-build caveat. CI green (incl. its own `scripts/package_itch.sh` step) → merge → delete branch.
+- [ ] **Step 9: PR + merge** — `SP4a bump 5/5 — SP3 + SP4a engine Part A (final engine bump)`. Body notes the client is now on the final engine bump (`b43b414`), that the Almanac Part A surface is not consumed (the client Almanac adapter is SP4b), and any web-build caveat. CI green (incl. its own `scripts/package_itch.sh` step) → merge → delete branch.
 
 ---
 
-## Task 6: Wrap-up
+## Task 6: Wrap-up — override teardown *before* final verification
 
-**Files:** none (verification + cleanup).
+**Files:** none. No commit — this task only removes the local-only override and confirms merged `main` resolves the real git ref.
 
-- [ ] **Step 1: Confirm the end state**
+> **Ordering is load-bearing.** The local `pubspec_overrides.yaml` forces `build_engine` to resolve as a **`path`** dependency; a `flutter pub get` while it is active rewrites `pubspec.lock` away from the committed git ref. The final `flutter pub get` MUST run with **no override present**. Steps 2–4 remove the override and the worktree *first*; Step 5 does the real resolution; Step 6 verifies.
+
+- [ ] **Step 1: Checkout + pull merged `main`**
 
 ```bash
 git checkout main && git pull --ff-only
-grep -n "ref:" pubspec.yaml           # build_engine ref == b43b414
-grep -A2 "build_engine:" pubspec.lock # ref / resolved-ref == b43b414
-git log --oneline -7                  # the 5 bump merges + harness, in order
 ```
 
-- [ ] **Step 2: Full local gate one more time on merged `main`**
-
-```bash
-flutter pub get && flutter analyze && flutter test && scripts/package_itch.sh
-```
-All green.
-
-- [ ] **Step 3: Tear down the local harness**
+- [ ] **Step 2: Remove the override file**
 
 ```bash
 rm pubspec_overrides.yaml
+```
+The `.gitignore` lines added in Task 0 (`pubspec_overrides.yaml`, `.claude/`, `.superpowers/`) stay — harmless, and useful for SP4b.
+
+- [ ] **Step 3: Remove the local engine worktree**
+
+```bash
 git -C "/Users/m4maxpro/Projects/Tome:RougelikeGame" worktree remove \
   "/Users/m4maxpro/Projects/Tome:RougelikeGame/.claude/worktrees/sp4a-client-engine"
+```
+
+- [ ] **Step 4: Prune git worktrees**
+
+```bash
 git -C "/Users/m4maxpro/Projects/Tome:RougelikeGame" worktree prune
 ```
-The `.gitignore` lines from Task 0 stay (harmless, and useful for SP4b).
 
-- [ ] **Step 4: Report**
+- [ ] **Step 5: Real dependency resolution — no override active**
 
-Client on engine HEAD, five bump PRs merged, gate + web build green. SP4a (both halves) complete. Note for SP4b: the client composition migration will want the engine's `2026-09-04-sp1-techniquevariant-first-game-run` migration as its blueprint (mint/hang variants, adopt `AuraBinder` / `ConsumableBinder`, tiered affixes, `TomeClientAlmanacAdapter`).
+```bash
+flutter pub get
+flutter analyze
+flutter test
+scripts/package_itch.sh
+```
+`flutter pub get` here performs the authenticated fetch of the real private git ref (same as CI). All four must be green. If this environment cannot reach the private engine, note that CI is the authoritative check and record CI's green result instead — but do **not** re-create the override to make it pass locally.
+
+- [ ] **Step 6: Verify the committed end state**
+
+```bash
+grep -n "ref:" pubspec.yaml            # build_engine ref
+grep -A6 "build_engine:" pubspec.lock  # source / ref / resolved-ref
+git status --short                     # must be empty
+git log --oneline -7                   # the 5 bump merges + the harness commit, in order
+```
+
+**Final invariant — all of the following must hold:**
+- `pubspec.yaml` `build_engine:` `ref:` == `b43b414` (or its full SHA `b43b4147bb9224b01ed5818ad0fea5b03408586b`).
+- `pubspec.lock` `build_engine` block has `source: git`.
+- `pubspec.lock` `ref` **and** `resolved-ref` both == the final engine SHA (`b43b414`, full form).
+- `git status --short` is clean (empty output).
+- **No `pubspec_overrides.yaml` remains** anywhere in the repo.
+- **No local engine worktree remains** — `git -C "/Users/m4maxpro/Projects/Tome:RougelikeGame" worktree list` shows nothing for `sp4a-client-engine`.
+
+If any of these fail — especially a `pubspec.lock` that reverted to `source: path` — a `flutter pub get` was run with the override still active. Restore `pubspec.lock` from merged `main` and re-run Steps 5–6 with no override.
+
+- [ ] **Step 7: Report**
+
+Client on the final engine bump (`b43b414` = `SP3 + SP4a engine Part A`), five bump PRs merged in order, gate + web build green, local override + worktree torn down, `pubspec.lock` git-sourced and pinned. SP4a client bump complete. Note for SP4b: the client composition migration will want the engine's `2026-09-04-sp1-techniquevariant-first-game-run` migration as its blueprint (mint/hang variants, adopt `AuraBinder` / `ConsumableBinder`, tiered affixes, `TomeClientAlmanacAdapter`).
 
 ---
 
@@ -575,21 +654,29 @@ Client on engine HEAD, five bump PRs merged, gate + web build green. SP4a (both 
 |-----------|------|
 | §2.1 five sequential bumps, `pubspec.lock` regenerated each | Tasks 1–5, each Step "Fix pubspec.lock" |
 | §2.2 scope freeze (no affixes/detail-sheet/binders/plugin/variants/adapter/real-ownedRefs) | Global Constraints + per-task "Guard against scope creep" Steps |
-| §2.3 contract discipline (no unlisted engine surface) | Per-task Step 5/7 triage against the inlined register rows |
+| §2.3 contract discipline (no unlisted engine surface) | Per-task triage Steps against the inlined register rows (Task 1/2 Step 5, Task 3 Step 7, Task 4 Steps 6–7 + 9) + Global Constraints "No invented compatibility fixes" |
 | §3 the one compile break — `combat_adapter.dart` ×3, exact edits | Task 3 Step 3 |
 | §3 `_itemInterpreter.interpret` correct once `build` is `ResolvedBuild` | Task 3 Step 3(3) |
 | §3 semantic-continuity grep for `affix:` / `build:` / `removeBySource(` | Task 3 Step 5 |
 | §3 `statBonuses` / `addItemStatBonuses` retained → no item/reward adapter change | Task 3 Step 7 |
-| §4 PR table: refs cb32b02 / ff8c7db / 0663e8e / dc213d4 / (1dc7e5d→b43b414) | Tasks 1–5 Step 2, with the HEAD-advanced note in Global Constraints |
-| §4.1 lock the plugin init order (comment) | Task 4 Step 3 |
-| §4.2 do not register `ConsumablePlugin` | Task 5 Step 3 + Global Constraints |
-| §5 four determinism cases (drift→observe / nondeterminism→stop / compile→mechanical / regression→stop) | Global Constraints "Determinism-property check" + per-task Steps |
+| §4 PR table: refs cb32b02 / ff8c7db / 0663e8e / dc213d4 / (1dc7e5d→b43b414 = `SP3 + SP4a engine Part A`) | Tasks 1–5 Step 2/3, with the final-stage naming + HEAD-advanced note in Global Constraints |
+| §4.1 lock the plugin init order (comment) | Task 4 Step 4 |
+| §4.2 do not register `ConsumablePlugin` | Task 5 Stage-5 register "Client compatibility work" + Global Constraints scope freeze |
+| §5 four determinism cases (drift→observe / nondeterminism→stop / compile→mechanical / regression→stop) | Global Constraints "Determinism-property check" + per-task determinism Steps |
 | §5 `tome_visual_capture_test.dart` should not move | covered by the "all tests pass / no tests deleted-skipped-weakened" checks; a move surfaces as a test failure to triage |
-| §6 files-expected-to-change list | matches each task's **Files** block |
+| §6 files-expected-to-change list | matches each task's **Files** block (Task 4 also permits the test-only `sp2_aura_inertness_test.dart`) |
 | §6 not-expected: item/reward/technique/tome/character adapters, features/, widget/bloc tests | per-task scope-creep guards |
-| §7 verify per stage: analyze / test / determinism / (PR5) web build | per-task gate Steps + Task 6 |
-| §8 after PR 5 the client is on engine HEAD, SP4b may begin | Task 5 Produces + Task 6 Step 4 |
+| §7 verify per stage: analyze / test / determinism / (PR5) web build | per-task gate Steps + Task 6 Step 5 |
+| §8 after PR 5 the client is on the final engine bump, SP4b may begin | Task 5 Produces + Task 6 Step 7 |
 
-**2. Placeholder scan:** the only intentionally-open items are the compat fixes at Stages 1/2/4/5 — the audit predicts none, and each task's Step 5/7 gives concrete triage (fix per the named CHANGELOG section, or STOP with a named symbol). Stage 3's break has literal before/after code. Fixture re-baselines are "observe the new value the test prints" — inherently not pre-knowable, bounded by the determinism-property rule. This is discovery work; the plan constrains rather than scripts it, deliberately.
+**2. Placeholder scan:** the only intentionally-open items are the compat fixes at Stages 1/2/4/5 — the audit predicts none, and each task's triage Step gives concrete handling (fix per the named CHANGELOG section, or STOP with a named symbol). Stage 3's break has literal before/after code. Stage 4's SP2-inertness check (Task 4 Steps 2 + 6) is a concrete before/after comparison of the complete observable result for an aura-bearing build; a fired aura → STOP and mark the register row, per Global Constraints "No invented compatibility fixes". Fixture re-baselines are "observe the new value the test prints" — inherently not pre-knowable, bounded by the determinism-property rule. This is discovery work; the plan constrains rather than scripts it, deliberately.
 
-**3. Type consistency:** `ENGINE_WT` path identical across Tasks 0–6. Engine refs (`cb32b02` / `ff8c7db` / `0663e8e` / `dc213d4` / `b43b414`) consistent between each task's contract-register row, its Step 1 `git checkout`, and its Step 2 bump. `build.active` (not `build.components`, not `asActiveBuild.components`) used consistently in Task 3. `ownedRefs: const []` matches the spec §3 wording. `pubspec_overrides.yaml` / `.gitignore` handling consistent between Task 0 (create) and Task 6 (remove).
+**3. Type consistency:** `ENGINE_WT` path identical across Tasks 0–6. Engine refs (`cb32b02` / `ff8c7db` / `0663e8e` / `dc213d4` / `b43b414`) consistent between each task's contract-register row, its worktree `git checkout`, and its `pubspec.yaml` bump; the final stage is `b43b414` (`b43b4147bb9224b01ed5818ad0fea5b03408586b`), never `1dc7e5d`. `build.active` (not `build.components`, not `asActiveBuild.components`) used consistently in Task 3. `ownedRefs: const []` matches the spec §3 wording. `pubspec_overrides.yaml` is created in Task 0 and removed in Task 6 **Step 2 — before** the final `flutter pub get` in Task 6 Step 5; no step runs `flutter pub get` with the override still present during final verification.
+
+**4. Corrected-items verification:**
+
+| Item | Required verification |
+|------|-----------------------|
+| Override cleanup | Final `flutter pub get` (Task 6 Step 5) occurs with **no `pubspec_overrides.yaml`** and no engine worktree present (both removed in Steps 2–4); Task 6 Step 6 invariant confirms `pubspec.lock` stays `source: git` with `ref` == `resolved-ref` == `b43b414`, and `git status --short` clean |
+| SP2 inertness | Task 4 Step 2 captures a pre-bump baseline for an aura-bearing item + technique (`cloth_armor` + `basic_guard`/`basic_slash`); Task 4 Step 6 re-runs the same fixed state + deterministic inputs in two fresh sessions and requires an **identical complete observable result** (stats, damage, resolution order, rewards, events), not just win/loss; a fired aura → STOP |
+| Stage 5 terminology | Final stage consistently named **`SP3 + SP4a engine Part A — final engine bump`** in Global Constraints, the Task 5 header, the Stage 5 register row, Task 5 Produces / commit / PR title, and Task 6 |

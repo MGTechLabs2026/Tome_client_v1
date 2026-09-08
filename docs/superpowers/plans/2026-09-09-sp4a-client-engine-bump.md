@@ -17,7 +17,7 @@
 
 - **Five PRs, strictly sequential.** PR N does not begin until PR N−1 is merged to `main` and its gate is green. Each PR pins one specific engine commit and does only that stage's compat work. Branch names: `sp4a-bump-1-sp0a`, `sp4a-bump-2-sp0b`, `sp4a-bump-3-sp1`, `sp4a-bump-4-sp2`, `sp4a-bump-5-sp3`.
 - **Green gate, every PR:** `flutter pub get && flutter analyze && flutter test`. PR 5 additionally: `scripts/package_itch.sh` (web release build; it is in CI).
-- **Determinism-property check, every PR:** after the bump, re-run `test/core/engine/combat_adapter_test.dart`, `test/core/engine/combat_mastery_test.dart`, `test/features/run/run_bloc_test.dart`, `test/core/engine/training_adapter_test.dart`. The property that must hold: *same `EngineSession(seed)` + same submitted `TrainingAttempt`s / same combat inputs, run twice → identical outcome.* If a specific seed's asserted number/pattern moved **but the property holds**, update the inline expectation to the observed value and note it in the PR. **If two identical runs diverge, STOP — real bug, do not touch the fixture.**
+- **Determinism-property check, every PR:** after the bump, re-run `test/core/engine/combat_adapter_test.dart`, `test/core/engine/combat_mastery_test.dart`, `test/features/run/run_bloc_test.dart`, `test/core/engine/training_adapter_test.dart`. The property that must hold: **two fresh `EngineSession(seed)` instances, each driven through the same input sequence** (same submitted `TrainingAttempt`s, same combat inputs, in the same order), **must produce an identical observable result** — compare the actual outcome (final stats, damage numbers, resolution order, granted rewards, emitted events), **not just win/loss**. If a specific seed's asserted number/pattern moved **but the property holds** (the two fresh sessions still agree with each other), update the inline expectation to the observed value and note it in the PR. **If the two fresh sessions diverge from each other, STOP — real bug, do not touch the fixture.**
 - **Scope freeze (client spec §2.2).** SP4a does **NOT**: roll tiered affixes or change the reward model; touch `component_detail_sheet`; adopt `AuraBinder` or `ConsumableBinder`; register `ConsumablePlugin`; add consumable UI/reward entries; mint or hang `TechniqueVariant` instances; call `resolveTechniqueInspirationAfterTraining`; derive real `ownedRefs` (a `const []` placeholder with a `// SP4b` marker is the SP4a fix); build a `TomeClientAlmanacAdapter`. **If a stage cannot go green without one of these, STOP** and report — the SP4a/SP4b boundary needs revisiting, not the scope.
 - **Contract discipline (client spec §2.3).** Do not touch engine surface not listed as merged in that stage's contract-register rows below. If breakage points at an API outside the listed rows, STOP and report.
 - **The `pubspec_overrides.yaml` file and any `.claude/` / `.superpowers/` scratch never land.** Task 0 gitignores them. Every stage commit contains only: `pubspec.yaml` (the `ref` line), `pubspec.lock` (two SHA lines), and that stage's compat fixes / fixture re-baselines.
@@ -73,7 +73,7 @@ The client's `pubspec.yaml` keeps its real `git: {url: https://github.com/MGTech
 **Files:**
 - Create: `pubspec_overrides.yaml` (repo root, will be gitignored)
 - Modify: `.gitignore`
-- Create: `docs/superpowers/plans/sp4a-engine-shas.txt` (scratch note of the 5 full SHAs — gitignored via the same `.gitignore` line pattern? no — put it in the SDD workspace instead; see Steps)
+- No repo-local SHA scratch file. The 5 full engine SHAs live **only** in the SDD ledger (external to this repo); nothing under `docs/superpowers/plans/` records them.
 
 **Interfaces:**
 - Produces: `ENGINE_WT` worktree at a known path; a working `pubspec_overrides.yaml`; the 5 full engine SHAs recorded in the SDD ledger; a confirmed-green baseline at the current pin `314f75a`.
@@ -92,7 +92,7 @@ Expected: worktree created, detached HEAD at `314f75a` (the client's current pin
 git -C "/Users/m4maxpro/Projects/Tome:RougelikeGame/.claude/worktrees/sp4a-client-engine" \
   rev-parse cb32b02 ff8c7db 0663e8e dc213d4 b43b414
 ```
-Write the five 40-char SHAs into the SDD ledger (or `<sdd-workspace>/engine-shas.txt`), labelled SP0a / SP0b / SP1 / SP2 / SP3. Tasks 1–5 read them from there.
+Write the five 40-char SHAs into the SDD ledger (external to this repo), labelled SP0a / SP0b / SP1 / SP2 / SP3. Tasks 1–5 read them from there. Do **not** write them to any file inside the client repo.
 
 - [ ] **Step 3: Add the gitignore lines + the override file**
 
@@ -121,7 +121,7 @@ flutter pub get
 flutter analyze
 flutter test
 ```
-Expected: `flutter pub get` resolves `build_engine` from the worktree (at `314f75a`); `flutter analyze` clean; `flutter test` all pass. This is the pre-bump reference — record the test count.
+Expected: `flutter pub get` resolves `build_engine` from the worktree (at `314f75a`); `flutter analyze` clean; `flutter test` all pass. This is the pre-bump reference — record the full `flutter test` output (which test files ran, all passing). The invariant for every later stage: **all tests pass**, and **no test is deleted, skipped, or weakened** relative to this baseline.
 If `flutter pub get` fails to read the override path, fix the path in `pubspec_overrides.yaml` (must be absolute, must exist) before proceeding.
 If `flutter analyze` or `flutter test` is **not** clean at `314f75a`, STOP — the baseline is dirty and every later failure becomes ambiguous. Report it.
 
@@ -182,7 +182,7 @@ flutter pub get     # resolves build_engine from ENGINE_WT (now at cb32b02)
 flutter analyze
 flutter test
 ```
-Expected: all clean/green, test count identical to the Task 0 baseline. SP0a is "data + lifecycle only" and the client mints no variants, so `instanceEntityId` stays null everywhere and every `TechniqueVariant*` path stays dormant.
+Expected: all clean/green — all tests pass, no tests deleted/skipped/weakened vs. the Task 0 baseline. SP0a is "data + lifecycle only" and the client mints no variants, so `instanceEntityId` stays null everywhere and every `TechniqueVariant*` path stays dormant.
 
 - [ ] **Step 4: Determinism-property check**
 
@@ -250,7 +250,7 @@ git -C "/Users/m4maxpro/Projects/Tome:RougelikeGame/.claude/worktrees/sp4a-clien
 ```bash
 flutter pub get && flutter analyze && flutter test
 ```
-Expected: clean/green, count identical to Task 1. SP0b's new surface is entirely in the "NOT relied on" list and inert for the client.
+Expected: clean/green — all tests pass, no tests deleted/skipped/weakened vs. Task 1. SP0b's new surface is entirely in the "NOT relied on" list and inert for the client.
 
 - [ ] **Step 4: Determinism-property check** (the four files). Expect identical; no `context.rng` draw is added on any client path.
 
@@ -357,7 +357,7 @@ grep -rn "affix:\|removeBySource(\|'build:\|\"build:" test/ lib/
 ```
 Expected: no client test asserts on the old `affix:*` / `build:<id>` modifier-source strings. If one does, it needs updating to the new `effectprofile:item:<actorValue>:<stat>` source name (engine `CHANGELOG.md` "Changed — Tiered Component Effects (SP1)").
 
-- [ ] **Step 6: Determinism-property check** — the four files, twice each. The property MUST hold. A true divergence (same inputs, different output across two runs) is a STOP-and-diagnose bug, not a re-baseline.
+- [ ] **Step 6: Determinism-property check** — the four files, run in two fresh sessions with the same input sequence. The property MUST hold. A true divergence (two fresh sessions on the same input sequence producing different observable results — not just a different winner) is a STOP-and-diagnose bug, not a re-baseline.
 
 - [ ] **Step 7: Guard against scope creep**
 
@@ -434,13 +434,13 @@ In `lib/core/engine/engine_session.dart`, immediately above the line `combatPlug
 ```bash
 flutter pub get && flutter analyze && flutter test
 ```
-Expected: clean/green, count identical to Task 3. `auraRules()` is a method the client never calls; the client binds no auras.
+Expected: clean/green — all tests pass, no tests deleted/skipped/weakened vs. Task 3. `auraRules()` is a method the client never calls; the client binds no auras.
 
 - [ ] **Step 5: Inert-content check**
 
 If any determinism-sensitive test hangs one of the 7 aura-tagged ids (`cloth_armor`, `training_staff`, `training_shoes`, `warlords_iron_sword`, `crushing_gauntlets`, `basic_guard`, `basic_slash`) and its combat numbers **drift**, that means an aura contributed in the client path — which SP4a says cannot happen. **STOP and report.** A clean pass here is the confirmation that SP2 is inert.
 
-- [ ] **Step 6: Determinism-property check** — the four files, twice each.
+- [ ] **Step 6: Determinism-property check** — the four files, run in two fresh sessions with the same input sequence; compare the actual observable result, not just win/loss.
 
 - [ ] **Step 7: Guard against scope creep** — any change beyond `engine_session.dart`'s one comment + optional fixture re-baselines → STOP and report.
 
@@ -479,7 +479,7 @@ Claude-Session: https://claude.ai/code/session_01E3k4BFeWXfPzkZzXinqTZk"
 
 **Interfaces:**
 - Consumes: Task 4 merged (`main` at SP2); the SP3/HEAD full SHA (`b43b414`) from Task 0.
-- Produces: `main` with `build_engine` at engine HEAD, gate + web build green. **Client is on engine HEAD — SP4a Part B complete.**
+- Produces: `main` with `build_engine` at engine HEAD, gate + web build green. **Client is on engine HEAD — SP4a client bump complete.**
 
 - [ ] **Step 1: Branch + worktree**
 
@@ -495,7 +495,7 @@ git -C "/Users/m4maxpro/Projects/Tome:RougelikeGame/.claude/worktrees/sp4a-clien
 ```bash
 flutter pub get && flutter analyze && flutter test
 ```
-Expected: clean/green, count identical to Task 4. `ConsumablePlugin` is not registered; the client's combat pool has no consumable branch; `RuleContext.modifiers` default preserves `RuleEngine._fire`.
+Expected: clean/green — all tests pass, no tests deleted/skipped/weakened vs. Task 4. `ConsumablePlugin` is not registered; the client's combat pool has no consumable branch; `RuleContext.modifiers` default preserves `RuleEngine._fire`.
 
 - [ ] **Step 4: Web release build**
 
@@ -505,7 +505,7 @@ scripts/package_itch.sh
 ```
 Expected: succeeds (produces `dist/itch/tome-web.zip` per CI). If it fails on something engine-related, triage against Stage 5's lists; if it fails on packaging/Flutter-web infra unrelated to the bump, note it but it is likely pre-existing — check by running the same script on `main` before the bump.
 
-- [ ] **Step 5: Determinism-property check** — the four files, twice each.
+- [ ] **Step 5: Determinism-property check** — the four files, run in two fresh sessions with the same input sequence; compare the actual observable result, not just win/loss.
 
 - [ ] **Step 6: Guard against scope creep** — any `lib/` or non-fixture `test/` change → STOP and report.
 
@@ -519,8 +519,8 @@ git commit -m "build(engine): bump build_engine to engine HEAD (SP3 + SP4a Part 
 
 Ref b43b414. Inert for the client: ConsumablePlugin is not registered,
 the combat pool has no consumable branch, RuleContext.modifiers default
-preserves RuleEngine._fire. Client is now on engine HEAD — SP4a Part B
-complete. (b43b414 = the SP3 merge 1dc7e5d plus the engine-internal
+preserves RuleEngine._fire. Client is now on engine HEAD — SP4a client
+bump complete. (b43b414 = the SP3 merge 1dc7e5d plus the engine-internal
 SP4a Part A Almanac change, which the client does not consume.)
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
@@ -584,7 +584,7 @@ Client on engine HEAD, five bump PRs merged, gate + web build green. SP4a (both 
 | §4.1 lock the plugin init order (comment) | Task 4 Step 3 |
 | §4.2 do not register `ConsumablePlugin` | Task 5 Step 3 + Global Constraints |
 | §5 four determinism cases (drift→observe / nondeterminism→stop / compile→mechanical / regression→stop) | Global Constraints "Determinism-property check" + per-task Steps |
-| §5 `tome_visual_capture_test.dart` should not move | covered by "same count as baseline" checks; a move surfaces as a test failure to triage |
+| §5 `tome_visual_capture_test.dart` should not move | covered by the "all tests pass / no tests deleted-skipped-weakened" checks; a move surfaces as a test failure to triage |
 | §6 files-expected-to-change list | matches each task's **Files** block |
 | §6 not-expected: item/reward/technique/tome/character adapters, features/, widget/bloc tests | per-task scope-creep guards |
 | §7 verify per stage: analyze / test / determinism / (PR5) web build | per-task gate Steps + Task 6 |

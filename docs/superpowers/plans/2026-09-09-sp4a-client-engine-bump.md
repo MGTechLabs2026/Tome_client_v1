@@ -426,14 +426,14 @@ With the engine worktree still at SP1 (re-checkout to be certain):
 git -C "/Users/m4maxpro/Projects/Tome:RougelikeGame/.claude/worktrees/sp4a-client-engine" checkout 0663e8e
 flutter pub get
 ```
-Construct a client combat scenario from a **fixed initial state** that **hangs at least one aura-bearing item and one aura-bearing technique** — preferably `cloth_armor` as the item and `basic_guard` (or `basic_slash`) as the technique — and drive it through a **fixed deterministic input sequence** in **two fresh `EngineSession(seed)` instances**. Record the **complete observable result** (both runs must already agree):
+Construct a client combat scenario from a **fixed initial state** that **hangs at least one aura-bearing item and one aura-bearing technique** — preferably `cloth_armor` as the item and `basic_guard` (or `basic_slash`) as the technique — and drive it through a **fixed deterministic input sequence** in **two fresh `EngineSession(seed)` instances**. The two runs must already agree with each other (same-seed reproducibility at SP1). Record the **complete observable result**:
 - final relevant stats
 - every damage number
 - action / resolution order
 - granted rewards (where applicable)
 - emitted events (where observable)
 
-Store this baseline **outside the client repo** (SDD ledger / scratch), or bake it into the expected values of `test/core/engine/sp2_aura_inertness_test.dart` if you take the regression-test route. This is the reference Step 6 compares against.
+This is the **SP1 baseline**. Store it **outside the client repo** (SDD ledger / scratch), or transcribe it as **static expected-value literals** in `test/core/engine/sp2_aura_inertness_test.dart`. It is a snapshot of SP1 output captured while the engine dependency *is* SP1 — nothing loads two engine versions at once. Step 6 checks the post-bump (SP2) run against these recorded numbers.
 
 - [ ] **Step 3: Point the worktree at SP2 + bump the pin**
 
@@ -474,7 +474,9 @@ The comparison must be **identical**. Win/loss parity alone is **not** sufficien
 
 > **If the client result changes solely because an aura rule fired, STOP.** `AuraBinder` is not registered or adopted in SP4a, so a fired aura here indicates an engine/client path leak or an incorrect assumption in the contract register. Do **not** invent a compatibility fix — mark the affected contract-register assumption (Stage 4 "Client compatibility work" / "Inert-content check" rows) and explain exactly why it needs re-audit. This stays inside SP4a: no `AuraBinder`, no `ConsumableBinder`, no SP4b behaviour.
 
-Route: prefer committing `test/core/engine/sp2_aura_inertness_test.dart` (test-only; expected values = the Step 2 baseline) so the check is permanent and CI-enforced. If the existing test structure can't host it without broader architectural work, run the comparison as a deterministic manual procedure and paste the before/after of every compared field into the PR body.
+Route: prefer committing `test/core/engine/sp2_aura_inertness_test.dart` (test-only; expected values = the Step 2 SP1 baseline transcribed as literals) so the check is permanent and CI-enforced. If the existing test structure can't host it without broader architectural work, run the comparison as a deterministic manual procedure and paste the before/after of every compared field into the PR body.
+
+**The test runs against one engine version only** — whichever `pubspec` / override resolves when it runs (SP2 by this point). It does **not** load SP1 and SP2 side by side, and must not be written as though one invocation had both dependency versions. It asserts two things: (a) the SP2 run reproduces the recorded SP1 baseline numbers exactly, and (b) the two fresh SP2 `EngineSession(seed)` instances agree with each other (same-seed reproducibility). The SP1-vs-SP2 comparison itself is done once, by you, between Step 2 and this step — not dynamically inside the test.
 
 - [ ] **Step 7: Broad inert-content sweep (supplementary)**
 

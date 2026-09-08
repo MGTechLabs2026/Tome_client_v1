@@ -15,10 +15,19 @@ surface this migration may rely on.
 ## 1. Why this exists
 
 `Tome_client` runs on `build_engine` `314f75a` — 139 commits and five engine
-efforts behind engine HEAD `1dc7e5d`: **SP0a** (technique instancing) → **SP0b**
+efforts behind engine HEAD: **SP0a** (technique instancing) → **SP0b**
 (technique inspiration/discovery) → **Almanac v1** → **SP1 game-run migration**
 → **SP1 tiered component effects** → **SP2** (per-active auras) → **SP3**
 (per-fight consumables).
+
+> **Engine HEAD reference.** At this spec's writing, engine HEAD was `1dc7e5d`
+> (the SP3 merge). Engine HEAD is now
+> `b43b4147bb9224b01ed5818ad0fea5b03408586b` (`b43b414`) — that same SP3 state
+> plus the later **SP4a engine Part A** Almanac merge. So: `1dc7e5d` = SP3 merge
+> / previous HEAD at original spec-writing time; `b43b414…` = SP4a engine Part A
+> merge / current HEAD. The Part A changes are **client-inert during SP4a** — the
+> client consumes no Almanac API until SP4b. The five-stage migration ends at
+> `b43b414`: **SP0a → SP0b → SP1 → SP2 → `b43b414`**.
 
 The parent SP4 sub-project ("`Tome_client` surfacing") cannot start until the
 client is on engine HEAD. SP4 was split (engine notes §2):
@@ -123,7 +132,7 @@ diverge, **stop — real bug.**
 | 2 | **SP0b** inspiration/discovery | `ff8c7db` | none | compile-clean; inert (`resolveTechniqueInspirationAfterTraining` not called; no owned `TechniqueVariant`; no `context.rng` draw). `AttackAction`/`SelfEffectAction` gain an optional `sourceRef` param — existing constructions unaffected |
 | 3 | **SP1** tiered effects (also crosses Almanac v1 + SP1 game-run, both inert) | `0663e8e` | **§3 — `combat_adapter.dart` ×3** | compiles after §3; re-baseline any drifted inline seed expectations in `combat_adapter_test.dart` / `combat_mastery_test.dart` (§5) |
 | 4 | **SP2** per-active auras | `dc213d4` | none (see §4.1) | compile-clean; inert — the client binds no auras. A combat-number drift for a build hanging one of the 7 aura-tagged content ids means an aura path leaked in ⇒ **stop** |
-| 5 | **SP3** per-fight consumables | `1dc7e5d` (engine HEAD) | none (see §4.2) | compile-clean; inert (`ConsumablePlugin` not registered; client combat pool has no consumable branch; `RuleContext.modifiers` default keeps `RuleEngine._fire` identical). Run `scripts/package_itch.sh` |
+| 5 | **SP3** per-fight consumables + SP4a engine Part A — final engine bump | `b43b414` (current engine HEAD; = SP3 merge `1dc7e5d` + client-inert Part A) | none (see §4.2) | compile-clean; inert (`ConsumablePlugin` not registered; client combat pool has no consumable branch; `RuleContext.modifiers` default keeps `RuleEngine._fire` identical; Part A Almanac changes not consumed until SP4b). Run `scripts/package_itch.sh` |
 
 ### 4.1 PR 4 — lock the plugin init order
 
@@ -200,16 +209,18 @@ Not expected to change: `item_adapter.dart`, `reward_adapter.dart`,
 
 ## 8. After PR 5
 
-Client is on engine HEAD, gate green, web build green. With engine-repo SP4a
-(Part A) also merged, **SP4a is complete** and SP4b may begin — targeting engine
-HEAD and this fully migrated client.
+Client is on engine HEAD (`b43b414`), gate green, web build green. With
+engine-repo SP4a (Part A) also merged, **SP4a is complete** and SP4b may begin —
+targeting engine HEAD and this fully migrated client.
 
 ## 9. Self-review
 
 - **Placeholders:** none.
 - **Consistency:** §3's `const []` choice matches §2.2's "no real `ownedRefs`
   in SP4a"; the PR table's "inert" claims match the engine spec's §5
-  present-but-not-relied-on lists.
+  present-but-not-relied-on lists; the final stage pins `b43b414` (current engine
+  HEAD = SP3 merge `1dc7e5d` + client-inert Part A), consistent across §1, the §4
+  table, and §8.
 - **Scope:** one `pubspec` field moved five times + three lines in one adapter +
   one comment + possible fixture re-baselines. Deliberately minimal.
 - **Ambiguity:** "green gate" and "determinism property" are defined once (§4)

@@ -61,8 +61,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "314f75af0485845b7e6aabf75f9ab750b2c8cc1e"
-      resolved-ref: "314f75af0485845b7e6aabf75f9ab750b2c8cc1e"
+      ref: "cb32b028f8f215cf14428fd9af83518894d0d7db"
+      resolved-ref: "cb32b028f8f215cf14428fd9af83518894d0d7db"
       url: "https://github.com/MGTechLabs2026/built_engine.git"
     source: git
     version: "0.1.0"

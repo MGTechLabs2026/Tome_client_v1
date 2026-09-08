@@ -121,6 +121,8 @@ app.*.symbols
 # Local git worktrees
 .worktrees/
 .superpowers/
+pubspec_overrides.yaml
+.claude/
 
 # Flutter/Dart/Pub related
 **/doc/api/

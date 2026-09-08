@@ -10,9 +10,5 @@
   },
   "include": ["../src/server/**/*"],
   "exclude": [],
-  "references": [
-    {
-      "path": "./tsconfig.shared.json"
-    }
-  ]
+  "references": []
 }

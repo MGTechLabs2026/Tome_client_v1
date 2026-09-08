@@ -3,30 +3,36 @@ You are writing a Devvit web application that will be executed on Reddit.com.
 ## Tech Stack
 
 - **Frontend**: React 19, Tailwind CSS 4, Vite
-- **Backend**: Node.js v22 serverless environment (Devvit), Hono, TRPC
-- **Communication**: tRPC v11 for end-to-end type safety
+- **Backend**: Node.js v24 serverless environment (Devvit), Hono
+- **Communication**: plain REST (Hono routes); the game client is Flutter and
+  cannot use a TypeScript RPC client
 - **Testing**: Vitest
 
 ## Layout & Architecture
 
 - `/src/server`: **Backend Code**. This runs in a secure, serverless environment.
-  - `trpc.ts`: Defines the API router and procedures.
-  - `index.ts`: Main server entry point (Hono app).
+  - `index.ts`: Main server entry point (Hono app). Mounts `/api/*` and `/internal/*`.
+  - `routes/`: one Hono router per concern (`state.ts`, `menu.ts`, `triggers.ts`).
+  - `core/`: business logic (`state.ts` = Redis document store, `post.ts` = post creation).
   - Access `redis`, `reddit`, and `context` here via `@devvit/web/server`.
 - `/src/client`: **Frontend Code**. This is executed inside of an iFrame on reddit.com
   - To add an entrypoint, create a HTML file and add to the mapping inside of `devvit.json`
   - Entrypoints:
-    - `game.html`: The main React entry point (Expanded View).
-    - `splash.html`: The initial React entry point (Inline View). This will be shown in the reddit.com feed. Please keep it fast and keep heavy dependencies inside of `game.html`
-    - `trpc.ts`: The tRPC client instance.
-- `/src/shared`: **Shared Code**. Code to share between the client and server
+    - `splash.html` / `splash.tsx`: React inline view shown in the reddit.com feed. Keep it fast and keep heavy dependencies out of it.
+    - `game.html`: a plain iframe shell that loads the Flutter web bundle from `public/game/` (see `scripts/embed-flutter.sh`). No React, no build deps of its own.
 
-## Data Fetching (tRPC)
+## Data Fetching (REST)
 
-This project uses tRPC for communication between the client and server.
+The server exposes plain Hono routes under `/api`. The embedded Flutter client
+calls them with `fetch()`.
 
-1. **Define Procedure**: Add a new query or mutation in `src/server/trpc.ts`.
-2. **Call in Client**: Use `trpc.procedureName.query()` or `.mutate()` in your React components.
+- `GET  /api/state` → every saved document for the current user
+- `POST /api/state` → `{ key, value }`, persists one whitelisted document
+- `GET  /api/identity` → `{ key }`, the opaque per-user persistence key
+
+To add an endpoint: add a route in the relevant `src/server/routes/*.ts` (or a
+new router mounted from `index.ts`), keep request/response payloads small, and
+do no gameplay on the server.
 
 ## Frontend
 

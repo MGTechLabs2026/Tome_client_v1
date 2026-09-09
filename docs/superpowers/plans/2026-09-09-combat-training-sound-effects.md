@@ -448,8 +448,12 @@ def main():
         write_wav(wav, recipe(cue))
         if have_ffmpeg:
             ogg = os.path.join(OUT, cue + ".ogg")
+            # -fflags +bitexact (output side) + -map_metadata -1 make the Ogg
+            # mux reproducible — without them ffmpeg stamps a random stream
+            # serial per run and regeneration is never byte-identical.
             subprocess.run(
-                ["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-q:a", "3", ogg],
+                ["ffmpeg", "-y", "-loglevel", "error", "-fflags", "+bitexact",
+                 "-i", wav, "-map_metadata", "-1", "-q:a", "3", ogg],
                 check=True,
             )
             os.remove(wav)

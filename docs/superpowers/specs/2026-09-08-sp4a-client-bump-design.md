@@ -213,6 +213,28 @@ Client is on engine HEAD (`b43b414`), gate green, web build green. With
 engine-repo SP4a (Part A) also merged, **SP4a is complete** and SP4b may begin —
 targeting engine HEAD and this fully migrated client.
 
+### 8.1 Carry-forward notes for SP4b
+
+As-built observations from the SP4a bump, for whoever plans SP4b:
+
+- **The SP1 client break was `combat_adapter.dart` ×3 *plus* two lint-forced
+  one-line deletions** — the redundant `show WeaponStatTags` import in
+  `item_adapter.dart` and `reward_adapter.dart` (SP1 relocated `WeaponStatTags`
+  into `item_plugin.dart` while `build_interpretation.dart` kept re-exporting it,
+  so the narrowing `show` became `unnecessary_import` and failed `flutter
+  analyze`). The engine spec's §5 Stage 3 register was corrected to match.
+- **`ownedRefs: const []` is inert today, and stays inert until a permanent-tier
+  contributor exists.** At engine HEAD `ItemEffectContributor.effectProfile()`
+  emits only the `supporting` tier (fed from `hung` refs); `EffectProfileResolver`
+  sums `permanent` over `owned` and `supporting` over `hung` as disjoint tiers.
+  So when SP4b replaces `const []` with a real owned roster, **no combat number
+  moves** until the engine also ships a contributor that emits `permanent`.
+  Don't expect behaviour to shift the moment the placeholder is replaced.
+- **Keep `test/core/engine/sp2_aura_inertness_test.dart`, don't delete it.** When
+  SP4b adopts the aura system, invert it: same fixed scenario, expectations that
+  now *do* reflect `aura.regen_weave` / `aura.venom` firing. It is the only
+  fixture that pins the full observable combat result for an aura-bearing build.
+
 ## 9. Self-review
 
 - **Placeholders:** none.

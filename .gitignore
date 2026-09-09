@@ -118,11 +118,11 @@ app.*.symbols
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
 
-# Local git worktrees
+# Local git worktrees / agent scratch
 .worktrees/
 .superpowers/
 pubspec_overrides.yaml
-.claude/
+.claude/settings.local.json
 
 # Flutter/Dart/Pub related
 **/doc/api/

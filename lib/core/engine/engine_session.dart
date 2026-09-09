@@ -46,6 +46,12 @@ class EngineSession {
       shared: shared,
     );
 
+    // Load-bearing order: CombatPlugin MUST initialise before ItemPlugin /
+    // TechniquePlugin. SP2 aura content is loaded through a hasTrigger gate
+    // that needs Combat's TurnStarted/TurnEnded/ActionCompleted triggers
+    // registered first; the plugins' load-once guard never revisits a
+    // skipped load, so a Combat-last order permanently drops aura content
+    // for this PluginContext. (build_engine CHANGELOG, SP2.)
     combatPlugin = CombatPlugin()..initialize(context);
     // MartialArtsPlugin.dependencies => ['combat'] must already be initialized.
     MartialArtsPlugin().initialize(context);

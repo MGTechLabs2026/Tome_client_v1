@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/models/game_phase.dart';
+import '../../core/platform/game_audio.dart';
 import '../run/run_bloc.dart';
 import '../run/run_event.dart';
 import '../tome/hall/hall_controls.dart';
@@ -70,6 +71,7 @@ class TrainingPreparationScreen extends StatelessWidget {
                       label: 'Train',
                       tone: InkTone.seal,
                       onPressed: () {
+                        context.read<GameAudio>().play(SoundCue.uiTap);
                         context
                             .read<TrainingBloc>()
                             .add(TrainingSessionStarted(subject, isTechnique));

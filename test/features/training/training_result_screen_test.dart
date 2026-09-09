@@ -5,11 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/app/theme.dart';
 import 'package:tome_client/core/models/game_phase.dart';
 import 'package:tome_client/core/models/training_result_view.dart';
+import 'package:tome_client/core/platform/game_audio.dart';
 import 'package:tome_client/features/run/run_bloc.dart';
 import 'package:tome_client/features/training/exercise/target_strike_controller.dart';
 import 'package:tome_client/features/training/training_bloc.dart';
 import 'package:tome_client/features/training/training_event.dart';
 import 'package:tome_client/features/training/training_result_screen.dart';
+
+import '../../support/fake_game_audio.dart';
 
 class _MockTrainingBloc extends MockBloc<TrainingEvent, TrainingState>
     implements TrainingBloc {}
@@ -38,12 +41,16 @@ void main() {
   Future<void> pump(WidgetTester tester, TrainingState state) async {
     whenListen(bloc, const Stream<TrainingState>.empty(), initialState: state);
     await tester.pumpWidget(
-      MultiBlocProvider(
-        providers: [
-          BlocProvider<TrainingBloc>.value(value: bloc),
-          BlocProvider<RunBloc>.value(value: runBloc),
-        ],
-        child: MaterialApp(theme: tomeTheme(), home: const TrainingResultScreen()),
+      RepositoryProvider<GameAudio>.value(
+        value: FakeGameAudio(),
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<TrainingBloc>.value(value: bloc),
+            BlocProvider<RunBloc>.value(value: runBloc),
+          ],
+          child: MaterialApp(
+              theme: tomeTheme(), home: const TrainingResultScreen()),
+        ),
       ),
     );
   }

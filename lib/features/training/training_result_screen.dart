@@ -1,9 +1,11 @@
 // lib/features/training/training_result_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/engine/technique_adapter.dart';
 import '../../core/models/game_phase.dart';
+import '../../core/platform/game_audio.dart';
 import '../run/run_bloc.dart';
 import '../run/run_event.dart';
 import '../tome/hall/hall_controls.dart';
@@ -50,6 +52,7 @@ class TrainingResultScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                _Chime(evolved: evolved),
                 Text('TRAINING COMPLETE',
                     style: hall.heading.copyWith(letterSpacing: 3)),
                 const SizedBox(height: 22),
@@ -83,9 +86,12 @@ class TrainingResultScreen extends StatelessWidget {
                   child: InkButton(
                     label: evolved ? 'Continue to the Tome' : 'Back to the Tome',
                     tone: evolved ? InkTone.seal : InkTone.plain,
-                    onPressed: () => context
-                        .read<RunBloc>()
-                        .add(const PhaseCompleted(GamePhase.tome)),
+                    onPressed: () {
+                      context.read<GameAudio>().play(SoundCue.uiTap);
+                      context
+                          .read<RunBloc>()
+                          .add(const PhaseCompleted(GamePhase.tome));
+                    },
                   ),
                 ),
               ],
@@ -95,6 +101,32 @@ class TrainingResultScreen extends StatelessWidget {
       );
     });
   }
+}
+
+/// Plays the session-close flourish once, on first build of the result
+/// screen: [SoundCue.techniqueEvolved] when the engine evolved the
+/// technique, [SoundCue.sessionEnd] otherwise. Renders nothing.
+class _Chime extends StatefulWidget {
+  const _Chime({required this.evolved});
+  final bool evolved;
+
+  @override
+  State<_Chime> createState() => _ChimeState();
+}
+
+class _ChimeState extends State<_Chime> {
+  @override
+  void initState() {
+    super.initState();
+    final audio = context.read<GameAudio>();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      audio.play(
+          widget.evolved ? SoundCue.techniqueEvolved : SoundCue.sessionEnd);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 class _EvolutionBeat extends StatelessWidget {

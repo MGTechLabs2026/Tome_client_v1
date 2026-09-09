@@ -9,12 +9,15 @@ import 'package:tome_client/core/engine/training_adapter.dart';
 import 'package:tome_client/core/models/game_phase.dart';
 import 'package:tome_client/core/persistence/game_store.dart';
 import 'package:tome_client/core/persistence/training_pace_repository.dart';
+import 'package:tome_client/core/platform/game_audio.dart';
 import 'package:tome_client/features/run/run_bloc.dart';
 import 'package:tome_client/features/training/active_training_screen.dart';
 import 'package:tome_client/features/training/exercise/target_strike_controller.dart';
 import 'package:tome_client/features/training/presentation/target_field.dart';
 import 'package:tome_client/features/training/training_bloc.dart';
 import 'package:tome_client/features/training/training_event.dart';
+
+import '../../support/fake_game_audio.dart';
 
 void main() {
   late EngineSession session;
@@ -23,10 +26,12 @@ void main() {
   late RunBloc runBloc;
   late TrainingBloc trainingBloc;
   late TrainingPaceRepository pace;
+  late FakeGameAudio audio;
 
   Future<void> pump(WidgetTester tester,
       {String style = 'polearming', GameStore? store}) async {
     session = EngineSession(2026);
+    audio = FakeGameAudio();
     characterAdapter = CharacterAdapter(session)..createCharacter('Fighter');
     characterAdapter.chooseStyle(style);
     final tome = TomeAdapter(session)..createInitialTome();
@@ -42,6 +47,7 @@ void main() {
           RepositoryProvider.value(value: trainingAdapter),
           RepositoryProvider.value(value: characterAdapter),
           RepositoryProvider.value(value: pace),
+          RepositoryProvider<GameAudio>.value(value: audio),
         ],
         child: MultiBlocProvider(
           providers: [
@@ -148,5 +154,31 @@ void main() {
     // Baseline wave-1 lifetime is 1750ms; a carried pace < 1 shortens it.
     final t = tester.state(find.byType(TargetField));
     expect((t as dynamic).widget.wave.first.lifetimeMs, lessThan(1750));
+  });
+
+  testWidgets('a perfect strike plays strikePerfect, a timed-out target plays '
+      'strikeMiss, and leaving the screen stops all audio', (tester) async {
+    await pump(tester);
+    final field = find.byType(TargetField);
+    final rect = tester.getRect(field);
+    final targets = (tester.widget(field) as TargetField).wave;
+
+    // Dead-centre tap on the first target -> a perfect strike.
+    await tester.tapAt(
+      rect.topLeft +
+          Offset(targets.first.x * rect.width, targets.first.y * rect.height),
+    );
+    await tester.pump(const Duration(milliseconds: 20));
+    expect(audio.played, contains(SoundCue.strikePerfect));
+
+    // Let the rest of the wave's windows close -> misses.
+    for (var ms = 0; ms < 3200; ms += 16) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(audio.played, contains(SoundCue.strikeMiss));
+
+    // Leaving the active screen stops any playing loops.
+    await tester.pumpWidget(const SizedBox());
+    expect(audio.stopAllCalls, greaterThanOrEqualTo(1));
   });
 }

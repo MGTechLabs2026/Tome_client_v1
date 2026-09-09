@@ -6,6 +6,7 @@ import '../../core/engine/character_adapter.dart';
 import '../../core/engine/training_adapter.dart';
 import '../../core/models/game_phase.dart';
 import '../../core/persistence/training_pace_repository.dart';
+import '../../core/platform/game_audio.dart';
 import '../run/run_bloc.dart';
 import '../run/run_event.dart';
 import '../tome/hall/hall_theme.dart';
@@ -30,12 +31,14 @@ class ActiveTrainingScreen extends StatefulWidget {
 class _ActiveTrainingScreenState extends State<ActiveTrainingScreen> {
   late final TargetStrikeController _controller;
   late final TrainingScene _scene;
+  late final GameAudio _audio;
   int _wave = 0;
   bool _handedOff = false;
 
   @override
   void initState() {
     super.initState();
+    _audio = context.read<GameAudio>();
     _controller = TargetStrikeController(
       context.read<TrainingAdapter>().random,
       initialPace: context.read<TrainingPaceRepository>().pace,
@@ -45,14 +48,29 @@ class _ActiveTrainingScreenState extends State<ActiveTrainingScreen> {
     _scene = TrainingScene.forTradition(tradition);
   }
 
+  @override
+  void dispose() {
+    _audio.stopAll();
+    super.dispose();
+  }
+
   void _onResolved(TargetResolution res) {
     _controller.resolve(res);
+    _audio.play(switch (res.quality) {
+      StrikeQuality.perfect => SoundCue.strikePerfect,
+      StrikeQuality.good || StrikeQuality.weak =>
+        context.read<TrainingBloc>().state.isTechnique
+            ? SoundCue.strikeTechnique
+            : SoundCue.strikeWeapon,
+      StrikeQuality.miss => SoundCue.strikeMiss,
+    });
     setState(() {}); // refresh the foot meters
   }
 
   void _onWaveComplete() {
     if (_wave + 1 < TargetStrikeController.waveCount) {
       setState(() => _wave++);
+      _audio.play(SoundCue.waveStart);
       return;
     }
     if (_handedOff) return;

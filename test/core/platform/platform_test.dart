@@ -38,10 +38,12 @@ void main() {
     test('every method is a safe no-op', () async {
       final a = SilentAudio();
       await a.unlock();
-      a.play(SoundCue.strikeHit);
+      a.play(SoundCue.strikeWeapon);
       a.stopAll();
-      a.muted = false;
-      expect(a.muted, isFalse);
+      a.enabled = true;
+      a.volume = 0.5;
+      expect(a.enabled, isTrue);
+      expect(a.volume, 0.5);
     });
   });
 }

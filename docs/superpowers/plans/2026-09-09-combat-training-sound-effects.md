@@ -66,6 +66,7 @@
 
 **Files:**
 - Modify: `lib/core/platform/game_audio.dart`
+- Modify: `test/core/platform/platform_test.dart` — its `group('SilentAudio')` no-op test uses the removed `SoundCue.strikeHit` / `SilentAudio.muted`; update it to `play(SoundCue.strikeWeapon)` + `enabled`/`volume`.
 - Create: `test/support/fake_game_audio.dart`
 - Create: `test/core/platform/game_audio_test.dart`
 
@@ -240,15 +241,36 @@ void main() {
 Run: `flutter test test/core/platform/game_audio_test.dart`
 Expected: PASS (this task is pure code + immediate tests; no RED phase — the "test" here is the compile + behaviour of the new surface).
 
-- [ ] **Step 5: Verify nothing else broke**
+- [ ] **Step 5: Update the one pre-existing caller + verify**
+
+`test/core/platform/platform_test.dart`'s `group('SilentAudio')` has a
+`'every method is a safe no-op'` test that uses `SoundCue.strikeHit` and
+`SilentAudio.muted`. Replace that test body with:
+
+```dart
+    test('every method is a safe no-op', () async {
+      final a = SilentAudio();
+      await a.unlock();
+      a.play(SoundCue.strikeWeapon);
+      a.stopAll();
+      a.enabled = true;
+      a.volume = 0.5;
+      expect(a.enabled, isTrue);
+      expect(a.volume, 0.5);
+    });
+```
+
+Leave the `PlatformIdentity` / `PlatformCapabilities` groups untouched.
 
 Run: `flutter analyze`
-Expected: `No issues found!` — there are no callers of `GameAudio.muted` (removed) or `SoundCue.strikeHit` (removed) to fix. If `analyze` names one, it is a pre-existing caller the earlier exploration missed — STOP and report it; do not invent a fix.
+Expected: `No issues found!`. If `analyze` still names a caller, it is a
+second pre-existing one the exploration missed — STOP and report; do not
+invent a fix.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lib/core/platform/game_audio.dart test/support/fake_game_audio.dart test/core/platform/game_audio_test.dart
+git add lib/core/platform/game_audio.dart test/core/platform/platform_test.dart test/support/fake_game_audio.dart test/core/platform/game_audio_test.dart
 git commit -m "feat(audio): GameAudio seam — enabled/volume, 13 SoundCues, FakeGameAudio
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>

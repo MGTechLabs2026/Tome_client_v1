@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'app/tome_app.dart';
 import 'core/persistence/game_store.dart';
+import 'core/platform/audioplayers_game_audio.dart';
 import 'core/platform/platform.dart';
 import 'features/run/run_bloc.dart';
 
@@ -21,7 +22,11 @@ Future<void> main() async {
     return true; // handled — do not crash the isolate
   };
 
-  runApp(TomeApp(runBloc: RunBloc(), store: await _openStore()));
+  runApp(TomeApp(
+    runBloc: RunBloc(),
+    store: await _openStore(),
+    audio: AudioPlayersGameAudio(),
+  ));
 }
 
 /// Picks the persistence backend for the current platform. Any failure

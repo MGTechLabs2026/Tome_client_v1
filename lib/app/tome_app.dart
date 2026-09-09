@@ -17,6 +17,7 @@ import '../core/persistence/game_store.dart';
 import '../core/persistence/records_repository.dart';
 import '../core/persistence/settings_repository.dart';
 import '../core/persistence/training_pace_repository.dart';
+import '../core/platform/game_audio.dart';
 import '../features/run/run_bloc.dart';
 import '../features/training/training_bloc.dart';
 import '../routing/app_router.dart';
@@ -50,7 +51,13 @@ const kRewardTechniquePool = [
 ];
 
 class TomeApp extends StatefulWidget {
-  const TomeApp({super.key, required this.runBloc, this.session, this.store});
+  const TomeApp({
+    super.key,
+    required this.runBloc,
+    this.session,
+    this.store,
+    this.audio,
+  });
 
   final RunBloc runBloc;
 
@@ -62,6 +69,10 @@ class TomeApp extends StatefulWidget {
   /// The cross-run store. Null in tests → an in-memory store that
   /// forgets everything.
   final GameStore? store;
+
+  /// The audio backend. Null in tests → [SilentAudio]. `lib/main.dart`
+  /// passes `AudioPlayersGameAudio()` for the real runtime.
+  final GameAudio? audio;
 
   @override
   State<TomeApp> createState() => _TomeAppState();
@@ -82,6 +93,15 @@ class _TomeAppState extends State<TomeApp> {
   late final SettingsRepository _settings = SettingsRepository(_store);
   late final TrainingPaceRepository _trainingPace = TrainingPaceRepository(_store);
 
+  late final GameAudio _audio = widget.audio ?? SilentAudio();
+  AppLifecycleListener? _lifecycle;
+  bool _unlockArmed = true;
+
+  void _syncAudio() {
+    _audio.enabled = _settings.soundEnabled.value;
+    _audio.volume = _settings.soundVolume.value;
+  }
+
   /// A test-pinned session never rebuilds; otherwise the session tracks
   /// [RunState.sessionSeed] and is rebuilt on NEW RUN.
   late final bool _pinned = widget.session != null;
@@ -92,6 +112,13 @@ class _TomeAppState extends State<TomeApp> {
   @override
   void initState() {
     super.initState();
+    _settings.soundEnabled.addListener(_syncAudio);
+    _settings.soundVolume.addListener(_syncAudio);
+    _syncAudio();
+    _lifecycle = AppLifecycleListener(
+      onHide: _audio.stopAll,
+      onPause: _audio.stopAll,
+    );
     if (_pinned) return;
     _runSub = _runBloc.stream.listen((s) {
       if (s.sessionSeed == _seed) return;
@@ -109,6 +136,10 @@ class _TomeAppState extends State<TomeApp> {
 
   @override
   void dispose() {
+    _settings.soundEnabled.removeListener(_syncAudio);
+    _settings.soundVolume.removeListener(_syncAudio);
+    _lifecycle?.dispose();
+    _audio.stopAll();
     _runSub?.cancel();
     _session.dispose();
     _router.dispose();
@@ -125,6 +156,7 @@ class _TomeAppState extends State<TomeApp> {
         RepositoryProvider<CodexRepository>.value(value: _codex),
         RepositoryProvider<SettingsRepository>.value(value: _settings),
         RepositoryProvider<TrainingPaceRepository>.value(value: _trainingPace),
+        RepositoryProvider<GameAudio>.value(value: _audio),
       ],
       child: MultiRepositoryProvider(
         // Key on the session so NEW RUN tears down and rebuilds every
@@ -187,16 +219,23 @@ class _TomeAppState extends State<TomeApp> {
             debugShowCheckedModeBanner: false,
             theme: tomeTheme(),
             routerConfig: _router,
-            builder: (context, child) => ValueListenableBuilder<bool>(
-              valueListenable: _settings.reduceMotion,
-              builder: (context, reduce, _) {
-                final mq = MediaQuery.of(context);
-                return MediaQuery(
-                  data:
-                      reduce ? mq.copyWith(disableAnimations: true) : mq,
-                  child: child!,
-                );
+            builder: (context, child) => Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (_) {
+                if (!_unlockArmed) return;
+                _unlockArmed = false;
+                _audio.unlock();
               },
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _settings.reduceMotion,
+                builder: (context, reduce, _) {
+                  final mq = MediaQuery.of(context);
+                  return MediaQuery(
+                    data: reduce ? mq.copyWith(disableAnimations: true) : mq,
+                    child: child!,
+                  );
+                },
+              ),
             ),
           ),
         ),

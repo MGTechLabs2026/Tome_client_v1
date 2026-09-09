@@ -270,11 +270,14 @@ class AlmanacAdapter {
     ]..sort();
   }
 
+  /// The first recognised family tag, else the first structural tag, else
+  /// empty — never a filler word. Callers decide what to show when a
+  /// piece carries no family signal at all.
   String _family(List<String> structural) {
     for (final t in structural) {
       if (recognisedFamilyTags.contains(t)) return t;
     }
-    return structural.isEmpty ? 'form' : structural.first;
+    return structural.isEmpty ? '' : structural.first;
   }
 
   String? _affinity(Set<String> tags) {

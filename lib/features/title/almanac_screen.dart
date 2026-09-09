@@ -359,7 +359,7 @@ class _Roster extends StatelessWidget {
             metTech.contains(t.id),
             t.label,
             _techDescriptor(t),
-            t.family,
+            t.family.isEmpty ? 'form' : t.family,
           ),
       ],
     );
@@ -376,14 +376,14 @@ String _styleDescriptor(AlmanacStyleView s) {
 
 String _itemDescriptor(AlmanacItemView i) => [
       i.category,
-      if (i.family != i.category) i.family,
+      if (i.family.isNotEmpty && i.family != i.category) i.family,
       if (i.maxClass != null) 'combines',
       if (i.affinity != null) i.affinity!,
     ].join(' · ');
 
 String _techDescriptor(AlmanacTechniqueView t) => [
       t.tier,
-      if (t.family != t.tier) t.family,
+      if (t.family.isNotEmpty && t.family != t.tier) t.family,
       if (t.affinity != null) t.affinity!,
     ].join(' · ');
 
@@ -768,7 +768,10 @@ class _DetailLeaf extends StatelessWidget {
         _Kind.style =>
           styleById[sel.id]?.tradition ?? 'tradition held back',
         _Kind.item => itemById[sel.id]?.category ?? 'form',
-        _Kind.technique => techById[sel.id]?.family ?? 'form',
+        _Kind.technique => switch (techById[sel.id]?.family) {
+            final f? when f.isNotEmpty => f,
+            _ => 'form',
+          },
       };
 }
 

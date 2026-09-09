@@ -76,14 +76,17 @@ class CombatAdapter {
     final myTags = _ctx.components.get<TagSet>(_me)?.tags ?? const <String>{};
     final styleRules = StyleCombatRules(myTags);
 
-    final build = _ctx.tome.resolve(_me);
+    // SP4b: derive real ownedRefs (ref: build_engine game_run.dart
+    // ownedComponentRefs). SP4a passes [] — the client reads only the
+    // hung set and has no tiered affixes yet.
+    final build = _ctx.tome.resolve(_me, ownedRefs: const []);
     // Items contribute passive stat modifiers (weapon attack, affixes) —
     // run that side effect, and note which items are weapons vs armour.
     _itemInterpreter.interpret(
         build: build, actor: _me, targets: [enemy], context: _ctx);
     final weapons = <String>[];
     final armour = <String>[];
-    for (final ref in build.components) {
+    for (final ref in build.active) {
       if (ref.referenceType != itemReferenceType) continue;
       final def = _ctx.content.find(ref.contentId);
       if (def == null) continue;
@@ -94,7 +97,7 @@ class CombatAdapter {
     // One tagged action per hung technique, plus a bare-handed fallback
     // strike when nothing on the Tome can attack.
     final pool = <_Tagged>[];
-    for (final ref in build.components) {
+    for (final ref in build.active) {
       if (ref.referenceType != techniqueReferenceType) continue;
       final def = _ctx.content.find(ref.contentId);
       if (def == null) continue;

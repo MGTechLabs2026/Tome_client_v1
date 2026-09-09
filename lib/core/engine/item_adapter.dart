@@ -1,5 +1,4 @@
 import 'package:build_engine/build_engine.dart';
-import 'package:build_engine/build_interpretation.dart' show WeaponStatTags;
 import 'package:build_engine/item_plugin.dart';
 
 import '../models/combine_result_view.dart';

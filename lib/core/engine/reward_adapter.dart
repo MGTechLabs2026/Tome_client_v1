@@ -2,7 +2,6 @@
 import 'dart:math' as math;
 
 import 'package:build_engine/build_engine.dart';
-import 'package:build_engine/build_interpretation.dart' show WeaponStatTags;
 import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/martial_arts_plugin.dart' show styleAlignedFamilies;
 import 'package:build_engine/technique_plugin.dart';

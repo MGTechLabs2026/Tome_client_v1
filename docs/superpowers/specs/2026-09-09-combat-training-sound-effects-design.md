@@ -282,32 +282,33 @@ events; add `context.read<GameAudio>().play(...)` at each:
 
 | Training event | `cue` |
 |---|---|
-| target hit — session drills a technique | `strikeTechnique` |
-| target hit — session drills a weapon | `strikeWeapon` |
-| target hit — bare-handed session | `strikeDull` |
-| hit landed inside the perfect window | `strikePerfect` (instead of the above) |
-| target missed / timed out | `strikeMiss` |
-| a new wave starts | `waveStart` |
-| session ends (last wave resolved) | `sessionEnd` |
-| training result screen, first build, a technique evolved | `techniqueEvolved` |
+| target hit, `StrikeQuality.good` / `weak` — session drills a technique (`TrainingState.isTechnique`) | `strikeTechnique` |
+| target hit, `good` / `weak` — session drills an item | `strikeWeapon` |
+| target hit, `StrikeQuality.perfect` | `strikePerfect` |
+| target missed / timed out (`StrikeQuality.miss`) | `strikeMiss` |
+| advancing into wave 2 or wave 3 (`_onWaveComplete` → `_wave++`) | `waveStart` |
+| training **result** screen, first build, a technique evolved | `techniqueEvolved` |
+| training **result** screen, first build, no evolution | `sessionEnd` |
 
-Which component a session drills is already known to the training
-bloc/state (it's what mastery is awarded to); the plan pins the exact
-accessor. `active_training_screen` calls `audio.stopAll()` on `dispose()`.
+`TrainingState.isTechnique` is the technique/item flag. Training always
+drills one specific owned component, so a bare-handed session cannot occur —
+`strikeDull` does not appear in training. `active_training_screen` calls
+`audio.stopAll()` on `dispose()`. Wave 1 gets no `waveStart` — the screen
+transition covers it.
 
 ## 7. UI taps
 
 A single helper — e.g. `void tap(BuildContext c) =>
 c.read<GameAudio>().play(SoundCue.uiTap);` — invoked from the primary
-action handler(s) of exactly:
+action handler of exactly:
 
-- `combat_preparation_screen` — the "begin" action
-- `combat_screen` — the result-state "continue" action
-- `training_preparation_screen` — the "begin" action
-- `training_result_screen` — the "continue" action
+- `combat_preparation_screen` — the "Confirm & Fight" `FilledButton`
+- `training_preparation_screen` — the "begin session" button
+- `training_result_screen` — the "Continue / Back to the Tome" button
 
-Not app-wide, not on secondary/back buttons. Keeps the change reviewable
-and avoids a click on every tap in the game.
+`combat_screen` has no user-tapped button — its replay auto-advances to
+loot/defeat — so combat contributes one `uiTap` site, not two. Not
+app-wide, not on secondary/back buttons.
 
 ## 8. Settings & persistence
 
@@ -386,8 +387,8 @@ The seam's docstring already enumerates these; the backend honours them:
 - `lib/core/engine/combat_adapter.dart` — set `cue:` per entry
 - `lib/features/combat/presentation/log_replay_combat_presentation.dart` —
   play on reveal, `stopAll()` on dispose
-- `lib/features/combat/combat_preparation_screen.dart`,
-  `lib/features/combat/combat_screen.dart` — `uiTap`
+- `lib/features/combat/combat_preparation_screen.dart` — `uiTap` on
+  "Confirm & Fight"
 - `lib/features/training/training_bloc.dart` and/or
   `lib/features/training/exercise/target_strike_controller.dart` — hit /
   perfect / miss / wave / end cues

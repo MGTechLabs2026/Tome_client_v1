@@ -35,8 +35,50 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          ValueListenableBuilder<bool>(
+            valueListenable: settings.soundEnabled,
+            builder: (context, on, _) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _Toggle(
+                  label: 'Sound effects',
+                  note: 'Combat and training sound.',
+                  value: on,
+                  onChanged: settings.setSoundEnabled,
+                ),
+                const SizedBox(height: 10),
+                Opacity(
+                  opacity: on ? 1 : 0.4,
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: settings.soundVolume,
+                    builder: (context, vol, _) => Row(
+                      children: [
+                        SizedBox(
+                          width: 78,
+                          child: Text('VOLUME',
+                              style: hall.label.copyWith(color: hall.boneDim)),
+                        ),
+                        Expanded(
+                          child: Slider(
+                            value: vol,
+                            onChanged: on ? settings.setSoundVolume : null,
+                          ),
+                        ),
+                        SizedBox(
+                          width: 44,
+                          child: Text('${(vol * 100).round()}%',
+                              textAlign: TextAlign.end, style: hall.measure),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           Text(
-            'More settings — audio, text size — arrive as the game fills out.',
+            'More settings — text size — arrive as the game fills out.',
             style: hall.reading.copyWith(color: hall.boneDim),
           ),
         ],

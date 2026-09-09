@@ -22,7 +22,7 @@
 // damage 2 on turn start, opponent). A leaked aura necessarily moves a
 // per-entry HP snapshot — player HP trends up from a leaked regen, the
 // enemy drops faster from leaked venom — so the STRUCTURAL assertion
-// (entry kind + both HP snapshots) plus the numeric tally is the real
+// (entry kind + cue + both HP snapshots) plus the numeric tally is the real
 // inertness check. The player-facing combat-log copy is asserted
 // separately: a wording change fails only that assertion and is a
 // re-baseline, NOT an aura leak.
@@ -88,7 +88,8 @@ _Run _runScenario() {
     won: out.won,
     structural: [
       for (final e in out.log)
-        '${e.kind.name}|p=${e.playerHp}/${e.playerHpMax}'
+        '${e.kind.name}|${e.cue?.name ?? '-'}'
+            '|p=${e.playerHp}/${e.playerHpMax}'
             '|e=${e.enemyHp}/${e.enemyHpMax}',
     ],
     text: [for (final e in out.log) e.text],
@@ -109,19 +110,19 @@ _Run _runScenario() {
 // --- SP1 baseline (build_engine @ 0663e8e), transcribed as literals. ---
 
 const _sp1Structural = <String>[
-  'damage|p=100/100|e=32.0/40',
-  'damage|p=95/100|e=32.0/40',
-  'damage|p=95/100|e=24.0/40',
-  'heal|p=91/100|e=24.0/40',
-  'actionResolved|p=91/100|e=24.0/40',
-  'heal|p=87/100|e=24.0/40',
-  'damage|p=87/100|e=16.0/40',
-  'heal|p=83/100|e=16.0/40',
-  'damage|p=83/100|e=8.0/40',
-  'damage|p=78/100|e=8.0/40',
-  'damage|p=78/100|e=0.0/40',
-  'actionResolved|p=78/100|e=0.0/40',
-  'victory|p=78/100|e=0.0/40',
+  'damage|strikeTechnique|p=100/100|e=32.0/40',
+  'damage|bodyBlow|p=95/100|e=32.0/40',
+  'damage|strikeTechnique|p=95/100|e=24.0/40',
+  'heal|guardHold|p=91/100|e=24.0/40',
+  'actionResolved|strikeMiss|p=91/100|e=24.0/40',
+  'heal|guardHold|p=87/100|e=24.0/40',
+  'damage|strikeTechnique|p=87/100|e=16.0/40',
+  'heal|guardHold|p=83/100|e=16.0/40',
+  'damage|strikeTechnique|p=83/100|e=8.0/40',
+  'damage|bodyBlow|p=78/100|e=8.0/40',
+  'damage|strikeTechnique|p=78/100|e=0.0/40',
+  'actionResolved|-|p=78/100|e=0.0/40',
+  'victory|fightWon|p=78/100|e=0.0/40',
 ];
 
 const _sp1Text = <String>[

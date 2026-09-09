@@ -12,6 +12,7 @@ import 'package:build_engine/technique_plugin.dart';
 
 import '../models/combat_log_entry_view.dart';
 import '../models/combat_tally_view.dart';
+import '../platform/game_audio.dart';
 import 'engine_session.dart';
 import 'tome_adapter.dart';
 
@@ -190,6 +191,7 @@ class CombatAdapter {
     resolver.log.add(resolver.entry(
       won ? CombatLogEntryKind.victory : CombatLogEntryKind.defeat,
       won ? 'Victory!' : 'Defeated...',
+      cue: won ? SoundCue.fightWon : SoundCue.fightLost,
     ));
 
     return (won: won, log: resolver.log, tally: t);
@@ -223,6 +225,14 @@ class _Comp {
   bool get isDefence => kind == _CompKind.guard;
   bool get trainsAComponent => id.isNotEmpty;
 }
+
+/// The strike cue for a successful player action by component kind.
+SoundCue _hitCue(_Comp comp) => switch (comp.kind) {
+      _CompKind.weapon => SoundCue.strikeWeapon,
+      _CompKind.technique => SoundCue.strikeTechnique,
+      _CompKind.fist => SoundCue.strikeDull,
+      _CompKind.guard => SoundCue.guardHold,
+    };
 
 /// The turn loop. Replaces `AutoCombatController.runUntilBattleEnds` for
 /// the player's side so success/fail is decided per turn (off live
@@ -280,12 +290,14 @@ class _Resolver {
   bool get _active =>
       ctx.components.get<CombatStateComponent>(battle)?.active ?? false;
 
-  CombatLogEntryView entry(CombatLogEntryKind kind, String text) {
+  CombatLogEntryView entry(CombatLogEntryKind kind, String text,
+      {SoundCue? cue}) {
     final p = ctx.components.get<HealthComponent>(me);
     final f = ctx.components.get<HealthComponent>(enemy);
     return CombatLogEntryView(
       kind: kind,
       text: text,
+      cue: cue,
       playerHp: p?.current,
       playerHpMax: p?.max,
       enemyHp: f?.current,
@@ -357,6 +369,7 @@ class _Resolver {
         comp.isDefence
             ? 'You set $name — it holds.'
             : 'You land $name — $dealt damage.',
+        cue: _hitCue(comp),
       ));
     } else {
       _burst = BurstChainState.broken; // a miss breaks the chain
@@ -367,6 +380,7 @@ class _Resolver {
       log.add(entry(
         CombatLogEntryKind.actionResolved,
         comp.isDefence ? 'Your $name breaks.' : 'Your $name goes wide.',
+        cue: SoundCue.strikeMiss,
       ));
       // A counter fighter makes you pay for the opening.
       if (enemyMissPunish > 0 && _active) {
@@ -383,7 +397,8 @@ class _Resolver {
         final bit = before - _hp;
         if (bit > 0) {
           log.add(entry(CombatLogEntryKind.damage,
-              'It reads the opening — $bit on the counter.'));
+              'It reads the opening — $bit on the counter.',
+              cue: SoundCue.bodyBlow));
         }
       }
     }
@@ -425,7 +440,8 @@ class _Resolver {
     }
     if (dealt <= 0 || armour.isEmpty) {
       if (dealt > 0) {
-        log.add(entry(CombatLogEntryKind.damage, 'Enemy hits for $dealt.'));
+        log.add(entry(CombatLogEntryKind.damage, 'Enemy hits for $dealt.',
+            cue: SoundCue.bodyBlow));
       }
       return;
     }
@@ -438,12 +454,14 @@ class _Resolver {
       tally.defenceHeld++;
       _awardItem(piece, kCombatMasterySuccess);
       log.add(entry(CombatLogEntryKind.heal,
-          'Enemy hits for $dealt — your ${_pretty(piece)} soaks $shrug.'));
+          'Enemy hits for $dealt — your ${_pretty(piece)} soaks $shrug.',
+          cue: SoundCue.guardHold));
     } else {
       tally.defenceBroken++;
       _awardItem(piece, kCombatMasteryFail);
       log.add(entry(CombatLogEntryKind.damage,
-          'Enemy hits for $dealt — your ${_pretty(piece)} gives.'));
+          'Enemy hits for $dealt — your ${_pretty(piece)} gives.',
+          cue: SoundCue.bodyBlow));
     }
   }
 
@@ -460,7 +478,8 @@ class _Resolver {
     if (dmg <= 0) return;
     ctx.components.add(me, HealthComponent(current: h.current - dmg, max: h.max));
     ctx.events.publish(EntityDamaged(me, dmg));
-    log.add(entry(CombatLogEntryKind.damage, 'Enemy hits again for $dmg.'));
+    log.add(entry(CombatLogEntryKind.damage, 'Enemy hits again for $dmg.',
+        cue: SoundCue.bodyBlow));
   }
 
   /// Direct damage to [target]'s HealthComponent (used for effects that

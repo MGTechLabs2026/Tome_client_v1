@@ -7,6 +7,8 @@ import 'package:tome_client/core/engine/character_adapter.dart';
 import 'package:tome_client/core/engine/combat_adapter.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
 import 'package:tome_client/core/engine/tome_adapter.dart';
+import 'package:tome_client/core/models/combat_log_entry_view.dart';
+import 'package:tome_client/core/platform/game_audio.dart';
 
 void main() {
   test('runFight against a weak enemy with a bare-handed loadout wins and returns a log', () {
@@ -192,5 +194,58 @@ void main() {
       expect(lastHp(withCond.log), greaterThan(lastHp(without.log)),
           reason: 'the -1/hit conditioning floor adds up over a fight');
     });
+  });
+
+  test('log entries carry the right SoundCue', () {
+    final session = EngineSession(9);
+    CharacterAdapter(session).createCharacter('Test Fighter');
+    final tome = TomeAdapter(session)..createInitialTome();
+
+    final slash = techniqueDefinition('basic_slash', session.context);
+    discoverTechnique(session.character, slash, session.context);
+    attemptToLearnTechnique(session.character, slash, 9999, session.context);
+    tome.insertTechnique('basic_slash', '1,1');
+
+    final out = CombatAdapter(session, tomeAdapter: tome).runFight(
+      'rival_master',
+      enemyHealth: 30,
+      enemyDamage: 4,
+      enemyDamageStat: 'fist',
+    );
+
+    // Every "You land <technique>" line is a technique strike.
+    for (final e in out.log.where((e) => e.text.startsWith('You land'))) {
+      expect(e.cue, SoundCue.strikeTechnique, reason: e.text);
+    }
+    // Every "goes wide" / "breaks" line is a miss.
+    for (final e in out.log.where(
+        (e) => e.text.contains('goes wide') || e.text.contains('breaks'))) {
+      expect(e.cue, SoundCue.strikeMiss, reason: e.text);
+    }
+    // Every "Enemy hits for" line where armour did NOT soak is a body blow.
+    for (final e in out.log.where((e) =>
+        e.text.startsWith('Enemy hits for') && !e.text.contains('soaks'))) {
+      expect(e.cue, SoundCue.bodyBlow, reason: e.text);
+    }
+    // The last entry is victory or defeat with the matching cue.
+    final last = out.log.last;
+    expect(last.cue, out.won ? SoundCue.fightWon : SoundCue.fightLost);
+    // Turn markers and the summary make no sound.
+    expect(out.log.where((e) => e.kind == CombatLogEntryKind.turnStart)
+        .every((e) => e.cue == null), isTrue);
+    expect(out.log.singleWhere((e) => e.text.startsWith('Landed ')).cue, isNull);
+  });
+
+  test('a bare-handed hit is strikeDull; a weapon hit is strikeWeapon', () {
+    final session = EngineSession(3);
+    CharacterAdapter(session).createCharacter('Fist Fighter');
+    final tome = TomeAdapter(session)..createInitialTome();
+    final out = CombatAdapter(session, tomeAdapter: tome).runFight(
+      'training_dummy', enemyHealth: 12, enemyDamage: 1, enemyDamageStat: 'fist',
+    );
+    final hits = out.log.where((e) => e.text.startsWith('You land')).toList();
+    expect(hits, isNotEmpty);
+    expect(hits.every((e) => e.cue == SoundCue.strikeDull), isTrue,
+        reason: 'no weapon or technique hung → every hit is a dull strike');
   });
 }

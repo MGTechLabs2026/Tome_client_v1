@@ -61,6 +61,7 @@ class SettingsScreen extends StatelessWidget {
                         Expanded(
                           child: Slider(
                             value: vol,
+                            divisions: 20,
                             onChanged: on ? settings.setSoundVolume : null,
                           ),
                         ),

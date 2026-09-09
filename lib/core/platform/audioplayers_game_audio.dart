@@ -47,8 +47,11 @@ class AudioPlayersGameAudio implements GameAudio {
   void _ensurePool() {
     if (_pool.isNotEmpty) return;
     for (var i = 0; i < _poolSize; i++) {
-      final p = AudioPlayer()..setReleaseMode(ReleaseMode.stop);
-      _pool.add(p);
+      try {
+        final p = AudioPlayer();
+        unawaited(p.setReleaseMode(ReleaseMode.stop).catchError((_) {}));
+        _pool.add(p);
+      } catch (_) {/* swallow — a play attempt with a short pool is fine */}
     }
   }
 

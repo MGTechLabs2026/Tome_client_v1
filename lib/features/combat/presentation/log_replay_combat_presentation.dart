@@ -60,8 +60,10 @@ class _ReplayState extends State<_Replay> {
     _audio = context.read<GameAudio>();
     _timer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
       setState(() => _shown++);
-      final revealed = widget.log[_shown - 1].cue;
-      if (revealed != null) _audio.play(revealed);
+      if (_shown <= widget.log.length) {
+        final revealed = widget.log[_shown - 1].cue;
+        if (revealed != null) _audio.play(revealed);
+      }
       if (_shown >= widget.log.length) {
         timer.cancel();
         widget.onFinished();

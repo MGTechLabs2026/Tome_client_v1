@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/models/enemy_view.dart';
 import '../../core/models/game_phase.dart';
+import '../../core/platform/game_audio.dart';
 import '../tome/hall/hall_theme.dart';
 import '../run/run_bloc.dart';
 import '../run/run_event.dart';
@@ -77,9 +78,12 @@ class _CombatPreparationScreenState extends State<CombatPreparationScreen> {
             const SizedBox(height: 26),
             FilledButton(
               onPressed: _armed
-                  ? () => context
-                      .read<RunBloc>()
-                      .add(const PhaseCompleted(GamePhase.combat))
+                  ? () {
+                      context.read<GameAudio>().play(SoundCue.uiTap);
+                      context
+                          .read<RunBloc>()
+                          .add(const PhaseCompleted(GamePhase.combat));
+                    }
                   : null,
               child: const Text('Confirm & Fight'),
             ),

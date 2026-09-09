@@ -2,8 +2,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/models/combat_log_entry_view.dart';
+import '../../../core/platform/game_audio.dart';
 import '../../tome/hall/hall_theme.dart';
 import 'combat_presentation.dart';
 
@@ -50,12 +52,16 @@ class _Replay extends StatefulWidget {
 class _ReplayState extends State<_Replay> {
   var _shown = 0;
   Timer? _timer;
+  late final GameAudio _audio;
 
   @override
   void initState() {
     super.initState();
+    _audio = context.read<GameAudio>();
     _timer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
       setState(() => _shown++);
+      final revealed = widget.log[_shown - 1].cue;
+      if (revealed != null) _audio.play(revealed);
       if (_shown >= widget.log.length) {
         timer.cancel();
         widget.onFinished();
@@ -66,6 +72,7 @@ class _ReplayState extends State<_Replay> {
   @override
   void dispose() {
     _timer?.cancel();
+    _audio.stopAll();
     super.dispose();
   }
 

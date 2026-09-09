@@ -4,7 +4,7 @@
 
 **Goal:** Move `Tome_client`'s `build_engine` git pin from `314f75a` (2026-09-01) to engine `main` HEAD across five sequential, independently-green PRs — one per engine milestone (SP0a → SP0b → SP1 → SP2 → SP3) — with no new UX.
 
-**Architecture:** Each stage is a `pubspec.yaml` `build_engine.ref` bump plus the minimal compatibility work that stage's engine surface forces. The audit predicts exactly **one hard compile break** (`lib/core/engine/combat_adapter.dart` ×3, at the SP1 stage); every other stage should be compile-clean and behaviourally inert for the client. Local iteration uses a gitignored `pubspec_overrides.yaml` pointing at a local engine worktree checked out to the stage's ref (this session cannot fetch the private engine over HTTPS); each PR still **lands** with the real git `ref` in `pubspec.yaml` and `pubspec.lock`, which authenticated CI validates.
+**Architecture:** Each stage is a `pubspec.yaml` `build_engine.ref` bump plus the minimal compatibility work that stage's engine surface forces. The audit predicts one hard compile break at the SP1 stage (`lib/core/engine/combat_adapter.dart` ×3); **as built** it was that plus two lint-forced one-line deletions in `lib/core/engine/item_adapter.dart` / `lib/core/engine/reward_adapter.dart` (SP1 relocated `WeaponStatTags` into `item_plugin.dart` while keeping the `build_interpretation.dart` re-export, so the narrowing `show WeaponStatTags` import became `unnecessary_import` and failed `flutter analyze`). Every other stage was compile-clean and behaviourally inert for the client. Local iteration uses a gitignored `pubspec_overrides.yaml` pointing at a local engine worktree checked out to the stage's ref (this session cannot fetch the private engine over HTTPS); each PR still **lands** with the real git `ref` in `pubspec.yaml` and `pubspec.lock`, which authenticated CI validates.
 
 **Tech Stack:** Flutter (stable channel), Dart. `flutter pub get` / `flutter analyze` / `flutter test` / `scripts/package_itch.sh`. `build_engine` is a private git dependency.
 
@@ -287,18 +287,20 @@ Claude-Session: https://claude.ai/code/session_01E3k4BFeWXfPzkZzXinqTZk"
 >   - `TomeService.resolve(EntityId owner, {required List<BuildComponentRef> ownedRefs}) → ResolvedBuild`. `ResolvedBuild` exposes `owner` / `active` / `owned` / `asActiveBuild` — **no `.components`**.
 >   - `BuildActionInterpreter.interpret({required ResolvedBuild build, …})` (`ItemActionInterpreter` included).
 >   - `ItemInstance.statBonuses` (field) and `addItemStatBonuses` (writer) — **retained**; now feed `ItemEffectContributor`'s `supporting` tier instead of an `affix:*` `Modifier`. Client reads/writes stay valid.
->   - `WeaponStatTags` — relocated to `item_plugin.dart`; compat re-export from `build_interpretation.dart` retained, so `show WeaponStatTags` imports keep working.
+>   - `WeaponStatTags` — relocated to `item_plugin.dart`. `build_interpretation.dart` **also** still re-exports it. ~~compat re-export … so `show WeaponStatTags` imports keep working~~ — **corrected (as-built):** because *both* barrels export the symbol, a narrowing `import '…/build_interpretation.dart' show WeaponStatTags;` line compiles but is now `unnecessary_import`, which fails `flutter analyze` (exit 1) and the CI gate. `item_adapter.dart` and `reward_adapter.dart` each carry such a line alongside an unrelated `item_plugin.dart` import; both `show` lines must be **deleted** (the symbol stays in scope via `item_plugin.dart`). Behaviour-inert.
 > - **NOT relied on:** `EffectTier`, `EffectProfile`, `EffectContributor`, `EffectProfileResolver`, `ItemEffectContributor` (directly), `BuildComponentRef` value equality (as a client concern), the `active`/`permanent` tiers.
-> - **Client compatibility work — the one hard compile break:** `combat_adapter.dart`:
+> - **Client compatibility work — the compile break (+ 2 lint-forced deletions):** `combat_adapter.dart`:
 >   1. `_ctx.tome.resolve(_me)` → `_ctx.tome.resolve(_me, ownedRefs: const [])` (`// SP4b: derive real ownedRefs` — reference: `game_run.dart` `ownedComponentRefs(character, context)`).
 >   2. `build.components` (×2) → `build.active`.
 >   3. `_itemInterpreter.interpret(build: build, …)` — correct once `build` is the `ResolvedBuild` from (1).
+>   4. **(as-built)** `item_adapter.dart` / `reward_adapter.dart`: drop the redundant `show WeaponStatTags` import line (see the `WeaponStatTags` row above).
 > - **Behavioural drift to expect:** two hung copies of one item now each contribute scaled `attack` (old `build:<itemId>` source collapsed duplicates); item modifier source is per-actor. Re-baseline any drifted `combat_adapter_test.dart` / `combat_mastery_test.dart` inline seed expectations to observed values. Grep client tests for `affix:` / `build:` / `removeBySource(` modifier-source assertions (none expected).
 
 **Files:**
 - Modify: `pubspec.yaml`, `pubspec.lock`
 - Modify: `lib/core/engine/combat_adapter.dart` — three edits (below, exact)
-- Possibly modify: `test/core/engine/combat_adapter_test.dart`, `test/core/engine/combat_mastery_test.dart` — inline seed re-baselines **only if** a value drifts and the determinism property still holds
+- Modify: `lib/core/engine/item_adapter.dart`, `lib/core/engine/reward_adapter.dart` — delete one redundant `show WeaponStatTags` import line each (as-built; lint-forced, behaviour-inert — see the Stage 3 register)
+- Possibly modify: `test/core/engine/combat_adapter_test.dart`, `test/core/engine/combat_mastery_test.dart` — inline seed re-baselines **only if** a value drifts and the determinism property still holds *(as-built: no re-baseline was needed)*
 
 **Interfaces:**
 - Consumes: Task 2 merged (`main` at SP0b); the SP1 full SHA from Task 0.
@@ -362,7 +364,7 @@ Expected: no client test asserts on the old `affix:*` / `build:<id>` modifier-so
 
 - [ ] **Step 7: Guard against scope creep**
 
-If green requires touching `item_adapter.dart`, `reward_adapter.dart`, `technique_adapter.dart`, `tome_adapter.dart`, `engine_session.dart`, or any `features/` file — **STOP and report**. The audit says the break is confined to `combat_adapter.dart` ×3; anything wider means either a mis-diagnosis or SP4b work leaking in. `ItemInstance.statBonuses` / `addItemStatBonuses` are retained, so `item_adapter.dart` / `reward_adapter.dart` should need no change.
+If green requires touching `technique_adapter.dart`, `tome_adapter.dart`, `engine_session.dart`, or any `features/` file — **STOP and report**: that means a mis-diagnosis or SP4b work leaking in. **`item_adapter.dart` / `reward_adapter.dart` are a bounded exception (as-built):** the *only* sanctioned change to them is deleting the one redundant `show WeaponStatTags` import line each (lint-forced by the SP1 relocation, behaviour-inert — see the Stage 3 register). Any *logic* change to those two files → STOP. `ItemInstance.statBonuses` / `addItemStatBonuses` are retained, so no read/write of them needs to change.
 
 - [ ] **Step 8: Fix `pubspec.lock`** → full SP1 SHA.
 
@@ -657,10 +659,11 @@ Client on the final engine bump (`b43b414` = `SP3 + SP4a engine Part A`), five b
 | §2.1 five sequential bumps, `pubspec.lock` regenerated each | Tasks 1–5, each Step "Fix pubspec.lock" |
 | §2.2 scope freeze (no affixes/detail-sheet/binders/plugin/variants/adapter/real-ownedRefs) | Global Constraints + per-task "Guard against scope creep" Steps |
 | §2.3 contract discipline (no unlisted engine surface) | Per-task triage Steps against the inlined register rows (Task 1/2 Step 5, Task 3 Step 7, Task 4 Steps 6–7 + 9) + Global Constraints "No invented compatibility fixes" |
-| §3 the one compile break — `combat_adapter.dart` ×3, exact edits | Task 3 Step 3 |
+| §3 the SP1 compile break — `combat_adapter.dart` ×3, exact edits | Task 3 Step 3 |
+| §3 (as-built) + 2 lint-forced `show WeaponStatTags` deletions in `item_adapter.dart` / `reward_adapter.dart` | Task 3 Step 7 exception + Stage 3 register |
 | §3 `_itemInterpreter.interpret` correct once `build` is `ResolvedBuild` | Task 3 Step 3(3) |
 | §3 semantic-continuity grep for `affix:` / `build:` / `removeBySource(` | Task 3 Step 5 |
-| §3 `statBonuses` / `addItemStatBonuses` retained → no item/reward adapter change | Task 3 Step 7 |
+| §3 `statBonuses` / `addItemStatBonuses` retained → no item/reward adapter *logic* change | Task 3 Step 7 |
 | §4 PR table: refs cb32b02 / ff8c7db / 0663e8e / dc213d4 / (1dc7e5d→b43b414 = `SP3 + SP4a engine Part A`) | Tasks 1–5 Step 2/3, with the final-stage naming + HEAD-advanced note in Global Constraints |
 | §4.1 lock the plugin init order (comment) | Task 4 Step 4 |
 | §4.2 do not register `ConsumablePlugin` | Task 5 Stage-5 register "Client compatibility work" + Global Constraints scope freeze |

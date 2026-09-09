@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/app/theme.dart';
+import 'package:tome_client/core/engine/engine_session.dart';
 import 'package:tome_client/core/persistence/codex_repository.dart';
 import 'package:tome_client/core/persistence/game_store.dart';
 import 'package:tome_client/core/persistence/records_repository.dart';
@@ -15,6 +16,7 @@ Widget _host(GameStore store, Widget child) => MultiRepositoryProvider(
         RepositoryProvider(create: (_) => RecordsRepository(store)),
         RepositoryProvider(create: (_) => CodexRepository(store)),
         RepositoryProvider(create: (_) => SettingsRepository(store)),
+        RepositoryProvider<EngineSession>(create: (_) => EngineSession(1)),
       ],
       child: MaterialApp(theme: tomeTheme(), home: child),
     );
@@ -39,7 +41,7 @@ void main() {
     expect(find.text('3'), findsOneWidget); // furthest run
   });
 
-  testWidgets('ALMANAC renders the three groups and a met count', (tester) async {
+  testWidgets('ALMANAC renders the style group and a met count', (tester) async {
     final store = GameStore.memory();
     await CodexRepository(store).discover(CodexKind.style, 'kunlun');
     await tester.pumpWidget(_host(store, const AlmanacScreen()));
@@ -47,9 +49,8 @@ void main() {
 
     expect(find.text('ALMANAC'), findsOneWidget);
     expect(find.text('STYLES'), findsOneWidget);
-    expect(find.text('ITEMS'), findsOneWidget);
-    expect(find.text('TECHNIQUES'), findsOneWidget);
-    expect(find.textContaining(' of '), findsOneWidget); // "1 of 22 met"
+    expect(find.text('1 / 6'), findsOneWidget); // styles group completion
+    expect(find.textContaining('met'), findsOneWidget); // overall bar
   });
 
   testWidgets('SETTINGS toggle flips and persists', (tester) async {

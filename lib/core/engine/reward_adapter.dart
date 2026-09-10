@@ -71,11 +71,12 @@ class RewardAdapter {
 
   /// The affix slots resolved for the current offer — engine-owned,
   /// resolved once by [offerLoot], carried unchanged into [applyLoot].
-  /// Null before the first offer / after a non-newComponent take.
+  /// Null before the first offer and after a `newComponent` take.
   AffixResolution? _offeredAffixes;
 
   /// The 3-card list [offerLoot] last built. [currentOffer] returns it
   /// verbatim — a pure re-read with no RNG / Almanac / state effect.
+  /// Cleared on a `newComponent` take so nothing stale is re-read.
   List<LootOptionView>? _lastOffer;
 
   /// One per RewardAdapter lifetime (== one per lineage/EngineSession).

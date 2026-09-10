@@ -62,6 +62,23 @@ void main() {
     expect(reloaded.affixes.single.snapshot.value, 3);
   });
 
+  test('an unreadable schema version loads empty but is NOT overwritten', () async {
+    final store = GameStore.memory();
+    // A future-schema document this build cannot parse — real history.
+    await store.write('almanac.v1',
+        {'almanacSchemaVersion': 999, 'sentinel': 'recoverable'});
+
+    final repo = GameStoreAlmanacRepository(store);
+    expect(repo.load(), AlmanacState.empty(),
+        reason: 'cannot parse -> empty for the session');
+
+    // A later flush must leave the unreadable-but-recoverable doc alone.
+    repo.save(AlmanacRecorder(AlmanacState.empty()).state);
+    expect(store.read('almanac.v1'),
+        containsPair('almanacSchemaVersion', 999));
+    expect(store.read('almanac.v1'), containsPair('sentinel', 'recoverable'));
+  });
+
   test('transport-agnostic: history survives across sessions over a '
       'remote-style store, waiting on an explicit write-completion signal', () async {
     final server = <String, Map<String, Object?>>{};

@@ -8,6 +8,7 @@ import 'package:build_engine/technique_plugin.dart';
 
 import '../models/loot_option_view.dart';
 import '../persistence/codex_repository.dart';
+import 'almanac_session.dart';
 import 'character_adapter.dart';
 import 'engine_session.dart';
 import 'item_adapter.dart';
@@ -25,11 +26,13 @@ class RewardAdapter {
     required List<String> itemPool,
     required List<String> techniquePool,
     CodexRepository? codex,
+    AlmanacSession? almanac,
   })  : _tomeAdapter = tomeAdapter,
         _techniqueAdapter = techniqueAdapter,
         _characterAdapter = characterAdapter,
         _itemAdapter = itemAdapter,
         _codex = codex,
+        _almanac = almanac,
         _pool = [
           for (final id in itemPool) (isItem: true, id: id),
           for (final id in techniquePool) (isItem: false, id: id),
@@ -44,6 +47,12 @@ class RewardAdapter {
   /// Cross-run record of what the player has met — fed here when a new
   /// component is actually taken. Optional so tests can skip it.
   final CodexRepository? _codex;
+
+  /// App-lifetime engine Almanac owner — used on TAKE to record an
+  /// acquired affix (Task 4). Optional so tests can skip it.
+  // TODO(task-4): referenced on TAKE to record the acquired affix.
+  // ignore: unused_field
+  final AlmanacSession? _almanac;
 
   /// Items and techniques the New Component reward draws from, flattened
   /// into one pool. Drawn **with replacement** — the same id can be

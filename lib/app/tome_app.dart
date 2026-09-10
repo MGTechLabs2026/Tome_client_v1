@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../core/engine/almanac_session.dart';
 import '../core/engine/character_adapter.dart';
 import '../core/engine/combat_adapter.dart';
 import '../core/engine/engine_session.dart';
@@ -14,6 +15,7 @@ import '../core/engine/tome_adapter.dart';
 import '../core/engine/training_adapter.dart';
 import '../core/persistence/codex_repository.dart';
 import '../core/persistence/game_store.dart';
+import '../core/persistence/game_store_almanac_repository.dart';
 import '../core/persistence/records_repository.dart';
 import '../core/persistence/settings_repository.dart';
 import '../core/persistence/training_pace_repository.dart';
@@ -90,6 +92,8 @@ class _TomeAppState extends State<TomeApp> {
   late final GameStore _store = widget.store ?? GameStore.memory();
   late final RecordsRepository _records = RecordsRepository(_store);
   late final CodexRepository _codex = CodexRepository(_store);
+  late final AlmanacSession _almanac =
+      AlmanacSession(GameStoreAlmanacRepository(_store));
   late final SettingsRepository _settings = SettingsRepository(_store);
   late final TrainingPaceRepository _trainingPace = TrainingPaceRepository(_store);
 
@@ -154,6 +158,7 @@ class _TomeAppState extends State<TomeApp> {
         RepositoryProvider<GameStore>.value(value: _store),
         RepositoryProvider<RecordsRepository>.value(value: _records),
         RepositoryProvider<CodexRepository>.value(value: _codex),
+        RepositoryProvider<AlmanacSession>.value(value: _almanac),
         RepositoryProvider<SettingsRepository>.value(value: _settings),
         RepositoryProvider<TrainingPaceRepository>.value(value: _trainingPace),
         RepositoryProvider<GameAudio>.value(value: _audio),
@@ -201,6 +206,7 @@ class _TomeAppState extends State<TomeApp> {
               itemPool: kRewardItemPool,
               techniquePool: kRewardTechniquePool,
               codex: _codex,
+              almanac: _almanac,
             ),
           ),
         ],

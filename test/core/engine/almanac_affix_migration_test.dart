@@ -68,6 +68,52 @@ const _snap = AffixSnapshot(
 LootOptionView _component(List<LootOptionView> offer) =>
     offer.firstWhere((o) => o.kind == LootKind.newComponent);
 
+/// A holder whose `run` field is mutable, so one [RewardAdapter] instance
+/// can be driven across a change of logical run.
+class _RunScopedHarness {
+  _RunScopedHarness(int seed) {
+    session = EngineSession(seed);
+    final cha = CharacterAdapter(session)..createCharacter('F');
+    almanac = AlmanacSession(GameStoreAlmanacRepository(GameStore.memory()));
+    reward = RewardAdapter(
+      session,
+      itemAdapter: ItemAdapter(session),
+      characterAdapter: cha,
+      tomeAdapter: TomeAdapter(session)..createInitialTome(),
+      techniqueAdapter: TechniqueAdapter(session),
+      itemPool: const [ItemIds.ironSword],
+      techniquePool: const [],
+      almanac: almanac,
+      currentRun: () => run,
+    );
+  }
+
+  late final EngineSession session;
+  late final AlmanacSession almanac;
+  late final RewardAdapter reward;
+  ({int seed, int number}) run = (seed: 100, number: 1);
+
+  String get runId => '${run.seed}:${run.number}';
+
+  /// Rolls until a New Component offer carries an affix, TAKEs it, and
+  /// returns `(affixId of the first acquired slot, its slot position)`.
+  ({String affixId, int slotPosition}) takeAffixed({int maxRolls = 40}) {
+    for (var i = 0; i < maxRolls; i++) {
+      final card = _component(reward.offerLoot());
+      final prefix = card.prefixAffixId;
+      final suffix = card.suffixAffixId;
+      if (prefix != null || suffix != null) {
+        reward.applyLoot(LootKind.newComponent);
+        return prefix != null
+            ? (affixId: prefix, slotPosition: 0)
+            : (affixId: suffix!, slotPosition: 1);
+      }
+      reward.applyLoot(LootKind.upgradePoints);
+    }
+    throw StateError('no affixed card within $maxRolls rolls');
+  }
+}
+
 void main() {
   test('a recorded affix survives an AlmanacSession restart (persistence)', () {
     final store = GameStore.memory();
@@ -386,5 +432,96 @@ void main() {
     expect(obs.runNumber, 1);
     // not a client uuid / timestamp
     expect(obs.affixEventId, isNot(matches(RegExp(r'^[0-9a-f-]{36}$'))));
+  });
+
+  // ---- acquisition-id source is scoped to the logical run ----
+
+  test('Test A — two TAKEs in the same run share the run source, distinct ids',
+      () {
+    final h = _RunScopedHarness(21);
+    addTearDown(h.session.dispose);
+    final runId = h.runId;
+
+    final first = h.takeAffixed();
+    final second = h.takeAffixed();
+
+    final firstEvent = h.almanac.queries
+        .getAffixHistory(first.affixId)!
+        .discoveryObservations
+        .first
+        .affixEventId;
+    final secondObs = h.almanac.queries
+        .getAffixHistory(second.affixId)!
+        .discoveryObservations;
+    // (may be the same affixId taken twice -> pick the newest observation)
+    final secondEvent = secondObs.last.affixEventId;
+
+    expect(firstEvent, isNot(secondEvent),
+        reason: 'each acquisition gets its own engine-minted id');
+    expect(firstEvent, startsWith('$runId:'));
+    expect(secondEvent, startsWith('$runId:'),
+        reason: 'both TAKEs used the one source associated with this run');
+  });
+
+  test('Test B — a new logical run gets a fresh source (sequence restarts)', () {
+    final h = _RunScopedHarness(21);
+    addTearDown(h.session.dispose);
+
+    // Run A: at least one TAKE, which advances run A's source.
+    h.run = (seed: 100, number: 1);
+    final runIdA = h.runId;
+    h.takeAffixed();
+    h.takeAffixed(); // advance further so a shared source would be past seq 0
+
+    // Switch to run B on the SAME adapter, then TAKE.
+    h.run = (seed: 100, number: 2);
+    final runIdB = h.runId;
+    expect(runIdB, isNot(runIdA));
+    final b = h.takeAffixed();
+
+    final bEvent = h.almanac.queries
+        .getAffixHistory(b.affixId)!
+        .discoveryObservations
+        .last
+        .affixEventId;
+
+    // The strongest check: run B's first acquisition id equals what a
+    // brand-new AffixAcquisitionIdSource mints for run B at that slot.
+    final fresh = AffixAcquisitionIdSource().next(
+      run: RunRef(runId: runIdB, runNumber: 2),
+      slotPosition: b.slotPosition,
+    );
+    expect(bEvent, fresh,
+        reason: 'run B started from a fresh source, not run A\'s advanced one');
+    expect(bEvent, isNot(startsWith('$runIdA:')));
+  });
+
+  test('Test C — offer under run A, TAKE under run A, acquisition is run A\'s',
+      () {
+    final h = _RunScopedHarness(21);
+    addTearDown(h.session.dispose);
+    h.run = (seed: 100, number: 7);
+    final runId = h.runId;
+
+    String? takenId;
+    for (var i = 0; i < 40 && takenId == null; i++) {
+      final card = _component(h.reward.offerLoot()); // resolve under run A
+      final id = card.prefixAffixId ?? card.suffixAffixId;
+      if (id != null) {
+        h.reward.applyLoot(LootKind.newComponent); // TAKE under run A
+        takenId = id;
+      } else {
+        h.reward.applyLoot(LootKind.upgradePoints);
+      }
+    }
+    expect(takenId, isNotNull);
+
+    final obs = h.almanac.queries
+        .getAffixHistory(takenId!)!
+        .discoveryObservations
+        .last;
+    expect(obs.runId, runId);
+    expect(obs.affixEventId, startsWith('$runId:'),
+        reason: 'the offer→TAKE pair stayed on run A\'s source');
   });
 }

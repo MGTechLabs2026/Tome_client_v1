@@ -52,8 +52,10 @@ class RewardAdapter {
   /// acquired affix. Optional so tests can skip it.
   final AlmanacSession? _almanac;
 
-  /// Supplies the live run identity for affix acquisition ids. Defaults
-  /// to a fixed (1, 1) so tests need not wire RunBloc.
+  /// Supplies the live logical-run identity `(seed, number)`. Drives both
+  /// the engine `RunRef` and which per-run [AffixAcquisitionIdSource] a
+  /// TAKE uses. Defaults to a fixed `(1, 1)` so tests need not wire
+  /// RunBloc.
   final ({int seed, int number}) Function() _currentRun;
 
   /// Items and techniques the New Component reward draws from, flattened
@@ -79,9 +81,26 @@ class RewardAdapter {
   /// Cleared on a `newComponent` take so nothing stale is re-read.
   List<LootOptionView>? _lastOffer;
 
-  /// One per RewardAdapter lifetime (== one per lineage/EngineSession).
-  /// Mints the engine-owned affixEventId for each acquired affix.
-  final AffixAcquisitionIdSource _affixIdSource = AffixAcquisitionIdSource();
+  /// One [AffixAcquisitionIdSource] per logical run. The source is reused
+  /// for every affix TAKE in that run — keeping the engine-minted
+  /// `affixEventId` sequence monotonic and distinct — and replaced when
+  /// the logical run changes. The run is identified by the same `runId`
+  /// handed to the engine (`'<seed>:<number>'` from [_currentRun]); the
+  /// transition is driven purely by that identity, never by a rebuild,
+  /// `hashCode`, timestamp, or async event.
+  String? _affixRunId;
+  AffixAcquisitionIdSource? _affixIdSource;
+
+  /// The acquisition-id source for logical run [runId], minting a fresh
+  /// one the first time a run is seen. Only [applyLoot] calls this, so
+  /// the source is never touched between [offerLoot] and [applyLoot].
+  AffixAcquisitionIdSource _affixIdSourceFor(String runId) {
+    if (_affixRunId != runId) {
+      _affixRunId = runId;
+      _affixIdSource = AffixAcquisitionIdSource();
+    }
+    return _affixIdSource!;
+  }
 
   /// A contextually weighted pick (via the run's seeded RNG) from the
   /// reward pool — Content Expansion V1, matrix §I. Items are always
@@ -317,11 +336,12 @@ class RewardAdapter {
 
         if (resolution != null) {
           final run = _currentRun();
+          final runId = '${run.seed}:${run.number}';
           final acquisitions = acquireAffixes(
             resolution: resolution,
             target: target,
-            idSource: _affixIdSource,
-            run: RunRef(runId: '${run.seed}:${run.number}', runNumber: run.number),
+            idSource: _affixIdSourceFor(runId),
+            run: RunRef(runId: runId, runNumber: run.number),
             context: _session.context,
           );
           for (final acq in acquisitions) {

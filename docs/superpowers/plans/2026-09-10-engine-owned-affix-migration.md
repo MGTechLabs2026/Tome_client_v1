@@ -25,11 +25,12 @@ The spec status is **BLOCKED — engine API gap**. At `build_engine @ b43b4147` 
 Every task's requirements implicitly include this section.
 
 - **Canonical ownership is the engine's.** The client never defines an affix, rolls an affix, constructs canonical mechanical values (`stat`/`value`/`category` or non-stat effect payloads — spec §8/§8.1), decides selection policy (rarity/affinity/context weighting/"no affix" chance — spec §5.1), or creates/substitutes an `affixEventId` (spec §9.1/§10). It forwards the engine's.
+- **Affix-slot cardinality is preserved, not redesigned.** The migration moves *where affixes come from*, not *how many affix slots a reward exposes*. The current reward system presents up to two affixes per New Component — a prefix and a suffix, each independently possibly absent (`no affix` / `prefix only` / `suffix only` / `prefix + suffix`). Every one of those player-visible states must remain semantically equivalent after migration. Any intentional move from two possible affix slots to one is a separate gameplay/design change and is **outside this plan**. The plan does not prescribe whether the engine models the slots internally as prefix/suffix, affix slots, reward modifiers, or a list of affix results — Task 0 resolves that against the real engine contract.
 - **No client canonical affix vocabulary.** `lib/core/engine/reward_affix.dart` is deleted, not renamed or relocated. No parallel affix table, enum of effects, or affix-id list may exist in `lib/` after this plan.
-- **Engine imports stay in `lib/core/engine/`.** Feature screens (`lib/features/**`) use plain client view models only — no `build_engine` type, including `AlmanacAffixRecord` / `AffixSnapshot` / any affix-definition type (spec §12).
+- **`build_engine` imports are confined to engine integration / composition boundaries.** Normal game features must not import engine types directly. Feature UI (`lib/features/**`) uses plain client view models only — no `build_engine` type, including `AlmanacAffixRecord` / `AffixSnapshot` / any affix-definition type (spec §12). **Explicit exception:** a persistence-bridge implementation that adapts an engine-owned persistence *interface* to the client's `GameStore` may import `build_engine` — specifically `lib/core/persistence/game_store_almanac_repository.dart` (Task 1). Such a bridge contains no game logic: JSON in, JSON out, no interpretation.
 - **`CodexRepository` is not modified.** Affix history is the engine Almanac path, not a 4th codex bucket (spec §12). `lib/core/persistence/codex_repository.dart` must not appear in any diff.
 - **Almanac ownership stays in `build_engine`.** The client provides an `AlmanacRepository` implementation over `GameStore` and hydrates/persists `AlmanacState`; it does not reimplement recording, querying, identity, or serialization (spec §11).
-- **Offer identity is stable.** The affix on a reward is resolved once at generation and is identical through preview and TAKE. Preview (`offerLoot`, any card render/inspect) has zero gameplay side effects: no RNG draw for a new affix, no Almanac write, no player-state mutation (spec §7).
+- **Offer identity is stable — for every selected affix slot.** Each affix (and each "no affix" outcome) a reward resolves is fixed at generation and is identical through preview and TAKE — `prefix = A, suffix = B` at preview is `prefix = A, suffix = B` at TAKE, never `A + C`. Preview (`offerLoot`, any card render/inspect) has zero gameplay side effects: no RNG draw for any slot, no Almanac write, no player-state mutation (spec §7).
 - **One RNG.** Any engine affix selection uses the engine/session seeded RNG. No second RNG path is introduced (spec §14).
 - **Almanac idempotency.** Recording is keyed `(affixId, affixEventId)`; re-processing the same canonical acquisition event must not duplicate history (spec §9/§13).
 - **Locked-affix secrecy.** An undiscovered affix reveals no name, stat, value, or effect prose — in the visual UI *and* the semantics tree. Only an engine-provided structural category axis, if any, may show (spec §17-equivalent, §12 step 10).
@@ -48,9 +49,9 @@ Every task's requirements implicitly include this section.
 | File | Responsibility | Change |
 |---|---|---|
 | `lib/core/engine/reward_affix.dart` | client affix vocabulary + roll | **delete** |
-| `lib/core/persistence/game_store_almanac_repository.dart` | `AlmanacRepository` over `GameStore` (`almanac.v1` key) | **create** |
+| `lib/core/persistence/game_store_almanac_repository.dart` | `AlmanacRepository` over the generic `GameStore` contract (`almanac.v1` key); transport-agnostic, no platform logic | **create** |
 | `lib/core/engine/almanac_session.dart` | owns the composition-root `AlmanacRecorder` + persistence, survives `EngineSession` rebuilds | **create** |
-| `lib/core/engine/reward_adapter.dart` | reward offer + TAKE; engine affix selection, application, recording | modify |
+| `lib/core/engine/reward_adapter.dart` | reward offer + TAKE; engine-resolved affix slot(s), application, and recording | modify |
 | `lib/core/engine/item_adapter.dart` | drop `_affixByInstance` / `recordAffix`; derive name + bonus from engine state | modify |
 | `lib/core/engine/almanac_adapter.dart` | add `AlmanacAffixView` + `affixes` on `AlmanacSnapshot` | modify |
 | `lib/core/engine/engine_session.dart` | expose run id/number + the `AlmanacRecorder` handle for adapters | modify |
@@ -60,8 +61,8 @@ Every task's requirements implicitly include this section.
 | `lib/features/title/almanac_screen.dart` | `AFFIXES` roster group + detail leaf + completion | modify |
 | `lib/app/tome_app.dart` | provide `AlmanacSession` / repository at the root | modify |
 | `test/core/engine/reward_affix_test.dart` | tests the deleted vocabulary | **delete** |
-| `test/core/persistence/game_store_almanac_repository_test.dart` | round-trip persistence | **create** |
-| `test/core/engine/almanac_affix_migration_test.dart` | spec §13 criteria (identity, selection, offer stability, recording, idempotency, restart) | **create** |
+| `test/core/persistence/game_store_almanac_repository_test.dart` | round-trip persistence over local **and** remote-style `GameStore` | **create** |
+| `test/core/engine/almanac_affix_migration_test.dart` | spec §13 criteria (identity, slot preservation, selection, offer stability, distinct-event vs replay recording, idempotency, restart) | **create** |
 | `test/features/title/almanac_screen_test.dart` | `AFFIXES` group + locked secrecy | modify |
 | `test/core/engine/reward_adapter_test.dart` | affix assertions retargeted to engine data | modify |
 
@@ -77,8 +78,15 @@ Every task's requirements implicitly include this section.
 - Produces: a "Resolved Engine API" note mapping every spec-illustrative name used below (`AffixDefinition`, `registry.allOfType('affix')`, `rollAffix`/reward-candidate integration, the taken-reward result carrying `affixId` + `affixEventId`, `AlmanacRecorder.recordAffixDiscovered`, `AlmanacRepository`, `AlmanacSerialization`) to the real public symbol, signature, and barrel. Later tasks consume this note.
 
 - [ ] **Step 1: Bump the pin.** Set `build_engine` `ref:` in `pubspec.yaml` to the revision that ships the affix API; `flutter pub get`.
-- [ ] **Step 2: Enumerate the real surface.** From `~/.pub-cache/git/built_engine-<rev>/lib/`, record for each spec touchpoint: the class/function name, its constructor/parameter list, which `package:build_engine/*.dart` barrel exports it, and whether `AffixObservation` needs a prior `recorder.beginRun(...)`. Write it all to the resolved-api note.
-- [ ] **Step 3: Gate check.** Confirm against spec §13: canonical definitions exist and are enumerable without a client table; a public selector takes `RngService`/reward context; a taken-reward result exposes `affixId` + engine `affixEventId`; non-stat mechanics (heal/bank) are representable in canonical data. If any is absent → stop, write the residual gap into the resolved-api note, and report. Do **not** proceed.
+- [ ] **Step 2: Enumerate the real surface.** From `~/.pub-cache/git/built_engine-<rev>/lib/`, record for each spec touchpoint: the class/function name, its constructor/parameter list, which `package:build_engine/*.dart` barrel exports it, and whether `AffixObservation` needs a prior `recorder.beginRun(...)`. Also resolve **the affix-slot model**: does one reward resolution yield up to two affixes (prefix/suffix), an ordered list, or slot handles — and does a TAKE produce *one* acquisition event carrying all affixes, or *one event per affix*. Write it all to the resolved-api note.
+- [ ] **Step 3: Gate check — halt if any is missing.** Confirm against spec §13, and **stop, write the residual gap into the resolved-api note, and report** if the engine lacks any of:
+  - canonical affix identity (stable opaque ids)
+  - enumerable canonical affix definitions (no client table needed)
+  - deterministic engine-owned affix selection using `RngService` / reward context, preserving the current up-to-two-slots semantics (or an equivalent the plan can map the four current states onto)
+  - stable reward-offer identity that survives preview → TAKE for every selected slot
+  - canonical mechanical representation, including non-stat effects (heal / bank)
+  - authoritative engine acquisition-event identity (`affixEventId`), with an unambiguous, idempotent recording model for multi-affix rewards
+  No client fallback is permitted under any outcome. Do **not** proceed past a failed gate.
 - [ ] **Step 4: Run the suite unchanged.** `flutter analyze && flutter test` — the pin bump alone must not break anything (affix code still points at `reward_affix.dart` until Task 5). Fix only compile breaks the bump itself causes, minimally.
 - [ ] **Step 5: Commit.**
 ```bash
@@ -95,8 +103,8 @@ git commit -m "chore(engine): bump build_engine to the affix-API revision + reso
 - Test: `test/core/persistence/game_store_almanac_repository_test.dart`
 
 **Interfaces:**
-- Consumes: `GameStore.read(String) → Map<String,Object?>`, `GameStore.write(String, Map<String,Object?>) → Future<void>`; engine `AlmanacRepository` (interface), `AlmanacState`, `AlmanacSerialization.stateToJson` / `.stateFromJson` (resolved-api note).
-- Produces: `class GameStoreAlmanacRepository implements AlmanacRepository { GameStoreAlmanacRepository(GameStore); AlmanacState load(); void save(AlmanacState); }` — key `almanac.v1`.
+- Consumes: `GameStore.read(String) → Map<String,Object?>`, `GameStore.write(String, Map<String,Object?>) → Future<void>` (the generic contract — the client already has local `LocalGameStore` and network-backed `RemoteGameStore` impls); engine `AlmanacRepository` (interface), `AlmanacState`, `AlmanacSerialization.stateToJson` / `.stateFromJson` (resolved-api note).
+- Produces: `class GameStoreAlmanacRepository implements AlmanacRepository { GameStoreAlmanacRepository(GameStore); AlmanacState load(); void save(AlmanacState); }` — key `almanac.v1`. No import of / reference to Devvit, Reddit, Redis, itch.io, or `SharedPreferences`; depends only on `GameStore`.
 
 - [ ] **Step 1: Write the failing test.**
 ```dart
@@ -130,7 +138,30 @@ void main() {
     expect(reloaded.affixes.single.affixId, 'af_keen');
     expect(reloaded.affixes.single.snapshot.value, 3);
   });
+
+  test('transport-agnostic: history survives across sessions over a '
+      'remote-style store (hydrate-once cache + async flush), not just local', () async {
+    // A minimal GameStore that mimics RemoteGameStore's shape: writes go
+    // through an async transport, reads come from an in-memory cache
+    // seeded from a prior "server" snapshot. Proves the repository does
+    // not assume SharedPreferences / localStorage durability.
+    final backing = <String, Map<String, Object?>>{};
+    GameStore session() => _CacheThenFlushStore(backing);
+
+    final s1 = GameStoreAlmanacRepository(session());
+    final rec = AlmanacRecorder(s1.load())
+      ..recordAffixDiscovered( /* af_keen / evt-1 / run-1 as above */ );
+    s1.save(rec.state);
+    await Future<void>.delayed(Duration.zero); // let the async flush land
+
+    final s2 = GameStoreAlmanacRepository(session()); // fresh "session"
+    expect(s2.load().affixes.map((a) => a.affixId), contains('af_keen'));
+  });
 }
+
+// _CacheThenFlushStore: read() from `backing` synchronously; write()
+// updates `backing` then returns a completed Future — the RemoteGameStore
+// contract shape without any network.
 ```
 - [ ] **Step 2: Run — expect FAIL** (`game_store_almanac_repository.dart` missing). `flutter test test/core/persistence/game_store_almanac_repository_test.dart`
 - [ ] **Step 3: Implement.**
@@ -242,27 +273,18 @@ void main() {
 
 **Interfaces:**
 - Consumes: the engine affix selector / reward-candidate integration + `AffixDefinition` (resolved-api note); `_session.rng`.
-- Produces: `RewardAdapter._offered` now also carries the engine-resolved affix (`AffixDefinition?` or a resolved handle) plus the engine's offer/acquisition identity. `offerLoot()` performs the affix resolution exactly once; re-calling `offerLoot()` is a *new* offer (existing behaviour), but a given offer's affix never changes between `offerLoot` and `applyLoot`.
+- Produces: `RewardAdapter._offered` now also carries the **resolved affix slot(s)** for the offer — the same set the current reward system exposes (an item/technique New Component today resolves a prefix slot and a suffix slot, each independently possibly absent) — plus the engine's offer/acquisition identity. The exact container shape is decided by Task 0's resolved-api note (a `prefixAffix?` / `suffixAffix?` pair, an ordered list of resolved slots, or engine slot handles). `offerLoot()` performs the resolution for every slot exactly once; re-calling `offerLoot()` is a *new* offer (existing behaviour), but every slot of a given offer is fixed between `offerLoot` and `applyLoot`.
 
-- [ ] **Step 1: Update the failing test.** Replace the two affix assertions in `reward_adapter_test.dart` (`'an affixed New Component binds its stat bonus to the taken copy'`, `'a taken affixed item carries its rolled name into ItemView'`) and `'some New Component cards roll plain'` so they assert against **engine** affix data:
-```dart
-test('the offered affix comes from engine canonical data and is stable '
-    'through preview', () {
-  final r = _adapter(seed: 7);
-  final firstOffer = r.offerLoot();
-  final peek = r.offerLoot.hashCode; // no-op guard
-  // Re-render / inspect must not re-roll:
-  final again = r.currentOffer(); // SPEC §7 — add a pure getter, no side effects
-  expect(again.componentAffixId, firstOffer /* same id */ );
-  // The id is an engine affix id, not a client label:
-  expect(again.componentAffixId, isNot(startsWith('Keen'))); // not a label
-});
-```
-  (Exact matchers finalised against the resolved-api note — the invariant is: engine id, stable across preview, no RNG consumed on inspect.)
+- [ ] **Step 1: Update the failing tests.** Retarget the affix assertions in `reward_adapter_test.dart` (`'an affixed New Component binds its stat bonus to the taken copy'`, `'a taken affixed item carries its rolled name into ItemView'`, `'some New Component cards roll plain'`) so they assert against **engine** affix data and preserve slot cardinality. Behavioural requirements (method names resolved against the real codebase + Task 0):
+  - `offer = offerLoot()` then `before = currentOffer()`; `currentOffer()` returns the same resolved reward data and `before == currentOffer()` on repeat.
+  - inspection / rendering (`currentOffer()`, building the card view) consumes no new RNG, performs no Almanac write, mutates no gameplay state.
+  - each resolved affix slot's identity is an **engine affix id**, not a client label string.
+  - the four current states remain reachable across seeds: `no affix`, `prefix only`, `suffix only`, `prefix + suffix` — none collapses to a single-affix model.
+  - `applyLoot()` applies exactly the affix identities held in the offered reward.
 - [ ] **Step 2: Run — expect FAIL.**
-- [ ] **Step 3: Implement.** In `reward_adapter.dart`: delete `import 'reward_affix.dart';`; remove `Affix? _prefix; Affix? _suffix;`; add `_OfferedAffix? _offeredAffix` (a tiny private record holding the engine `affixId`, the canonical snapshot fields, and the engine acquisition/`affixEventId` handle). In `offerLoot()` replace the two `rollAffixOrNone(...)` calls with **one** engine affix resolution for `next` (item vs technique context passed through), storing the result in `_offeredAffix`. Build the card title/effect list from `_offeredAffix` canonical fields (label + a descriptor composed from `stat`/`value` or the canonical non-stat effect — spec §16), not from a client blurb. Add a pure `LootOptionView currentOffer()` / equivalent getter that returns the already-resolved offer with no RNG or state touch.
-- [ ] **Step 4: Update `loot_option_view.dart`** — rename/repoint the affix fields: `componentAffixId` (engine id, nullable), `componentAffixLabel`, `componentAffixDescriptor` (composed from engine fields). Drop "prefix/suffix blurbs" wording.
-- [ ] **Step 5: Run — expect PASS**, `flutter analyze` (will still fail to compile until Task 5 removes the file; keep `reward_affix.dart` importable but unused here — OR sequence Task 5 immediately after. If analyze must stay green per task boundary, fold Task 5's deletion into this commit).
+- [ ] **Step 3: Implement.** In `reward_adapter.dart`: delete `import 'reward_affix.dart';`; remove `Affix? _prefix; Affix? _suffix;`; add `_OfferedAffixes? _offeredAffixes` — a small private container holding, **per slot the current reward exposes**, the resolved engine `affixId` (or an explicit "no affix" for that slot), the canonical snapshot fields, and the engine acquisition / `affixEventId` handle(s). In `offerLoot()` replace the two `rollAffixOrNone(...)` calls with the engine-owned resolution for **each** slot (item vs technique context passed through) — same number of slots as today, same independent-absence semantics — storing the results in `_offeredAffixes`. Build the card title/effect list from the resolved slots' canonical fields (label(s) + a descriptor composed from `stat`/`value` or the canonical non-stat effect — spec §16), positionally consistent with today (prefix label ahead of the base, suffix label after), not from a client blurb. Add a pure `LootOptionView currentOffer()` / equivalent getter returning the already-resolved offer with no RNG or state touch.
+- [ ] **Step 4: Update `loot_option_view.dart`** — repoint the affix fields to carry the resolved slots: e.g. `componentPrefixAffixId?` / `componentSuffixAffixId?` (engine ids, each nullable) plus their labels/descriptors composed from engine fields, or an equivalent list shape matching Task 0. Drop "prefix/suffix blurbs" wording; keep the positional meaning.
+- [ ] **Step 5: Run — expect PASS**, `flutter analyze` (will still fail to compile until Task 5 removes `reward_affix.dart` — fold Task 5's deletion into this commit if the task-boundary analyze must stay green).
 - [ ] **Step 6: Commit.** `git commit -m "feat(reward): resolve the reward affix from engine canonical data; stable offer identity"`
 
 ---
@@ -274,42 +296,63 @@ test('the offered affix comes from engine canonical data and is stable '
 - Test: `test/core/engine/almanac_affix_migration_test.dart`
 
 **Interfaces:**
-- Consumes: `AlmanacSession` (via `EngineSession`), engine mechanical-application entry point for an `AffixDefinition` on an `ItemInstance` and for the technique one-shot effects (resolved-api note), engine acquisition/`affixEventId`.
-- Produces: `applyLoot(LootKind.newComponent)` applies the engine affix and, only on a real TAKE, calls `almanac.recorder.recordAffixDiscovered(affixId:, observation: AffixObservation(affixEventId: <engine's>, runId:, runNumber:, lineageId?:), snapshot: <from AffixDefinition>, timestamp:)` then `almanac.persist()`. Cancel / re-roll / not-taken records nothing.
+- Consumes: `AlmanacSession` (via `EngineSession`), the engine mechanical-application entry point for a resolved affix on an `ItemInstance` and for the technique one-shot effects (resolved-api note), engine acquisition / `affixEventId`.
+- Produces: `applyLoot(LootKind.newComponent)` applies **every** resolved affix slot in the offer via the engine and, only on a real TAKE, records **each** acquired canonical affix through the engine Almanac using the authoritative acquisition identity the engine defines. Whether that is one acquisition event carrying all affixes or one event per affix is Task 0's finding — the plan requires only that the recording is unambiguous and idempotent. `almanac.persist()` runs once after recording. Cancel / re-roll / not-taken records nothing.
 
-- [ ] **Step 1: Write the failing tests** ("take records", "preview does not record", "idempotent", "multiple item copies → one canonical record"):
+- [ ] **Step 1: Write the failing tests.**
 ```dart
-test('taking an affixed reward records it in the Almanac; previewing does not', () {
+test('taking an affixed reward records it; previewing does not', () {
   final h = _harness(seed: 3);
-  h.reward.offerLoot();                     // preview only
-  expect(h.almanac.queries.getAffixHistory(anyAffix), isNull); // SPEC §7
+  h.reward.offerLoot();                          // preview only
+  expect(h.almanac.recorder.state.affixes, isEmpty); // SPEC §7 — no write on preview
 
-  final offeredId = h.reward.currentOffer().componentAffixId!;
-  h.reward.applyLoot(LootKind.newComponent); // TAKE
-  expect(h.almanac.queries.getAffixHistory(offeredId), isNotNull);
+  final offered = h.reward.currentOffer();       // pure read
+  final ids = offered.acquiredAffixIds;          // every non-empty slot
+  h.reward.applyLoot(LootKind.newComponent);     // TAKE
+  for (final id in ids) {
+    expect(h.almanac.queries.getAffixHistory(id), isNotNull);
+  }
 });
 
-test('replaying the same acquisition event does not duplicate history', () {
+// Test A — same affix, two GENUINE acquisitions => distinct events.
+test('two real acquisitions of one affix: one history record, two observations', () {
   final h = _harness(seed: 3);
-  h.reward.offerLoot();
-  h.reward.applyLoot(LootKind.newComponent);
-  final rec = h.almanac.queries.getAffixHistory(h.lastAffixId)!;
-  // feed the identical (affixId, affixEventId) again:
-  h.almanac.recorder.recordAffixDiscovered(/* same as RewardAdapter used */);
-  expect(h.almanac.queries.getAffixHistory(h.lastAffixId)!.timesDiscovered,
-      rec.timesDiscovered);
+  h.takeUntilAffix('af_keen'); // canonical acquisition event E1
+  h.takeUntilAffix('af_keen'); // canonical acquisition event E2 (E2 != E1)
+
+  final recs = h.almanac.recorder.state.affixes.where((a) => a.affixId == 'af_keen');
+  expect(recs, hasLength(1), reason: 'one canonical affix identity');
+  // per the engine Almanac model: two distinct discovery observations
+  expect(recs.single.discoveryObservations.length, 2);
+  expect(
+    recs.single.discoveryObservations.map((o) => o.affixEventId).toSet(),
+    hasLength(2),
+    reason: 'distinct canonical acquisitions => distinct affixEventIds',
+  );
 });
 
-test('the same canonical affix on two item copies is one Almanac record', () {
-  final h = _harness(seed: 11);
-  h.takeUntilAffix('af_keen'); h.takeUntilAffix('af_keen');
-  expect(h.almanac.recorder.state.affixes.where((a) => a.affixId == 'af_keen'),
-      hasLength(1));
+// Test B — replay the SAME acquisition => idempotent.
+test('replaying acquisition event E1 adds no duplicate discovery', () {
+  final h = _harness(seed: 3);
+  h.takeUntilAffix('af_keen');                    // E1
+  final before = h.almanac.queries.getAffixHistory('af_keen')!.discoveryObservations.length;
+  h.replayLastAcquisition();                      // feed the identical engine (affixId, affixEventId)
+  final after = h.almanac.queries.getAffixHistory('af_keen')!.discoveryObservations.length;
+  expect(after, before);
+});
+
+// Prefix + suffix on one reward: both recorded, per the engine's model,
+// with no ambiguity about which acquisition identity each belongs to.
+test('a prefix + suffix reward records both affixes unambiguously', () {
+  final h = _harness(seed: 5)..takeUntil(prefix: 'af_keen', suffix: 'af_of_the_ember');
+  expect(h.almanac.queries.getAffixHistory('af_keen'), isNotNull);
+  expect(h.almanac.queries.getAffixHistory('af_of_the_ember'), isNotNull);
 });
 ```
+  `_harness` helpers (`takeUntilAffix`, `takeUntil(prefix:, suffix:)`, `replayLastAcquisition`) capture exactly the engine `(affixId, affixEventId)` values `RewardAdapter` used, so Test B replays a real event, not a fabricated one.
 - [ ] **Step 2: Run — expect FAIL.**
-- [ ] **Step 3: Implement.** In `applyLoot`'s `newComponent` branch: after `ownItem(...)` / `_techniqueAdapter.discover(...)`, hand the engine the `_offeredAffix` to apply its canonical mechanics (item → engine binds to the `ItemInstance`; technique → engine resolves the one-shot effect — no client `_applyTechniqueAffix` switch). Then, iff `_offeredAffix != null`, build the `AffixObservation` from `_session.runId` / `_session.runNumber` and the engine's `affixEventId`, and call `recordAffixDiscovered` + `almanac.persist()`. Delete `_applyTechniqueAffix` and the `math` import if now unused. `_codex?.discover` for item/technique id stays (that is the item/technique codex, not affixes).
-- [ ] **Step 4: Delete the client one-shot switch paths** and confirm no `AffixEffect` reference remains in `reward_adapter.dart`.
+- [ ] **Step 3: Implement.** In `applyLoot`'s `newComponent` branch: after `ownItem(...)` / `_techniqueAdapter.discover(...)`, hand the engine every resolved slot in `_offeredAffixes` to apply its canonical mechanics (item → engine binds to the `ItemInstance`; technique → engine resolves the one-shot effect — no client `_applyTechniqueAffix` switch). Then, **for every canonical affix actually acquired by this TAKE**, record the corresponding engine-owned observation using the authoritative acquisition identity the engine defines (one event with all affixes, or one per affix — per Task 0), then `almanac.persist()` once. A slot resolved as "no affix" records nothing. Delete `_applyTechniqueAffix` and the now-unused `math` import. `_codex?.discover` for the item/technique id stays (that is the item/technique codex, not affixes).
+- [ ] **Step 4: Confirm no `AffixEffect` / client one-shot switch remains** in `reward_adapter.dart`.
 - [ ] **Step 5: Run — expect PASS**, `flutter analyze && flutter test`.
 - [ ] **Step 6: Commit.** `git commit -m "feat(reward): apply canonical affix mechanics and record discovery on TAKE"`
 
@@ -336,13 +379,13 @@ test('the same canonical affix on two item copies is one Almanac record', () {
 - Test: `test/core/engine/reward_adapter_test.dart` (the "carries its rolled name into ItemView" case)
 
 **Interfaces:**
-- Consumes: `ItemInstance.statBonuses` (engine per-copy state — unchanged), engine affix-definition lookup by `affixId` for the display label (resolved-api note), and — if the engine exposes which affix is bound to a copy — that lookup; otherwise `AlmanacQueries` / the reward result at TAKE time supplies the label to `ItemAdapter` through an engine-owned handle, never a client map keyed by guesswork.
-- Produces: `_affixByInstance` and `recordAffix(...)` removed. `_displayName` composes `<engine affix label> <base>` from engine data. `affixBonus` still = `statBonuses` total minus the upgrade-point portion (that logic is unchanged and unrelated to affix identity).
+- Consumes: `ItemInstance.statBonuses` (engine per-copy state — unchanged), engine affix-definition lookup by `affixId` for each bound slot's display label (resolved-api note), and — if the engine exposes which affix(es) are bound to a copy — that lookup; otherwise `ItemAdapter` accepts the engine `affixId`(s) per slot from `RewardAdapter` at own-time and resolves labels on read, never a client map keyed by guesswork.
+- Produces: `_affixByInstance` and `recordAffix(...)` removed. `_displayName` composes the item name **slot-aware** from engine labels — `<prefix label> <base>`, `<base> <suffix label>`, `<prefix label> <base> <suffix label>`, or `<base>` — matching whichever slots are bound, preserving today's positional semantics. The client formats engine labels for display only; it never defines or reinterprets the affix mechanics. `affixBonus` stays `statBonuses` total minus the upgrade-point portion (unchanged, unrelated to affix identity).
 
-- [ ] **Step 1: Update the failing test** — "a taken affixed item's `ItemView.displayName` shows the engine affix label" (not a client `Affix.label`).
+- [ ] **Step 1: Update the failing tests** — a taken affixed item's `ItemView.displayName` shows the engine affix label(s) (not a client `Affix.label`), and the four slot arrangements above each render in the right order.
 - [ ] **Step 2: Run — expect FAIL.**
-- [ ] **Step 3: Implement.** Remove `_affixByInstance` + `recordAffix`. If the engine binds an `affixId` to the `ItemInstance` (resolved-api note), read it there and resolve the label via the engine affix registry; else accept the engine affix handle from `RewardAdapter` at own-time through an explicit `ItemAdapter` method that stores only the engine `affixId` (not a label), keyed by the instance entity value, and resolves the label on read. Update `combine()` cleanup to drop only what it still owns (`_upgradesByInstance`), removing the `_affixByInstance.remove(v)` line.
-- [ ] **Step 4: Trim `item_view.dart` / `component_detail_sheet.dart`** doc comments that say "rolled prefix/suffix" → "engine affix"; the `affixBonus` row copy ("+N while hung") stays.
+- [ ] **Step 3: Implement.** Remove `_affixByInstance` + `recordAffix`. If the engine binds `affixId`(s) to the `ItemInstance` (resolved-api note), read them there and resolve labels via the engine affix registry; else accept the engine affix handle(s) per slot from `RewardAdapter` at own-time through an explicit `ItemAdapter` method that stores only the engine `affixId`(s) (not labels), keyed by the instance entity value, resolving labels on read. `_displayName` walks the bound slots in positional order. Update `combine()` cleanup to drop only what it still owns (`_upgradesByInstance`), removing the `_affixByInstance.remove(v)` line.
+- [ ] **Step 4: Trim `item_view.dart` / `component_detail_sheet.dart`** doc comments that say "rolled prefix/suffix" → "engine affix (slot-aware)"; the `affixBonus` row copy ("+N while hung") stays.
 - [ ] **Step 5: Run — expect PASS**, `flutter analyze && flutter test`.
 - [ ] **Step 6: Commit.** `git commit -m "refactor(item): derive affix display from engine state; remove _affixByInstance"`
 
@@ -437,13 +480,31 @@ testWidgets('a locked affix leaks no name / stat / value in UI or semantics',
 - Modify: `test/core/engine/almanac_affix_migration_test.dart`
 - Test: itself + a repo grep gate
 
-- [ ] **Step 1: Fill the remaining §13 cases** not already covered by Tasks 2/4/7/8:
-  - affix selection uses `RngService` (same seed → same offered affix id; different seed can differ)
-  - mechanical values come from engine data (the recorded `AffixSnapshot` equals the engine `AffixDefinition`'s fields, not any client constant)
-  - non-stat mechanic path: taking a heal/bank affix produces the engine-defined effect (HP / upgrade points move) *and* records the affix
-  - `TAKE` uses the already-resolved offered affix (offered id == recorded id)
-  - no client-generated event id: the `affixEventId` in the record equals the engine's, asserted via the engine handle
-- [ ] **Step 2: Cleanup grep gate.** `grep -rn -E "Affix\(|itemPrefixes|itemSuffixes|techniquePrefixes|techniqueSuffixes|AffixEffect|AffixLean|_affixByInstance|recordAffix\b" lib/` → **zero** hits. Add this as a shell check in the task notes (not a Dart test).
+- [ ] **Step 1: Fill the remaining acceptance cases** not already covered by Tasks 2/4/7/8:
+
+  **Affix-slot preservation** (across seeds, item and technique New Components):
+  - a no-affix reward stays no-affix
+  - a prefix-only reward stays prefix-only
+  - a suffix-only reward stays suffix-only
+  - a prefix + suffix reward stays prefix + suffix
+  - none of the four collapses to a single-affix model
+
+  **Offer stability:**
+  - every selected affix id (per slot) is identical from generation through TAKE
+  - inspection / `currentOffer()` / building the card view rerolls no slot and consumes no RNG
+
+  **Almanac identity:**
+  - two *genuine* acquisitions of the same affix use distinct canonical acquisition identities when the engine says they are distinct acquisitions (one history record, ≥2 observations) — Test A
+  - replaying the *same* acquisition adds no duplicate discovery — Test B
+  - a prefix + suffix reward records both affixes with unambiguous acquisition identity
+
+  **Mechanical ownership:**
+  - both prefix and suffix mechanics originate from engine-owned canonical data (recorded snapshot fields equal the engine definition's, not any client constant)
+  - `RngService` drives selection (same seed → same slots; a different seed may differ)
+  - non-stat mechanic path: a heal/bank affix produces the engine-defined effect (HP / upgrade points move) *and* is recorded
+  - the `affixEventId` in each record equals the engine's, asserted via the engine handle — never client-generated
+  - no client prefix/suffix table remains
+- [ ] **Step 2: Cleanup grep gate.** `grep -rn -E "Affix\(|itemPrefixes|itemSuffixes|techniquePrefixes|techniqueSuffixes|AffixEffect|AffixLean|_affixByInstance|recordAffix\b" lib/` → **zero** hits. Shell check in the task notes (not a Dart test).
 - [ ] **Step 3: Run the full suite** `flutter analyze && flutter test` — all green, no unrelated test touched.
 - [ ] **Step 4: Commit.** `git commit -m "test(affix): spec §13 acceptance sweep + client-vocabulary cleanup gate"`
 
@@ -463,13 +524,19 @@ testWidgets('a locked affix leaks no name / stat / value in UI or semantics',
 
 ## Self-Review
 
-**Spec coverage:** §4/§5 canonical identity + registry → Task 7 (enumeration) + Task 0 (verification). §5.1/§6 selection policy + roll → Task 3. §7 offer identity / preview purity → Task 3 (pure getter, one resolution) + Task 4 (preview-does-not-record test). §8/§8.1 mechanical application incl. non-stat → Task 4 + Task 9. §9/§9.1 recording + `affixEventId` ownership → Task 4 + Task 9. §10 producer/bridge → Task 4 (engine result carries id) + Task 0 (which shape). §11 boundary / Almanac ownership in engine → Task 1 + Task 2. §12 client migration steps 1-10 → Tasks 3-8. §13 acceptance criteria → Task 9 sweep. §14 non-goals respected (no schema redesign, no `CodexRepository` change, no second RNG, no client registry).
+**Spec coverage:** §4/§5 canonical identity + registry → Task 7 (enumeration) + Task 0 (verification). §5.1/§6 selection policy + slot roll → Task 3. §7 offer identity / preview purity → Task 3 (pure getter, resolve-once-per-slot) + Task 4 (preview-does-not-record test). §8/§8.1 mechanical application incl. non-stat → Task 4 + Task 9. §9/§9.1 recording + `affixEventId` ownership + distinct-event-vs-replay → Task 4 (Test A / Test B) + Task 9. §10 producer/bridge → Task 4 (engine result carries id) + Task 0 (which shape, incl. one-event-vs-per-affix). §11 boundary / Almanac ownership in engine + persistence bridge exception → Task 1 + Task 2. §12 client migration steps 1-10 → Tasks 3-8. §13 acceptance criteria → Task 9 sweep. §14 non-goals respected (no schema redesign, no `CodexRepository` change, no second RNG, no client registry).
 
-**Placeholder scan:** engine calls are concrete against the spec's illustrative contract, each tagged `// SPEC §N — reconcile in Task 0`; Task 0 produces the real names before any of them is executed. No "TBD"/"handle edge cases"/"similar to Task N".
+**Ownership matrix (must hold at plan completion):** affix definition → build_engine · selection policy → build_engine · affix slot resolution → build_engine · reward-offer identity → engine reward layer · acquisition-event identity → build_engine reward/run layer · Almanac history → build_engine Almanac · presentation formatting (slot-aware name assembly) → Tome client.
 
-**Type consistency:** `AlmanacAffixView` fields (Task 7) are consumed unchanged by the screen (Task 8). `_OfferedAffix` (Task 3) is the only producer of the recording arguments (Task 4). `GameStoreAlmanacRepository` (Task 1) is the only `AlmanacRepository` impl, consumed by `AlmanacSession` (Task 2), consumed by `AlmanacAdapter` (Task 7) and `RewardAdapter` (Task 4).
+**Gameplay preservation:** the migration changes *where affixes come from*, not *how many affix slots a reward exposes*. `no affix` / `prefix only` / `suffix only` / `prefix + suffix` all remain reachable and semantically equivalent (Global Constraints + Task 9). Collapsing to one affix is explicitly out of scope.
 
-**Known risk:** if Task 0 finds the engine still lacks a taken-reward result exposing `affixId` + `affixEventId`, Tasks 3-4 cannot proceed as written — stop at Task 0 per the GATE and report the residual gap; do not fabricate an event id or a client affix table.
+**Persistence:** `GameStoreAlmanacRepository` depends only on the generic `GameStore` contract — no Devvit/Reddit/Redis/itch.io/`SharedPreferences` reference, no platform branch — and Task 1's remote-style test proves it works with a hydrate-once-cache + async-flush store, not just local durability.
+
+**Placeholder scan:** engine calls are concrete against the spec's illustrative contract, each tagged `// SPEC §N — reconcile in Task 0`; Task 0 resolves the real names — including the affix-slot container and the multi-affix acquisition-event model — before any is executed. No "TBD"/"handle edge cases"/"similar to Task N".
+
+**Type consistency:** `AlmanacAffixView` fields (Task 7) are consumed unchanged by the screen (Task 8). `_OfferedAffixes` (Task 3) is the only producer of the recording arguments (Task 4). `GameStoreAlmanacRepository` (Task 1) is the only `AlmanacRepository` impl, consumed by `AlmanacSession` (Task 2), consumed by `AlmanacAdapter` (Task 7) and `RewardAdapter` (Task 4).
+
+**Known risk:** if Task 0 finds the engine still lacks any GATE item — canonical identity, enumerable definitions, deterministic slot-preserving selection, stable offer identity, non-stat mechanical representation, or an authoritative + idempotent multi-affix acquisition-event model — the plan halts at Task 0. Report the residual gap; never fabricate an event id, a slot model, or a client affix table.
 
 ---
 

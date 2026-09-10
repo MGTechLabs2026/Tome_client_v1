@@ -31,15 +31,23 @@
 //                  a style view carries id, deterministic label,
 //                  tradition, `spec:*` tags, and aligned families, and
 //                  nothing else.
+//   * affixes    — every ContentDefinition tagged `affix` (AffixPlugin),
+//                  parsed via `affixDefinitionFromContent`. `discovered`
+//                  + the mechanical snapshot come from the engine
+//                  Almanac (`AlmanacSession.queries.getAffixHistory`);
+//                  with no AlmanacSession every affix reads as locked.
 //
 // Completion is not computed here: the screen intersects a CodexSnapshot
 // with these rosters, so an id the codex still holds after the engine
 // dropped it from its content simply stops counting.
+import 'package:build_engine/affix_plugin.dart';
+import 'package:build_engine/almanac.dart';
 import 'package:build_engine/build_engine.dart';
 import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/martial_arts_plugin.dart';
 import 'package:build_engine/technique_plugin.dart';
 
+import 'almanac_session.dart';
 import 'engine_session.dart';
 
 /// A drawn dimension out of one evolution / Combine branch: where it
@@ -137,6 +145,32 @@ class AlmanacTechniqueView {
   final List<AlmanacEvolutionEdge> evolutionCandidates;
 }
 
+/// One canonical reward affix, from `AffixPlugin` content. `stat` /
+/// `value` are the recorded mechanical snapshot and are non-null ONLY
+/// when [discovered]; `category` (`item_prefix` / `item_suffix` /
+/// `technique_prefix` / `technique_suffix`) is the structural axis and
+/// is always present. `label` is the engine `AffixDefinition.label` —
+/// the screen must NOT render it (visually or in semantics) for a
+/// locked affix (§17 locked secrecy); it is carried for the discovered
+/// detail leaf only.
+class AlmanacAffixView {
+  const AlmanacAffixView({
+    required this.id,
+    required this.label,
+    required this.category,
+    required this.stat,
+    required this.value,
+    required this.discovered,
+  });
+
+  final String id;
+  final String label;
+  final String category;
+  final String? stat;
+  final num? value;
+  final bool discovered;
+}
+
 /// The whole reference roster as of right now. `total` is the current
 /// roster size — the denominator the screen shows before any completion
 /// math.
@@ -145,13 +179,16 @@ class AlmanacSnapshot {
     required this.styles,
     required this.items,
     required this.techniques,
+    required this.affixes,
   });
 
   final List<AlmanacStyleView> styles;
   final List<AlmanacItemView> items;
   final List<AlmanacTechniqueView> techniques;
+  final List<AlmanacAffixView> affixes;
 
-  int get total => styles.length + items.length + techniques.length;
+  int get total =>
+      styles.length + items.length + techniques.length + affixes.length;
 }
 
 /// Reads the reference content registered in [_session]'s `PluginContext`
@@ -159,9 +196,10 @@ class AlmanacSnapshot {
 /// only `context.content`, never a character — so it is safe to call
 /// from a title-menu screen with no active run.
 class AlmanacAdapter {
-  AlmanacAdapter(this._session);
+  AlmanacAdapter(this._session, {AlmanacSession? almanac}) : _almanac = almanac;
 
   final EngineSession _session;
+  final AlmanacSession? _almanac;
 
   ContentRegistry get _content => _session.context.content;
 
@@ -169,6 +207,7 @@ class AlmanacAdapter {
         styles: _styles(),
         items: _items(),
         techniques: _techniques(),
+        affixes: _affixes(),
       );
 
   // --- styles ---------------------------------------------------------
@@ -240,6 +279,31 @@ class AlmanacAdapter {
       tags: structural,
       properties: Map.unmodifiable(d.properties),
       evolutionCandidates: _edges(d.evolutionCandidates),
+    );
+  }
+
+  // --- affixes ---------------------------------------------------
+
+  List<AlmanacAffixView> _affixes() {
+    final defs = _content.withTag('affix').toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
+    final queries = _almanac?.queries;
+    return [
+      for (final d in defs)
+        _affixView(affixDefinitionFromContent(d), queries),
+    ];
+  }
+
+  AlmanacAffixView _affixView(AffixDefinition d, AlmanacQueries? q) {
+    final history = q?.getAffixHistory(d.id);
+    final discovered = history != null;
+    return AlmanacAffixView(
+      id: d.id,
+      label: d.label,
+      category: d.category,
+      stat: discovered ? history.snapshot.stat : null,
+      value: discovered ? history.snapshot.value : null,
+      discovered: discovered,
     );
   }
 

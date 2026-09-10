@@ -4,10 +4,14 @@
 // the live engine content registry*, never a hand-maintained catalogue,
 // and a style view carries only what the engine actually models (no
 // archetype, no reconstructed specialty modifier).
+import 'package:build_engine/almanac.dart';
 import 'package:build_engine/martial_arts_plugin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/core/engine/almanac_adapter.dart';
+import 'package:tome_client/core/engine/almanac_session.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
+import 'package:tome_client/core/persistence/game_store.dart';
+import 'package:tome_client/core/persistence/game_store_almanac_repository.dart';
 
 void main() {
   late EngineSession session;
@@ -159,6 +163,56 @@ void main() {
         expect(i.tags, isNot(contains(anyElement(startsWith('rarity:')))));
         expect(i.tags, isNot(contains('item')));
       }
+    });
+  });
+
+  group('affixes: engine roster + Almanac discovery', () {
+    test('roster is exactly the engine `affix`-tagged content (33)', () {
+      final engineIds = session.context.content
+          .withTag('affix').map((d) => d.id).toSet();
+      final rosterIds = snap().affixes.map((a) => a.id).toSet();
+      expect(rosterIds, engineIds);
+      expect(rosterIds.length, 33);
+    });
+
+    test('with no AlmanacSession every affix reads locked, no stat/value', () {
+      for (final a in snap().affixes) {
+        expect(a.discovered, isFalse);
+        expect(a.stat, isNull);
+        expect(a.value, isNull);
+        expect(a.category, isNotEmpty); // structural axis always present
+      }
+    });
+
+    test('a recorded affix reads discovered with its snapshot stat/value', () {
+      final almanac = AlmanacSession(GameStoreAlmanacRepository(GameStore.memory()));
+      almanac.recorder.recordAffixDiscovered(
+        affixId: 'af_keen',
+        observation: const AffixObservation(
+            affixEventId: '13:1:affix:0:0', runId: '13:1', runNumber: 1),
+        snapshot: const AffixSnapshot(
+            affixId: 'af_keen', stat: 'weapon_stat_bonus', value: 3,
+            category: 'item_prefix'),
+        timestamp: DateTime.utc(2026),
+      );
+
+      final affixes = AlmanacAdapter(session, almanac: almanac).snapshot().affixes;
+      final keen = affixes.firstWhere((a) => a.id == 'af_keen');
+      expect(keen.discovered, isTrue);
+      expect(keen.label, 'Keen');
+      expect(keen.category, 'item_prefix');
+      expect(keen.stat, 'weapon_stat_bonus');
+      expect(keen.value, 3);
+
+      // a sibling affix that was not recorded stays locked
+      final other = affixes.firstWhere((a) => a.id != 'af_keen' && !a.discovered);
+      expect(other.stat, isNull);
+    });
+
+    test('snapshot.total includes the affix roster', () {
+      final s = snap();
+      expect(s.total,
+          s.styles.length + s.items.length + s.techniques.length + s.affixes.length);
     });
   });
 }

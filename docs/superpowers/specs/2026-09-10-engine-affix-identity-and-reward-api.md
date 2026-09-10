@@ -2,17 +2,38 @@
 
 ## Status
 
-**BLOCKED — engine API gap**
+**MIGRATED** — 2026-09-10. The engine milestone shipped as
+`build_engine @ 35b8f2fb5e1ddde1948284957438a1e363bb6c85` (`AffixPlugin`,
+`package:build_engine/affix_plugin.dart`), and the Tome client migration
+against it landed on branch `worktree-affix-migration`, commits
+`6fee90b..b75e025`:
 
-Target engine revision inspected:
+- `reward_affix.dart` deleted; `RewardAdapter` calls `resolveRewardAffixes`
+  (offer, pure) + `acquireAffixes` (TAKE) and records each acquired affix via
+  `AlmanacRecorder.recordAffixDiscovered` with the engine-minted `affixEventId`.
+- `GameStoreAlmanacRepository` + app-lifetime `AlmanacSession` persist the
+  Almanac across `EngineSession` rebuilds.
+- `AlmanacAdapter` + the Almanac screen gained an `AFFIXES` group
+  (recorded / canonical, discovered effect leaf, locked category-only secrecy).
+- `CodexRepository` unchanged; no client affix vocabulary remains.
 
-`build_engine @ b43b4147bb9224b01ed5818ad0fea5b03408586b`
+Originally written as a forward request for the engine milestone. The
+requirements below are preserved as the record of what was asked for; the
+engine's own `docs/superpowers/specs/2026-09-10-engine-affix-plugin-design.md`
+is the design that answered it.
+
+---
+
+## Original status (superseded)
+
+**BLOCKED — engine API gap.** Target engine revision inspected:
+`build_engine @ b43b4147bb9224b01ed5818ad0fea5b03408586b`.
 
 This specification records the minimum engine-side work required before Tome can migrate to **engine-owned affixes only**.
 
-It is written as a forward request for a future `build_engine` milestone. That milestone is *expected* to modify `build_engine`; what is out of scope is doing engine work, or a client workaround, as part of the current Tome client task. Until the milestone lands, the client migration stays paused.
+It was written as a forward request for a future `build_engine` milestone. That milestone was *expected* to modify `build_engine`; what was out of scope was doing engine work, or a client workaround, as part of the current Tome client task. Until the milestone landed, the client migration stayed paused.
 
-No client compatibility table, renamed copy, or relocated copy of the current `reward_affix.dart` vocabulary may be introduced.
+No client compatibility table, renamed copy, or relocated copy of the current `reward_affix.dart` vocabulary was to be introduced.
 
 ---
 
@@ -585,14 +606,15 @@ This engine change does not require:
 
 ---
 
-## 15. Current Blocker
+## 15. Current Blocker — RESOLVED
 
-At `b43b4147`:
+At `b43b4147` this read:
 
 > Almanac persistence is available, but canonical affix identity, canonical reward selection, canonical mechanical ownership, and authoritative taken-event identity are not available as a complete public engine contract.
 
-Therefore:
-
-> **Do not implement the Tome affix migration yet.**
-
-The next milestone is the engine-side affix API described above. After it lands, the client migration in §12 can proceed without architectural compromise.
+All four landed at `build_engine @ 35b8f2fb` (`AffixPlugin`): `AffixDefinition`
++ `type:'affix'` content, `resolveRewardAffixes` (deterministic 2-slot,
+`RngService`), `AffixMechanic` (stat + heal + bank), and
+`AffixAcquisitionIdSource` / `acquireAffixes` (engine-minted `affixEventId`,
+one `AffixAcquisition` per affix). The client migration in §12 was completed
+against it — see the Status section at the top of this file.

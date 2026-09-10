@@ -1,6 +1,6 @@
 # Resolved Engine API — affix migration (Task 0 output)
 
-**Engine revision:** `build_engine @ 35b8f2f5e1ddde1948284957438a1e363bb6c85`
+**Engine revision:** `build_engine @ 35b8f2fb5e1ddde1948284957438a1e363bb6c85`
 (branch `design/engine-owned-affix-api` merged to `main`; was `b43b4147`).
 **Public barrel:** `package:build_engine/affix_plugin.dart` — import this, never `src/plugins/affix/...`.
 **Engine design doc (authoritative):** `built_engine/docs/superpowers/specs/2026-09-10-engine-affix-plugin-design.md`

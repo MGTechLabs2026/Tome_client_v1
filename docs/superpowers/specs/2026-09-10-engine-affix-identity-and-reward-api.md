@@ -10,7 +10,9 @@ Target engine revision inspected:
 
 This specification records the minimum engine-side work required before Tome can migrate to **engine-owned affixes only**.
 
-No client compatibility table or renamed copy of the current `reward_affix.dart` vocabulary should be introduced.
+It is written as a forward request for a future `build_engine` milestone. That milestone is *expected* to modify `build_engine`; what is out of scope is doing engine work, or a client workaround, as part of the current Tome client task. Until the milestone lands, the client migration stays paused.
+
+No client compatibility table, renamed copy, or relocated copy of the current `reward_affix.dart` vocabulary may be introduced.
 
 ---
 
@@ -30,7 +32,7 @@ That system defines:
 * reward rolling
 * item/technique affix semantics
 
-The engine already contains Almanac infrastructure capable of recording affix history, but it does not currently own the canonical affix vocabulary or reward-affix resolver.
+The engine already contains Almanac infrastructure capable of recording affix history, but it does not currently own the canonical affix vocabulary or the reward-affix resolver.
 
 Therefore the client cannot migrate cleanly to engine-owned affixes without an engine API addition.
 
@@ -38,7 +40,7 @@ Therefore the client cannot migrate cleanly to engine-owned affixes without an e
 
 ## 2. Existing Engine Surface
 
-The following APIs already exist and are usable:
+The following APIs already exist and are usable at `b43b4147`:
 
 ### Almanac
 
@@ -86,11 +88,11 @@ The current Tome reward path already uses the item stat-bonus mechanism.
 
 The engine currently has no equivalent of:
 
-* `AffixDefinition`
-* `AffixIds`
-* `AffixCategory`
+* an affix definition model
+* stable affix ids
+* an affix category vocabulary
 * canonical affix content definitions
-* ContentRegistry `type: 'affix'`
+* `ContentRegistry` `type: 'affix'`
 
 `AffixSnapshot` is only a recorded observation:
 
@@ -111,37 +113,43 @@ That is the primary blocker.
 
 ---
 
-## 4. Required Engine Affix Definition
+## 4. Required Engine Affix Semantics
 
 Introduce an engine-owned canonical affix definition.
 
-The exact class name may differ, but it should provide the equivalent of:
+The following is an **illustrative shape only — not a mandated engine class**:
 
 ```dart
+// ILLUSTRATIVE — semantics, not a prescribed definition.
 class AffixDefinition {
-  final String id;
-  final String label;
-  final String category;
-  final String stat;
-  final num value;
-  final Map<String, num> physiqueWeights;
+  final String id;       // stable opaque identity
+  final String label;    // deterministic display label
+  final String category; // canonical category
+  final String stat;     // canonical mechanical target
+  final num value;       // canonical mechanical magnitude
 }
 ```
 
+> The exact model name, field layout, inheritance/composition strategy, and storage representation are implementation decisions for build_engine. The requirements below describe the semantics that must be available, not a prescribed class definition.
+
 The final schema should follow existing engine content conventions rather than duplicating client-only abstractions.
 
-Requirements:
+### 4.1 Canonical identity requirements
 
-* stable opaque `id`
-* deterministic label
-* canonical mechanical data
+* stable opaque `id`, never derived from the display label
+* deterministic label (an id may map to a label without a lore/flavour table)
 * canonical category
-* canonical numeric value
-* canonical physique/reward weighting data
 * immutable definition
-* serializable/content-registry compatible
+* serializable / content-registry compatible
 
-Do not derive identity from the display label.
+### 4.2 Canonical mechanical requirements
+
+* enough structured mechanical data for the engine/application boundary to apply the affix's intended effect without the client reconstructing it (see §8)
+* canonical numeric magnitude(s) owned by the engine
+
+### 4.3 Reward-selection metadata is NOT intrinsic affix identity
+
+Physique affinity, rarity, tradition/style affinity, reward-context weighting, and "no affix" probability are **reward-selection policy**, not properties of the affix's identity. They must be engine-owned, but they need not live as fields directly on the affix definition. See §5 and §6.
 
 ---
 
@@ -177,6 +185,24 @@ This is necessary for:
 
 The client must not maintain a second canonical affix list.
 
+### 5.1 Affix identity vs reward-selection policy
+
+Two distinct canonical concerns, both engine-owned, kept separate:
+
+```text
+Affix definition                 Reward-selection policy
+────────────────                 ──────────────────────
+canonical identity (stable id)   rarity / weight
+canonical display metadata       physique affinity
+canonical mechanical payload     tradition / style affinity
+                                 reward-context weighting
+                                 "no affix" probability
+```
+
+The engine must own whatever canonical selection metadata or policy is required to reproduce the intended reward behaviour. The client must not own that policy.
+
+Do not over-design a new policy subsystem if existing engine reward infrastructure (`RewardDefinition` / `RewardCandidate` weights, `RewardResolver`) can cleanly carry it.
+
 ---
 
 ## 6. Canonical Affix Rolling
@@ -186,10 +212,8 @@ The engine needs a deterministic public resolver.
 Acceptable designs include either:
 
 ```dart
-AffixDefinition rollAffix(
-  ...
-  RngService rng,
-)
+// ILLUSTRATIVE
+AffixDefinition rollAffix(/* pool, reward context */ RngService rng);
 ```
 
 or integrating affixes into the existing reward-candidate pipeline.
@@ -208,23 +232,85 @@ mechanical application
 Almanac observation
 ```
 
-The roll must use the engine RNG abstraction.
+The roll must use the engine RNG abstraction (`RngService`). No second RNG path.
 
 The client must not continue to implement:
 
 * affix probability
 * affinity weighting
 * prefix/suffix selection
-* `no affix` probability
+* "no affix" probability
 * affix selection pools
 
 ---
 
-## 7. Mechanical Application
+## 7. Reward Offer Identity and TAKE Semantics
 
-The selected `AffixDefinition` must be sufficient to apply its canonical mechanics.
+The affix on a reward is resolved **once**, at reward generation, and stays fixed through preview and acquisition.
 
-For item rewards, the engine must be able to derive the resulting stat modification from the affix definition rather than requiring the client to reconstruct:
+Lifecycle:
+
+```text
+reward generation
+    ↓
+resolved reward offer
+    ↓
+stable affix identity
+    ↓
+preview
+    ↓
+player TAKE
+    ↓
+apply canonical mechanics
+    ↓
+record discovery
+```
+
+### 7.1 Stable offer identity
+
+Once an affix reward is presented, its selected affix must remain the same through preview and TAKE. Previewing the reward must not perform another affix roll.
+
+### 7.2 Preview purity
+
+Rendering or inspecting a reward candidate must have no gameplay side effects. Preview must not:
+
+* consume RNG for a new affix roll
+* record Almanac discovery
+* mutate player state
+* mark the affix as used
+
+### 7.3 TAKE semantics
+
+TAKE must operate on the already-resolved reward candidate:
+
+```text
+offer.affixId
+    ↓
+TAKE
+    ↓
+canonical engine definition
+    ↓
+mechanical application
+    ↓
+Almanac discovery
+```
+
+The following is forbidden:
+
+```text
+preview → roll A
+take    → roll B
+```
+
+That makes displayed rewards unstable and breaks deterministic reward semantics.
+
+---
+
+## 8. Mechanical Application
+
+The selected canonical affix must expose enough structured information for the engine / application boundary to apply its intended mechanics.
+
+For item rewards, the engine must be able to derive the resulting stat modification from the canonical affix rather than requiring the client to reconstruct:
 
 ```text
 label → effect → amount
@@ -232,18 +318,27 @@ label → effect → amount
 
 For technique rewards, the engine must define the canonical semantics for one-shot effects such as healing or banking progression.
 
-The engine-side design should avoid encoding UI concepts such as "prefix" or "suffix" as the fundamental identity model unless those concepts are genuinely part of the canonical game model.
+The client must not reconstruct semantics from:
+
+```text
+label
+prefix/suffix name
+hardcoded effect enum
+hardcoded number
+```
+
+The engine-side design should avoid encoding UI concepts such as "prefix" or "suffix" as the fundamental identity model. Those may remain reward-presentation concepts if the engine design determines they are not fundamental domain identity.
 
 ---
 
-## 8. Almanac Recording Contract
+## 9. Almanac Recording Contract
 
 When an affix is actually taken, the composition layer may record:
 
 ```dart
 almanacRecorder.recordAffixDiscovered(
   affixId: definition.id,
-  observation: ...,
+  observation: /* carries the canonical acquisition-event identity */,
   snapshot: AffixSnapshot(
     affixId: definition.id,
     stat: definition.stat,
@@ -254,11 +349,27 @@ almanacRecorder.recordAffixDiscovered(
 );
 ```
 
-The client must not invent the `AffixSnapshot`.
+The client must not invent the `AffixSnapshot`. The snapshot must be derived from the engine-owned canonical affix.
 
-The snapshot must be derived from the engine-owned `AffixDefinition`.
+### 9.1 `affixEventId` ownership
 
-Discovery timing:
+> `affixEventId` must originate from the engine / composition-layer reward-acquisition event and must represent the actual TAKE / acquisition event. The Tome client must not invent arbitrary event ids solely to satisfy Almanac persistence.
+
+Why: the engine Almanac is idempotent on `(affixId, affixEventId)`. The identity of the actual acquisition event must therefore itself be stable and authoritative. The contract must prevent this failure mode:
+
+```text
+same affix acquired
+    ↓
+client invents a new random event id each time
+    ↓
+Almanac sees different events
+    ↓
+duplicate history
+```
+
+The client may forward the canonical event identity into the Almanac boundary, but it must not manufacture a substitute identity.
+
+### 9.2 Discovery timing
 
 ```text
 reward preview
@@ -269,25 +380,32 @@ player takes reward
     → record affix discovery
 ```
 
-The existing Almanac idempotency contract should remain intact.
+The existing Almanac idempotency contract must remain intact.
 
 ---
 
-## 9. Producer / Bridge Requirement
+## 10. Producer / Bridge Requirement
 
-One of the following must be provided:
+One of the following must be provided.
 
 ### Preferred
 
-The engine run/reward system emits a canonical affix-taken event/result containing the selected `AffixDefinition` or `affixId`.
+The engine run / reward layer produces a canonical taken-reward result / event containing:
+
+* stable reward / acquisition event identity
+* selected affix identity
+* the canonical affix definition, or an engine identity that resolves to it
 
 ### Acceptable
 
-The composition layer receives the canonical `AffixDefinition` and is explicitly responsible for calling:
+The composition layer receives the canonical engine affix result and performs the Almanac recording call. The contract must be documented.
 
-`recordAffixDiscovered(...)`
+### In either case
 
-The contract must be documented.
+* the client does not define the affix
+* the client does not roll the affix
+* the client does not construct canonical mechanical values
+* the client does not fabricate `affixEventId`
 
 What must not happen:
 
@@ -303,7 +421,42 @@ That leaves canonical game content in the client.
 
 ---
 
-## 10. Tome Client Migration Unblocked by This Spec
+## 11. Implementation Boundary
+
+Five distinct concerns, and where each is owned:
+
+| Concern | Owner |
+|---|---|
+| **Affix definition** — stable id, display metadata, mechanical payload | build_engine (canonical content) |
+| **Reward-selection policy** — rarity, affinity, context weighting, "no affix" chance | build_engine (canonical, may be separate content/config) |
+| **Reward offer** — the resolved candidate shown to the player, fixed at generation | build_engine reward layer |
+| **Acquisition event** — the TAKE, with its own stable `affixEventId` | build_engine / composition boundary |
+| **Almanac observation** — the recorded `(affixId, affixEventId)` history entry | build_engine Almanac, fed at the composition boundary |
+
+```text
+                BUILD ENGINE
+┌──────────────────────────────────────────────┐
+│ canonical affix identity / definitions       │
+│ reward-selection policy                       │
+│ deterministic affix resolution               │
+│ canonical reward acquisition identity         │
+│ mechanical application                        │
+└──────────────────────┬───────────────────────┘
+                       │
+                       ▼
+              composition boundary
+                       │
+          ┌────────────┴────────────┐
+          ▼                         ▼
+   Tome presentation          Almanac recording
+   / reward UI                recordAffixDiscovered
+```
+
+> Tome may present engine-owned reward data, but it must not become the source of truth for affix identity, mechanics, selection, or acquisition identity.
+
+---
+
+## 12. Tome Client Migration Unblocked by This Spec
 
 Once the engine API exists, Tome should:
 
@@ -311,40 +464,44 @@ Once the engine API exists, Tome should:
 2. Remove client-owned affix rolling.
 3. Remove client-owned affix mechanical definitions.
 4. Route reward selection through the engine affix API.
-5. Record taken affixes through the engine Almanac.
+5. Record taken affixes through the engine Almanac, forwarding the canonical `affixEventId`.
 6. Extend `AlmanacAdapter` with engine-derived affix views.
 7. Add an `AFFIXES` Almanac group.
 8. Enumerate the affix roster from engine content.
 9. Display only discovered mechanical details for discovered affixes.
 10. Keep locked affixes intentionally undisclosed.
 
-`CodexRepository` should remain unchanged.
-
-Affix discovery should belong to the engine Almanac path rather than becoming a fourth Codex bucket.
+`CodexRepository` remains unchanged. Affix discovery belongs to the engine Almanac path, not a fourth Codex bucket.
 
 ---
 
-## 11. Acceptance Criteria
+## 13. Acceptance Criteria
 
 The engine work is complete only when all are true:
 
 * canonical affix definitions exist in build_engine
-* every canonical affix has a stable opaque ID
+* every canonical affix has a stable opaque id
 * affixes are enumerable without client tables
 * reward resolution can select an affix through engine APIs
 * affix selection uses `RngService`
-* mechanical values come from engine-owned definitions
+* mechanical values come from engine-owned canonical data
 * the selected affix can be applied without client-owned canonical data
+* **engine-owned reward-selection logic can deterministically select valid affixes using canonical engine data and the applicable reward context** — physique/affinity/rarity weighting is owned by that logic rather than required to be a field directly on the affix model
+* affix reward offers have stable identity from generation through TAKE
+* previewing an offer does not reroll or mutate state
+* TAKE uses the already-resolved offered affix
+* `affixEventId` is authoritative and not client-fabricated
+* repeated TAKE / replay of the same acquisition event remains idempotent
 * a taken affix can be recorded using its engine definition
-* Almanac serialization/hydration preserves the record
+* Almanac serialization / hydration preserves the record
 * duplicate `(affixId, affixEventId)` recording remains idempotent
-* headless tests cover definition, roll, application, and recording
+* headless tests cover definition, roll, offer stability, application, and recording
 * public package exports expose the required API
-* no client compatibility table is required
+* the client cannot reproduce the canonical affix roster by maintaining a parallel table
 
 ---
 
-## 12. Explicit Non-Goals
+## 14. Explicit Non-Goals
 
 This engine change does not require:
 
@@ -355,15 +512,22 @@ This engine change does not require:
 * duplicating engine content into UI adapters
 * changing unrelated reward mechanics
 * redesigning item or technique systems beyond the minimum affix integration
+* prescribing the exact engine affix-definition class shape
+* forcing physique / reward weighting into the affix model
+* requiring prefix / suffix to be fundamental affix-domain concepts
+* creating a parallel client-side reward-selection policy
+* introducing a second RNG path
 
 ---
 
-## 13. Current Blocker
+## 15. Current Blocker
 
-At `b43b4147`, the blocker is:
+At `b43b4147`:
 
-> **The engine can persist affix observations but cannot authoritatively define or produce an affix.**
+> Almanac persistence is available, but canonical affix identity, canonical reward selection, canonical mechanical ownership, and authoritative taken-event identity are not available as a complete public engine contract.
 
-Therefore the Tome migration is intentionally paused.
+Therefore:
 
-The correct next implementation target is an **engine affix identity + registry + reward-resolution API**, after which the client migration can proceed without architectural compromise.
+> **Do not implement the Tome affix migration yet.**
+
+The next milestone is the engine-side affix API described above. After it lands, the client migration in §12 can proceed without architectural compromise.

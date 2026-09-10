@@ -50,11 +50,11 @@ Every task's requirements implicitly include this section.
 |---|---|---|
 | `lib/core/engine/reward_affix.dart` | client affix vocabulary + roll | **delete** |
 | `lib/core/persistence/game_store_almanac_repository.dart` | `AlmanacRepository` over the generic `GameStore` contract (`almanac.v1` key); transport-agnostic, no platform logic | **create** |
-| `lib/core/engine/almanac_session.dart` | owns the composition-root `AlmanacRecorder` + persistence, survives `EngineSession` rebuilds | **create** |
+| `lib/core/engine/almanac_session.dart` | app-lifetime Almanac recorder + persistence; survives `EngineSession` rebuilds; injected directly into the adapters that need it | **create** |
 | `lib/core/engine/reward_adapter.dart` | reward offer + TAKE; engine-resolved affix slot(s), application, and recording | modify |
 | `lib/core/engine/item_adapter.dart` | drop `_affixByInstance` / `recordAffix`; derive name + bonus from engine state | modify |
-| `lib/core/engine/almanac_adapter.dart` | add `AlmanacAffixView` + `affixes` on `AlmanacSnapshot` | modify |
-| `lib/core/engine/engine_session.dart` | expose run id/number + the `AlmanacRecorder` handle for adapters | modify |
+| `lib/core/engine/almanac_adapter.dart` | add `AlmanacAffixView` + `affixes` on `AlmanacSnapshot`; take `AlmanacSession` by injection | modify |
+| `lib/core/engine/engine_session.dart` | existing run/session state; expose run id/number for `AffixObservation`. Only gains an Almanac integration handle if Task 0/2 shows the wiring genuinely needs one — it is **not** a pass-through for `AlmanacRecorder` | modify (minimal) |
 | `lib/core/models/loot_option_view.dart` | affix-name / effect-list fields sourced from engine data | modify |
 | `lib/core/models/item_view.dart` | `affixBonus` / `displayName` doc + derivation | modify (minimal) |
 | `lib/features/tome/widgets/component_detail_sheet.dart` | "AFFIXES while hung" row copy | modify (minimal) |
@@ -140,28 +140,33 @@ void main() {
   });
 
   test('transport-agnostic: history survives across sessions over a '
-      'remote-style store (hydrate-once cache + async flush), not just local', () async {
-    // A minimal GameStore that mimics RemoteGameStore's shape: writes go
-    // through an async transport, reads come from an in-memory cache
-    // seeded from a prior "server" snapshot. Proves the repository does
-    // not assume SharedPreferences / localStorage durability.
-    final backing = <String, Map<String, Object?>>{};
-    GameStore session() => _CacheThenFlushStore(backing);
+      'remote-style store, waiting on an explicit write-completion signal '
+      '(not scheduler timing)', () async {
+    // _TestRemoteStore mimics RemoteGameStore's shape: read() serves an
+    // in-memory cache synchronously; write() updates a shared "server"
+    // map through an async transport and exposes `lastWrite` so the test
+    // observes completion deterministically — no Future.delayed, no
+    // sleeps, no polling. Proves the repository does not assume
+    // SharedPreferences / localStorage durability.
+    final server = <String, Map<String, Object?>>{};
+    final s1store = _TestRemoteStore(server);
 
-    final s1 = GameStoreAlmanacRepository(session());
+    final s1 = GameStoreAlmanacRepository(s1store);
     final rec = AlmanacRecorder(s1.load())
       ..recordAffixDiscovered( /* af_keen / evt-1 / run-1 as above */ );
     s1.save(rec.state);
-    await Future<void>.delayed(Duration.zero); // let the async flush land
+    await s1store.lastWrite;                 // <-- deterministic completion
 
-    final s2 = GameStoreAlmanacRepository(session()); // fresh "session"
+    final s2 = GameStoreAlmanacRepository(_TestRemoteStore(server)); // fresh session
     expect(s2.load().affixes.map((a) => a.affixId), contains('af_keen'));
   });
 }
 
-// _CacheThenFlushStore: read() from `backing` synchronously; write()
-// updates `backing` then returns a completed Future — the RemoteGameStore
-// contract shape without any network.
+// _TestRemoteStore: `read()` returns `server[key]` synchronously (the
+// hydrated cache); `write()` copies into `server` and completes a
+// `Completer`, exposed as `Future<void> get lastWrite`. Zero network,
+// zero timing assumptions. Does NOT change the production GameStore
+// contract — it only adds an observable signal on the test double.
 ```
 - [ ] **Step 2: Run — expect FAIL** (`game_store_almanac_repository.dart` missing). `flutter test test/core/persistence/game_store_almanac_repository_test.dart`
 - [ ] **Step 3: Implement.**
@@ -178,6 +183,13 @@ const _kKey = 'almanac.v1';
 /// JSON and one [GameStore] document. Tolerates a missing / unparseable
 /// document by returning [AlmanacState.empty] — same forward-compat
 /// contract as the other repositories.
+///
+/// `save()` delegates persistence through the existing asynchronous,
+/// fire-and-forget `GameStore.write()` contract. It does NOT redefine
+/// that contract or synchronously guarantee remote-transport completion;
+/// "repository state updated" and "remote write completed" are distinct.
+/// Tests observe completion through a deterministic test store/transport
+/// (see the remote-style test), never through timing.
 class GameStoreAlmanacRepository implements AlmanacRepository {
   GameStoreAlmanacRepository(this._store);
   final GameStore _store;
@@ -206,12 +218,14 @@ class GameStoreAlmanacRepository implements AlmanacRepository {
 
 ---
 
-## Task 2: `AlmanacSession` — composition-root recorder that outlives `EngineSession`
+## Task 2: `AlmanacSession` — app-lifetime recorder that outlives `EngineSession`
 
 **Files:**
 - Create: `lib/core/engine/almanac_session.dart`
-- Modify: `lib/app/tome_app.dart` (construct + provide), `lib/core/engine/engine_session.dart` (accept an optional recorder handle)
-- Test: `test/core/engine/almanac_affix_migration_test.dart` (create; "restart" case here)
+- Modify: `lib/app/tome_app.dart` (construct + provide + inject)
+- Test: `test/core/engine/almanac_affix_migration_test.dart` (create; "restart" + "service lifetime" cases here)
+
+`engine_session.dart` is touched only if Task 0's resolved-api note or the real wiring shows an explicit Almanac integration handle is genuinely required. It is **not** modified to carry `AlmanacRecorder` as a convenience pass-through.
 
 **Interfaces:**
 - Consumes: `GameStoreAlmanacRepository`, engine `AlmanacRecorder` (+ `beginRun` if the resolved-api note says so), `AlmanacQueries`.
@@ -225,7 +239,7 @@ class GameStoreAlmanacRepository implements AlmanacRepository {
     void persist();                  // repo.save(recorder.state)
   }
   ```
-  Lifetime = the app, not a run. `tome_app.dart` builds one `AlmanacSession` from `_store` next to `_codex` (line ~92) and passes it into `EngineSession` / `RewardAdapter`.
+  Lifetime = the app, not a run. `tome_app.dart` builds one `AlmanacSession` from `_store` next to `_codex` (line ~92); it is **injected directly** into the adapters that need it — `RewardAdapter(almanac: _almanac, ...)`, `AlmanacAdapter(almanac: _almanac, ...)`. `EngineSession` must not expose `AlmanacRecorder` solely as a pass-through; an `EngineSession → AlmanacSession` handle is added only if Task 0/2 shows the current wiring genuinely needs one.
 
 - [ ] **Step 1: Write the failing test** ("an affix recorded in one session is visible after rehydration"):
 ```dart
@@ -233,6 +247,7 @@ class GameStoreAlmanacRepository implements AlmanacRepository {
 import 'package:build_engine/almanac.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/core/engine/almanac_session.dart';
+import 'package:tome_client/core/engine/engine_session.dart';
 import 'package:tome_client/core/persistence/game_store.dart';
 import 'package:tome_client/core/persistence/game_store_almanac_repository.dart';
 
@@ -255,11 +270,28 @@ void main() {
     final s2 = AlmanacSession(GameStoreAlmanacRepository(store));
     expect(s2.queries.getAffixHistory('af_keen'), isNotNull);
   });
+
+  test('service lifetime: one AlmanacSession spans EngineSession rebuilds', () {
+    // NOT a persistence test — the same AlmanacSession object is reused
+    // while the EngineSession is torn down and rebuilt for the next run.
+    final almanac = AlmanacSession(GameStoreAlmanacRepository(GameStore.memory()));
+
+    var engine = EngineSession(1);              // run 1
+    almanac..beginRun(runId: 'run-1', runNumber: 1);
+    almanac.recorder.recordAffixDiscovered(/* af_keen / evt-1 / run-1 */);
+
+    engine.dispose();
+    engine = EngineSession(2);                  // run 2 — fresh EngineSession
+    almanac.beginRun(runId: 'run-2', runNumber: 2);
+
+    expect(almanac.queries.getAffixHistory('af_keen'), isNotNull,
+        reason: 'history from run 1 is still available after the rebuild');
+  });
 }
 ```
 - [ ] **Step 2: Run — expect FAIL** (`almanac_session.dart` missing).
 - [ ] **Step 3: Implement `AlmanacSession`** — hydrate `AlmanacRecorder(repo.load())`, expose `recorder` / `queries` (rebuild `AlmanacQueries(recorder.state)` per get), `beginRun` delegates to the recorder's run entry point (per resolved-api note), `persist()` calls `repo.save(recorder.state)`.
-- [ ] **Step 4: Wire the root.** In `tome_app.dart`: `late final AlmanacSession _almanac = AlmanacSession(GameStoreAlmanacRepository(_store));` beside `_codex`; add `RepositoryProvider<AlmanacSession>.value(value: _almanac)` in the outer (session-independent) provider list; pass `_almanac` into `EngineSession` and `RewardAdapter` construction. `EngineSession` stores the handle for adapters; on NEW RUN (`_session = EngineSession(_seed)` line ~131) the same `_almanac` is reused (it must not be rebuilt).
+- [ ] **Step 4: Wire the root.** In `tome_app.dart`: `late final AlmanacSession _almanac = AlmanacSession(GameStoreAlmanacRepository(_store));` beside `_codex`; add `RepositoryProvider<AlmanacSession>.value(value: _almanac)` in the outer (session-independent) provider list; pass `_almanac` **directly** into the `RewardAdapter` / `AlmanacAdapter` constructors in the session-keyed provider block. On NEW RUN (`_session = EngineSession(_seed)` line ~131) the same `_almanac` is reused — it is never rebuilt. Do **not** thread it through `EngineSession` unless a real wiring need appears (then the handle is a documented `EngineSession` field, still not a raw `AlmanacRecorder`).
 - [ ] **Step 5: Run — expect PASS**, then `flutter analyze && flutter test`.
 - [ ] **Step 6: Commit.** `git commit -m "feat(almanac): composition-root AlmanacSession (recorder + persistence, outlives EngineSession)"`
 
@@ -296,7 +328,7 @@ void main() {
 - Test: `test/core/engine/almanac_affix_migration_test.dart`
 
 **Interfaces:**
-- Consumes: `AlmanacSession` (via `EngineSession`), the engine mechanical-application entry point for a resolved affix on an `ItemInstance` and for the technique one-shot effects (resolved-api note), engine acquisition / `affixEventId`.
+- Consumes: `AlmanacSession` (injected into `RewardAdapter` at construction), the engine mechanical-application entry point for a resolved affix on an `ItemInstance` and for the technique one-shot effects (resolved-api note), engine acquisition / `affixEventId`, and `_session` run id/number for the `AffixObservation`.
 - Produces: `applyLoot(LootKind.newComponent)` applies **every** resolved affix slot in the offer via the engine and, only on a real TAKE, records **each** acquired canonical affix through the engine Almanac using the authoritative acquisition identity the engine defines. Whether that is one acquisition event carrying all affixes or one event per affix is Task 0's finding — the plan requires only that the recording is unambiguous and idempotent. `almanac.persist()` runs once after recording. Cancel / re-roll / not-taken records nothing.
 
 - [ ] **Step 1: Write the failing tests.**
@@ -398,7 +430,7 @@ test('a prefix + suffix reward records both affixes unambiguously', () {
 - Test: `test/core/engine/almanac_adapter_test.dart`
 
 **Interfaces:**
-- Consumes: engine affix registry enumeration (`registry.allOfType('affix')` or resolved equivalent) for the canonical roster; `AlmanacSession.queries.getAffixHistory(affixId)` for discovered state; `AlmanacQueries` for a "discovered ids" set.
+- Consumes: engine affix registry enumeration (`registry.allOfType('affix')` or resolved equivalent) for the canonical roster; `AlmanacSession` (injected into `AlmanacAdapter` at construction) — `.queries.getAffixHistory(affixId)` for discovered state and a "discovered ids" set. The screen still gets plain `AlmanacAffixView`s; no engine type crosses into `lib/features/`.
 - Produces:
   ```dart
   class AlmanacAffixView {
@@ -530,7 +562,9 @@ testWidgets('a locked affix leaks no name / stat / value in UI or semantics',
 
 **Gameplay preservation:** the migration changes *where affixes come from*, not *how many affix slots a reward exposes*. `no affix` / `prefix only` / `suffix only` / `prefix + suffix` all remain reachable and semantically equivalent (Global Constraints + Task 9). Collapsing to one affix is explicitly out of scope.
 
-**Persistence:** `GameStoreAlmanacRepository` depends only on the generic `GameStore` contract — no Devvit/Reddit/Redis/itch.io/`SharedPreferences` reference, no platform branch — and Task 1's remote-style test proves it works with a hydrate-once-cache + async-flush store, not just local durability.
+**Persistence:** `GameStoreAlmanacRepository` depends only on the generic `GameStore` contract — no Devvit/Reddit/Redis/itch.io/`SharedPreferences` reference, no platform branch. `save()` delegates through `GameStore.write()`'s existing asynchronous fire-and-forget contract and does not synchronously guarantee remote completion. Task 1's remote-style test waits on a **deterministic `lastWrite` completion signal** from a `_TestRemoteStore` double — no `Future.delayed`, sleeps, or polling — and the production `GameStore` contract is not changed to make the test easier.
+
+**Almanac service lifetime vs persistence:** `AlmanacSession` is app-lifetime, built once in `tome_app.dart` and **injected directly** into `RewardAdapter` / `AlmanacAdapter`. It is *not* threaded through `EngineSession` — `EngineSession` stays the run/session owner and does not expose a raw `AlmanacRecorder` pass-through (a handle is added only if Task 0/2 shows the wiring genuinely needs one). Task 2 has two separate tests: "recorded affix survives an `AlmanacSession` restart" (persistence) and "one `AlmanacSession` spans `EngineSession` rebuilds" (service lifetime).
 
 **Placeholder scan:** engine calls are concrete against the spec's illustrative contract, each tagged `// SPEC §N — reconcile in Task 0`; Task 0 resolves the real names — including the affix-slot container and the multi-affix acquisition-event model — before any is executed. No "TBD"/"handle edge cases"/"similar to Task N".
 

@@ -1,3 +1,4 @@
+import 'package:build_engine/affix_plugin.dart';
 import 'package:build_engine/build_engine.dart';
 import 'package:build_engine/combat_plugin.dart';
 import 'package:build_engine/item_plugin.dart';
@@ -58,6 +59,7 @@ class EngineSession {
     PhysiquePlugin().initialize(context);
     ItemPlugin().initialize(context);
     TechniquePlugin().initialize(context);
+    AffixPlugin().initialize(context);
 
     _lineageSubscription = context.events.subscribe<TechniqueEvolved>((event) {
       lineage[event.toId] = event.fromId;

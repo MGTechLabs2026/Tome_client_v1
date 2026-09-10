@@ -34,11 +34,16 @@ void main() {
   });
 
   test('build_engine is imported only from lib/core/engine/, '
-      'lib/core/models/seeded_random.dart, and the documented training_bloc '
-      'exception', () {
+      'lib/core/models/seeded_random.dart, the documented training_bloc '
+      'exception, and the Almanac persistence bridge', () {
     const allowed = {
       'lib/core/models/seeded_random.dart',
       'lib/features/training/training_bloc.dart',
+      // Persistence-bridge exception: adapts the engine-owned
+      // AlmanacRepository interface onto GameStore. JSON in, JSON out, no
+      // game logic. No other file under lib/core/persistence/ may import
+      // build_engine.
+      'lib/core/persistence/game_store_almanac_repository.dart',
     };
     final offenders = [
       for (final f in _dartFiles('lib'))

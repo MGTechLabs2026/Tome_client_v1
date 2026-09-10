@@ -18,13 +18,16 @@ class ItemAdapter {
   /// rides through Combine — exactly like an affix.
   final Map<int, int> _upgradesByInstance = {};
 
-  /// Prefix / suffix labels for a rewarded item instance — keyed by the
+  /// Engine affix labels for a rewarded item instance — keyed by the
   /// `ItemInstance` entity's raw value, so two copies of the same id can
-  /// carry different rolls. Set by `RewardAdapter` when the card is taken.
+  /// carry different affixes. Set by `RewardAdapter` when the card is
+  /// taken. A pure per-session display cache: ephemeral, entity-id keyed,
+  /// rebuilt each session, never persisted (the engine Almanac owns the
+  /// durable affix record).
   final Map<int, ({String? prefix, String? suffix})> _affixByInstance = {};
 
-  /// Records the rolled affix name for the instance minted when a
-  /// rewarded item was taken.
+  /// Records the engine `AffixDefinition.label` for each resolved slot
+  /// on the instance minted when a rewarded item was taken.
   void recordAffix(int instanceEntityValue, {String? prefix, String? suffix}) {
     if (prefix == null && suffix == null) return;
     _affixByInstance[instanceEntityValue] = (prefix: prefix, suffix: suffix);

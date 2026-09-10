@@ -207,6 +207,10 @@ class _TomeAppState extends State<TomeApp> {
               techniquePool: kRewardTechniquePool,
               codex: _codex,
               almanac: _almanac,
+              currentRun: () => (
+                seed: _runBloc.state.sessionSeed,
+                number: _runBloc.state.runNumber,
+              ),
             ),
           ),
         ],

@@ -58,7 +58,7 @@ class ItemView {
 
   bool get canUpgrade => upgradeCount < upgradeCap;
 
-  /// The name to show — the rolled-affix name for a rewarded copy
+  /// The name to show — the engine-affix name for a rewarded copy
   /// (`Keen Iron Sword of the Ember`), or empty to fall back to the
   /// prettified [definitionId].
   final String displayName;

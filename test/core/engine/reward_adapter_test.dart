@@ -55,6 +55,58 @@ void main() {
     expect(ItemAdapter(session).ownedItems().map((v) => v.definitionId), contains(ItemIds.ironSword));
   });
 
+  test('currentOffer() re-reads the resolved offer without rolling', () {
+    final first = rewardAdapter.offerLoot();
+    final again = rewardAdapter.currentOffer();
+    expect(again, same(first), reason: 'the cached 3-card list, verbatim');
+
+    // Repeated reads never re-roll: same component + same resolved affix ids.
+    LootOptionView component(List<LootOptionView> o) =>
+        o.firstWhere((x) => x.kind == LootKind.newComponent);
+    final card = component(again);
+    for (var i = 0; i < 5; i++) {
+      final repeat = component(rewardAdapter.currentOffer());
+      expect(repeat.title, card.title);
+      expect(repeat.prefixAffixId, card.prefixAffixId);
+      expect(repeat.suffixAffixId, card.suffixAffixId);
+      expect(repeat.effects, card.effects);
+    }
+
+    // ...and no RNG was consumed: a fresh session driven the same way,
+    // with currentOffer() reads interleaved, yields the same next offer.
+    List<String> sequence({required bool peek}) {
+      final s = EngineSession(13);
+      final cha = CharacterAdapter(s)..createCharacter('Test Fighter');
+      final ra = RewardAdapter(
+        s,
+        itemAdapter: ItemAdapter(s),
+        characterAdapter: cha,
+        tomeAdapter: TomeAdapter(s)..createInitialTome(),
+        techniqueAdapter: TechniqueAdapter(s),
+        itemPool: const [ItemIds.ironSword],
+        techniquePool: const [],
+      );
+      return [
+        for (var i = 0; i < 6; i++)
+          () {
+            final title = component(ra.offerLoot()).title;
+            if (peek) {
+              ra.currentOffer();
+              ra.currentOffer();
+            }
+            ra.applyLoot(LootKind.upgradePoints);
+            return title;
+          }()
+      ];
+    }
+
+    expect(sequence(peek: true), equals(sequence(peek: false)));
+
+    // A take clears the cache — nothing stale is re-read.
+    rewardAdapter.applyLoot(LootKind.newComponent);
+    expect(rewardAdapter.currentOffer(), isEmpty);
+  });
+
   test('an affixed New Component binds its stat bonus to the taken copy', () {
     final s = EngineSession(13);
     final cha = CharacterAdapter(s)..createCharacter('F');
@@ -69,13 +121,13 @@ void main() {
       techniquePool: const [],
     );
 
-    // Roll until a card with a "bite +N" affix comes up, take it.
+    // Roll until a card with an engine-resolved affix comes up, take it.
     var took = false;
     for (var i = 0; i < 40 && !took; i++) {
       final card =
           ra.offerLoot().firstWhere((o) => o.kind == LootKind.newComponent);
       expect(card.badge, 'CLASS I');
-      if (card.effects.any((e) => e.contains('bite +'))) {
+      if (card.prefixAffixId != null || card.suffixAffixId != null) {
         ra.applyLoot(LootKind.newComponent);
         took = true;
       } else {

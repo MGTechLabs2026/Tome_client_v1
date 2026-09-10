@@ -1,7 +1,6 @@
 // lib/core/engine/reward_adapter.dart
-import 'dart:math' as math;
-
-import 'package:build_engine/build_engine.dart';
+import 'package:build_engine/affix_plugin.dart';
+import 'package:build_engine/almanac.dart';
 import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/martial_arts_plugin.dart' show styleAlignedFamilies;
 import 'package:build_engine/technique_plugin.dart';
@@ -12,7 +11,6 @@ import 'almanac_session.dart';
 import 'character_adapter.dart';
 import 'engine_session.dart';
 import 'item_adapter.dart';
-import 'reward_affix.dart';
 import 'technique_adapter.dart';
 import 'tome_adapter.dart';
 
@@ -27,12 +25,14 @@ class RewardAdapter {
     required List<String> techniquePool,
     CodexRepository? codex,
     AlmanacSession? almanac,
+    ({int seed, int number}) Function()? currentRun,
   })  : _tomeAdapter = tomeAdapter,
         _techniqueAdapter = techniqueAdapter,
         _characterAdapter = characterAdapter,
         _itemAdapter = itemAdapter,
         _codex = codex,
         _almanac = almanac,
+        _currentRun = currentRun ?? (() => (seed: 1, number: 1)),
         _pool = [
           for (final id in itemPool) (isItem: true, id: id),
           for (final id in techniquePool) (isItem: false, id: id),
@@ -48,11 +48,13 @@ class RewardAdapter {
   /// component is actually taken. Optional so tests can skip it.
   final CodexRepository? _codex;
 
-  /// App-lifetime engine Almanac owner — used on TAKE to record an
-  /// acquired affix (Task 4). Optional so tests can skip it.
-  // TODO(task-4): referenced on TAKE to record the acquired affix.
-  // ignore: unused_field
+  /// App-lifetime engine Almanac owner — used on TAKE to record every
+  /// acquired affix. Optional so tests can skip it.
   final AlmanacSession? _almanac;
+
+  /// Supplies the live run identity for affix acquisition ids. Defaults
+  /// to a fixed (1, 1) so tests need not wire RunBloc.
+  final ({int seed, int number}) Function() _currentRun;
 
   /// Items and techniques the New Component reward draws from, flattened
   /// into one pool. Drawn **with replacement** — the same id can be
@@ -66,8 +68,19 @@ class RewardAdapter {
   /// [offerLoot] (once per loot screen); [applyLoot] grants exactly what
   /// was shown, then clears it.
   ({bool isItem, String id})? _offered;
-  Affix? _prefix;
-  Affix? _suffix;
+
+  /// The affix slots resolved for the current offer — engine-owned,
+  /// resolved once by [offerLoot], carried unchanged into [applyLoot].
+  /// Null before the first offer / after a non-newComponent take.
+  AffixResolution? _offeredAffixes;
+
+  /// The 3-card list [offerLoot] last built. [currentOffer] returns it
+  /// verbatim — a pure re-read with no RNG / Almanac / state effect.
+  List<LootOptionView>? _lastOffer;
+
+  /// One per RewardAdapter lifetime (== one per lineage/EngineSession).
+  /// Mints the engine-owned affixEventId for each acquired affix.
+  final AffixAcquisitionIdSource _affixIdSource = AffixAcquisitionIdSource();
 
   /// A contextually weighted pick (via the run's seeded RNG) from the
   /// reward pool — Content Expansion V1, matrix §I. Items are always
@@ -153,14 +166,31 @@ class RewardAdapter {
       .elementAtOrNull(n) ??
       '$n';
 
+  /// One card line for a resolved affix, from its engine [AffixMechanic].
+  String _affixEffectLine(AffixDefinition def, ({bool isItem, String id}) reward) {
+    final m = def.mechanic;
+    if (m is WeaponStatBonus) {
+      final stat = WeaponStatTags.matchOrFallback(
+          itemDefinition(reward.id, _session.context).tags, 'item:${reward.id}');
+      return '+${_n(m.amount)} $stat';
+    }
+    if (m is ImmediateHeal) return 'restore ${_n(m.amount)} vitality';
+    if (m is BankProgression) return '+${_n(m.amount)} upgrade points';
+    return def.label; // unreachable for the v1 closed union
+  }
+
+  String _n(num v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+
+  /// The current offer without re-rolling — for preview / re-render. No
+  /// RNG draw, no Almanac write, no state mutation. Call [offerLoot] first.
+  List<LootOptionView> currentOffer() => _lastOffer ?? const [];
+
   List<LootOptionView> offerLoot() {
     final next = _offered = _rollNext();
 
-    final affinity = _characterAdapter.currentView().physiqueAffinityTradition;
     LootOptionView componentCard;
     if (next == null) {
-      _prefix = null;
-      _suffix = null;
+      _offeredAffixes = null;
       componentCard = const LootOptionView(
         kind: LootKind.newComponent,
         title: 'Nothing on the rack',
@@ -168,14 +198,17 @@ class RewardAdapter {
       );
     } else {
       // Either slot can come up empty — a plain, unadorned piece.
-      final prefix = _prefix = rollAffixOrNone(
-          next.isItem ? itemPrefixes : techniquePrefixes,
-          affinity,
-          _session.rng);
-      final suffix = _suffix = rollAffixOrNone(
-          next.isItem ? itemSuffixes : techniqueSuffixes,
-          affinity,
-          _session.rng);
+      final resolution = _offeredAffixes = resolveRewardAffixes(
+        ctx: AffixRewardContext(
+          domain: next.isItem ? AffixDomain.item : AffixDomain.technique,
+          physiqueTradition:
+              _characterAdapter.currentView().physiqueAffinityTradition,
+        ),
+        rng: _session.rng,
+        content: _session.context.content,
+      );
+      final prefix = resolution.slots[0].affix;
+      final suffix = resolution.slots[1].affix;
 
       final String baseName;
       String? badge;
@@ -202,14 +235,16 @@ class RewardAdapter {
         badge: badge,
         seed: next.id.hashCode,
         effects: [
-          if (prefix != null) prefix.blurb,
-          if (suffix != null) suffix.blurb,
+          if (prefix != null) _affixEffectLine(prefix, next),
+          if (suffix != null) _affixEffectLine(suffix, next),
           if (prefix == null && suffix == null) 'plain — no bonuses rolled',
         ],
+        prefixAffixId: prefix?.id,
+        suffixAffixId: suffix?.id,
       );
     }
 
-    return [
+    final offer = [
       const LootOptionView(
         kind: LootKind.upgradePoints,
         title: 'Upgrade Point',
@@ -224,6 +259,8 @@ class RewardAdapter {
       ),
       componentCard,
     ];
+    _lastOffer = offer;
+    return _lastOffer!;
   }
 
   void applyLoot(LootKind kind) {
@@ -239,6 +276,9 @@ class RewardAdapter {
       case LootKind.newComponent:
         final next = _offered;
         if (next == null) return;
+        final resolution = _offeredAffixes;
+
+        final AffixApplicationTarget target;
         if (next.isItem) {
           final item = itemDefinition(next.id, _session.context);
           // A fresh instance every time — two of the same id/class can
@@ -247,63 +287,65 @@ class RewardAdapter {
               ownItem(_session.character, item.id, _session.context);
           discoverItem(_session.character, item, _session.context);
           _codex?.discover(CodexKind.item, item.id);
-          final stat =
-              WeaponStatTags.matchOrFallback(item.tags, 'item:${item.id}');
-          // Item affixes are all flat stat bumps — bind them to *this*
-          // copy on the engine side, so they only bite while it's hung
-          // and ride along through Combine.
-          final total = (_prefix?.amount ?? 0) + (_suffix?.amount ?? 0);
-          if (total > 0) {
-            addItemStatBonuses(instance, {stat: total}, _session.context);
+          // Item affixes are flat stat bumps bound to *this* copy — the
+          // engine does that inside `applyAffixMechanic`, so they only
+          // bite while it's hung and ride along through Combine.
+          target = ItemInstanceTarget(instance: instance, itemId: item.id);
+          // Per-session display cache: the engine labels follow the copy
+          // into the Tome UI.
+          if (resolution != null) {
+            final prefix = resolution.slots[0].affix;
+            final suffix = resolution.slots[1].affix;
+            _itemAdapter.recordAffix(
+              instance.value,
+              prefix: prefix == null
+                  ? null
+                  : affixDefinition(prefix.id, _session.context).label,
+              suffix: suffix == null
+                  ? null
+                  : affixDefinition(suffix.id, _session.context).label,
+            );
           }
-          // The rolled name follows the copy for the Tome UI.
-          _itemAdapter.recordAffix(instance.value,
-              prefix: _prefix?.label, suffix: _suffix?.label);
         } else {
           _techniqueAdapter.discover(next.id);
           _codex?.discover(CodexKind.technique, next.id);
           // A technique isn't instanced, so its affixes are one-shot
-          // boons claimed with the card — never a persistent modifier
-          // (that was a leak: nothing removed it when the technique was
-          // unhung or dropped).
-          _applyTechniqueAffix(_prefix);
-          _applyTechniqueAffix(_suffix);
+          // boons claimed with the card — never a persistent modifier.
+          target = CharacterTarget(character: _session.character);
         }
-        _offered = null;
-        _prefix = null;
-        _suffix = null;
-    }
-  }
 
-  /// Applies one rolled technique [affix] — an immediate, non-persistent
-  /// boon. Only `healNow` / `bankPoint` reach here; `statUp` /
-  /// `initiativeUp` have no per-technique home and are deliberately
-  /// no-ops if the affix data ever reintroduces them.
-  void _applyTechniqueAffix(Affix? affix) {
-    if (affix == null || affix.amount == 0) return;
-    switch (affix.effect) {
-      case AffixEffect.healNow:
-        final h = _session.context.components
-            .get<HealthComponent>(_session.character);
-        if (h != null) {
-          _session.context.components.add(
-            _session.character,
-            HealthComponent(
-              current: math.min(h.current + affix.amount, h.max),
-              max: h.max,
-            ),
+        if (resolution != null) {
+          final run = _currentRun();
+          final acquisitions = acquireAffixes(
+            resolution: resolution,
+            target: target,
+            idSource: _affixIdSource,
+            run: RunRef(runId: '${run.seed}:${run.number}', runNumber: run.number),
+            context: _session.context,
           );
+          for (final acq in acquisitions) {
+            _almanac?.recorder.recordAffixDiscovered(
+              affixId: acq.affixId,
+              observation: AffixObservation(
+                affixEventId: acq.affixEventId,
+                runId: acq.runId,
+                runNumber: acq.runNumber,
+              ),
+              snapshot: AffixSnapshot(
+                affixId: acq.affixId,
+                stat: acq.stat,
+                value: acq.value,
+                category: acq.category,
+              ),
+              timestamp: DateTime.now(),
+            );
+          }
+          if (acquisitions.isNotEmpty) _almanac?.persist();
         }
-      case AffixEffect.bankPoint:
-        _session.context.resources.add(
-          _session.character,
-          ItemResources.upgradePoints,
-          affix.amount,
-        );
-      case AffixEffect.statUp:
-      case AffixEffect.initiativeUp:
-        // No persistent per-technique effect — see the doc above.
-        break;
+
+        _offered = null;
+        _offeredAffixes = null;
+        _lastOffer = null;
     }
   }
 }

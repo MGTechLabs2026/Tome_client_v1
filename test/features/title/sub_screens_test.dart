@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/app/theme.dart';
+import 'package:tome_client/core/engine/almanac_session.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
 import 'package:tome_client/core/persistence/codex_repository.dart';
 import 'package:tome_client/core/persistence/game_store.dart';
+import 'package:tome_client/core/persistence/game_store_almanac_repository.dart';
 import 'package:tome_client/core/persistence/records_repository.dart';
 import 'package:tome_client/core/persistence/settings_repository.dart';
 import 'package:tome_client/features/title/almanac_screen.dart';
@@ -17,6 +19,9 @@ Widget _host(GameStore store, Widget child) => MultiRepositoryProvider(
         RepositoryProvider(create: (_) => CodexRepository(store)),
         RepositoryProvider(create: (_) => SettingsRepository(store)),
         RepositoryProvider<EngineSession>(create: (_) => EngineSession(1)),
+        RepositoryProvider<AlmanacSession>(
+          create: (_) => AlmanacSession(GameStoreAlmanacRepository(store)),
+        ),
       ],
       child: MaterialApp(theme: tomeTheme(), home: child),
     );

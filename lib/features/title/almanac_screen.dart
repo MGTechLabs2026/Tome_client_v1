@@ -21,24 +21,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/engine/almanac_adapter.dart';
+import '../../core/engine/almanac_session.dart';
 import '../../core/engine/engine_session.dart';
 import '../../core/persistence/codex_repository.dart';
 import '../tome/hall/hall_theme.dart';
 import '../tome/hall/ink.dart';
 import 'threshold_page.dart';
 
-enum _Kind { style, item, technique }
+enum _Kind { style, item, technique, affix }
 
 extension on _Kind {
   String get noun => switch (this) {
         _Kind.style => 'style',
         _Kind.item => 'item',
         _Kind.technique => 'technique',
+        _Kind.affix => 'affix',
       };
   String get heading => switch (this) {
         _Kind.style => 'Styles',
         _Kind.item => 'Items',
         _Kind.technique => 'Techniques',
+        _Kind.affix => 'Affixes',
       };
 }
 
@@ -67,6 +70,7 @@ class _AlmanacScreenState extends State<AlmanacScreen> {
   late final Map<String, AlmanacStyleView> _styleById;
   late final Map<String, AlmanacItemView> _itemById;
   late final Map<String, AlmanacTechniqueView> _techById;
+  late final Map<String, AlmanacAffixView> _affixById;
 
   _Sel? _selected;
   bool _detailPage = false; // narrow layout: roster vs. leaf
@@ -74,10 +78,14 @@ class _AlmanacScreenState extends State<AlmanacScreen> {
   @override
   void initState() {
     super.initState();
-    _roster = AlmanacAdapter(context.read<EngineSession>()).snapshot();
+    _roster = AlmanacAdapter(
+      context.read<EngineSession>(),
+      almanac: context.read<AlmanacSession>(),
+    ).snapshot();
     _styleById = {for (final s in _roster.styles) s.id: s};
     _itemById = {for (final i in _roster.items) i.id: i};
     _techById = {for (final t in _roster.techniques) t.id: t};
+    _affixById = {for (final a in _roster.affixes) a.id: a};
   }
 
   void _select(_Sel sel) => setState(() {
@@ -97,7 +105,13 @@ class _AlmanacScreenState extends State<AlmanacScreen> {
     final metStyles = _met(CodexKind.style, _styleById.keys);
     final metItems = _met(CodexKind.item, _itemById.keys);
     final metTech = _met(CodexKind.technique, _techById.keys);
-    final metTotal = metStyles.length + metItems.length + metTech.length;
+    final metAffixes = {
+      for (final a in _roster.affixes) if (a.discovered) a.id,
+    };
+    final metTotal = metStyles.length +
+        metItems.length +
+        metTech.length +
+        metAffixes.length;
     final rosterTotal = _roster.total;
     final complete = rosterTotal > 0 && metTotal == rosterTotal;
 
@@ -119,6 +133,7 @@ class _AlmanacScreenState extends State<AlmanacScreen> {
             metStyles: metStyles,
             metItems: metItems,
             metTech: metTech,
+            metAffixes: metAffixes,
             selected: _selected,
             onSelect: _select,
           );
@@ -128,9 +143,11 @@ class _AlmanacScreenState extends State<AlmanacScreen> {
             styleById: _styleById,
             itemById: _itemById,
             techById: _techById,
+            affixById: _affixById,
             metStyles: metStyles,
             metItems: metItems,
             metTech: metTech,
+            metAffixes: metAffixes,
             showBack: !wide,
             onBack: () => setState(() => _detailPage = false),
           );
@@ -280,6 +297,7 @@ class _Roster extends StatelessWidget {
     required this.metStyles,
     required this.metItems,
     required this.metTech,
+    required this.metAffixes,
     required this.selected,
     required this.onSelect,
   });
@@ -288,6 +306,7 @@ class _Roster extends StatelessWidget {
   final Set<String> metStyles;
   final Set<String> metItems;
   final Set<String> metTech;
+  final Set<String> metAffixes;
   final _Sel? selected;
   final ValueChanged<_Sel> onSelect;
 
@@ -361,10 +380,43 @@ class _Roster extends StatelessWidget {
             _techDescriptor(t),
             t.family.isEmpty ? 'form' : t.family,
           ),
+        const SizedBox(height: 18),
+        _GroupHeader(
+          title: _Kind.affix.heading,
+          met: metAffixes.length,
+          total: snapshot.affixes.length,
+        ),
+        for (final a in snapshot.affixes)
+          plateFor(
+            _Kind.affix,
+            a.id,
+            metAffixes.contains(a.id),
+            a.label,
+            _affixDescriptor(a),
+            _prettyAffixCategory(a.category),
+          ),
       ],
     );
   }
 }
+
+String _prettyAffixCategory(String c) => c.replaceAll('_', ' ');
+
+/// Discovered-affix one-liner, composed ONLY from engine fields.
+String _affixDescriptor(AlmanacAffixView a) {
+  final parts = <String>[_prettyAffixCategory(a.category)];
+  if (a.stat != null && a.value != null) {
+    parts.add(switch (a.stat!) {
+      'weapon_stat_bonus' => 'weapon +${_num(a.value!)}',
+      'heal' => 'heal ${_num(a.value!)}',
+      'bank_progression' => 'bank ${_num(a.value!)}',
+      _ => '${a.stat} ${_num(a.value!)}',
+    });
+  }
+  return parts.join(' · ');
+}
+
+String _num(num v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 
 String _styleDescriptor(AlmanacStyleView s) {
   final specs = s.specialtyTags
@@ -697,9 +749,11 @@ class _DetailLeaf extends StatelessWidget {
     required this.styleById,
     required this.itemById,
     required this.techById,
+    required this.affixById,
     required this.metStyles,
     required this.metItems,
     required this.metTech,
+    required this.metAffixes,
     required this.showBack,
     required this.onBack,
   });
@@ -708,9 +762,11 @@ class _DetailLeaf extends StatelessWidget {
   final Map<String, AlmanacStyleView> styleById;
   final Map<String, AlmanacItemView> itemById;
   final Map<String, AlmanacTechniqueView> techById;
+  final Map<String, AlmanacAffixView> affixById;
   final Set<String> metStyles;
   final Set<String> metItems;
   final Set<String> metTech;
+  final Set<String> metAffixes;
   final bool showBack;
   final VoidCallback onBack;
 
@@ -727,6 +783,7 @@ class _DetailLeaf extends StatelessWidget {
         _Kind.style => metStyles.contains(sel.id),
         _Kind.item => metItems.contains(sel.id),
         _Kind.technique => metTech.contains(sel.id),
+        _Kind.affix => metAffixes.contains(sel.id),
       };
       if (!met) {
         content = _LockedLeaf(kind: sel.kind, axis: _axisFor(sel));
@@ -743,6 +800,7 @@ class _DetailLeaf extends StatelessWidget {
               techById: techById,
               met: metTech,
             ),
+          _Kind.affix => _AffixLeaf(view: affixById[sel.id]!),
         };
       }
     }
@@ -772,6 +830,8 @@ class _DetailLeaf extends StatelessWidget {
             final f? when f.isNotEmpty => f,
             _ => 'form',
           },
+        _Kind.affix =>
+          _prettyAffixCategory(affixById[sel.id]?.category ?? 'affix'),
       };
 }
 
@@ -1023,6 +1083,36 @@ class _StyleLeaf extends StatelessWidget {
       ],
     );
   }
+}
+
+class _AffixLeaf extends StatelessWidget {
+  const _AffixLeaf({required this.view});
+  final AlmanacAffixView view;
+
+  @override
+  Widget build(BuildContext context) {
+    final hall = context.hall;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _LeafTitle(name: view.label, badge: _prettyAffixCategory(view.category)),
+        Text(
+          'A reward affix the engine can roll onto a new component. The '
+          'Almanac keeps its canonical effect once it has been taken.',
+          style: hall.reading.copyWith(color: hall.boneDim),
+        ),
+        const _SectionLabel('Effect'),
+        LedgerRow(label: _effectLabel(view.stat), value: _num(view.value ?? 0)),
+      ],
+    );
+  }
+
+  String _effectLabel(String? stat) => switch (stat) {
+        'weapon_stat_bonus' => 'Weapon stat',
+        'heal' => 'Immediate heal',
+        'bank_progression' => 'Banked progression',
+        _ => stat ?? 'effect',
+      };
 }
 
 class _ItemLeaf extends StatelessWidget {

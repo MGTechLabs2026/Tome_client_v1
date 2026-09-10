@@ -6,19 +6,27 @@
 // narrow; and the screen imports no build_engine type.
 import 'dart:io';
 
+import 'package:build_engine/almanac.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tome_client/app/theme.dart';
+import 'package:tome_client/core/engine/almanac_session.dart';
 import 'package:tome_client/core/engine/engine_session.dart';
 import 'package:tome_client/core/persistence/codex_repository.dart';
 import 'package:tome_client/core/persistence/game_store.dart';
+import 'package:tome_client/core/persistence/game_store_almanac_repository.dart';
 import 'package:tome_client/features/title/almanac_screen.dart';
 
-Widget _host(GameStore store) => MultiRepositoryProvider(
+Widget _host(GameStore store, {AlmanacSession? almanac}) =>
+    MultiRepositoryProvider(
       providers: [
         RepositoryProvider<EngineSession>(create: (_) => EngineSession(1)),
         RepositoryProvider<CodexRepository>(create: (_) => CodexRepository(store)),
+        RepositoryProvider<AlmanacSession>(
+          create: (_) =>
+              almanac ?? AlmanacSession(GameStoreAlmanacRepository(store)),
+        ),
       ],
       child: MaterialApp(theme: tomeTheme(), home: const AlmanacScreen()),
     );
@@ -113,5 +121,95 @@ void main() {
 
     expect(find.textContaining('has not been met'), findsOneWidget);
     expect(find.text('Polearming'), findsNothing);
+  });
+
+  testWidgets('AFFIXES group renders with recorded / canonical completion',
+      (tester) async {
+    await _pump(tester, GameStore.memory(), size: const Size(560, 900));
+
+    final roster = find.byType(Scrollable).last;
+    await tester.scrollUntilVisible(find.text('AFFIXES'), 300,
+        scrollable: roster);
+
+    expect(find.text('AFFIXES'), findsOneWidget);
+    // empty almanac -> 0 of the 33 canonical affixes recorded
+    expect(find.text('0 / 33'), findsOneWidget);
+  });
+
+  testWidgets('a locked affix leaks no name / stat / value — UI or semantics',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester, GameStore.memory(), size: const Size(560, 900));
+
+    final roster = find.byType(Scrollable).last;
+    // locked affix plates show the category axis only, e.g. 'item prefix'
+    await tester.scrollUntilVisible(find.text('AFFIXES'), 300,
+        scrollable: roster);
+    // a little further so a locked item-prefix plate sits clear of the fold
+    await tester.drag(roster, const Offset(0, -180));
+    await tester.pumpAndSettle();
+    expect(find.text('item prefix'), findsWidgets);
+
+    // no affix name / magnitude / raw stat token, anywhere in the roster
+    expect(find.textContaining('Keen'), findsNothing);
+    expect(find.textContaining('Brutal'), findsNothing);
+    expect(find.textContaining('Plain'), findsNothing);
+    expect(find.textContaining('+1'), findsNothing);
+    expect(find.textContaining('weapon_stat_bonus'), findsNothing);
+    // ...nor in the semantics tree — the locked plate says only its axis
+    expect(find.bySemanticsLabel(RegExp('Keen|Brutal|Plain')), findsNothing);
+    expect(find.bySemanticsLabel('Locked affix. item prefix'), findsWidgets);
+
+    // opening one still reveals only the axis, never a name/stat/value
+    final lockedPlate = find
+        .ancestor(
+          of: find.text('item prefix').first,
+          matching: find.byType(GestureDetector),
+        )
+        .first;
+    await tester.tap(lockedPlate, warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('has not been met'), findsOneWidget);
+    expect(find.textContaining('item prefix'), findsWidgets);
+    expect(find.textContaining('Keen'), findsNothing);
+    expect(find.textContaining('Brutal'), findsNothing);
+    expect(find.textContaining('weapon_stat_bonus'), findsNothing);
+    expect(find.bySemanticsLabel(RegExp('Keen|Brutal|Plain')), findsNothing);
+
+    handle.dispose();
+  });
+
+  testWidgets('a recorded affix opens a leaf with its label + effect',
+      (tester) async {
+    final store = GameStore.memory();
+    final almanac = AlmanacSession(GameStoreAlmanacRepository(store));
+    almanac.recorder.recordAffixDiscovered(
+      affixId: 'af_keen',
+      observation: const AffixObservation(
+          affixEventId: '13:1:affix:0:0', runId: '13:1', runNumber: 1),
+      snapshot: const AffixSnapshot(
+          affixId: 'af_keen',
+          stat: 'weapon_stat_bonus',
+          value: 3,
+          category: 'item_prefix'),
+      timestamp: DateTime.utc(2026),
+    );
+
+    await tester.binding.setSurfaceSize(const Size(560, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(_host(store, almanac: almanac));
+    await tester.pumpAndSettle();
+
+    final roster = find.byType(Scrollable).last;
+    await tester.scrollUntilVisible(find.text('Keen'), 300, scrollable: roster);
+    expect(find.text('Keen'), findsOneWidget); // roster plate label
+
+    await tester.tap(find.text('Keen'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ITEM PREFIX'), findsOneWidget); // _LeafTitle badge
+    expect(find.text('Weapon stat'), findsOneWidget); // effect label
+    expect(find.text('3'), findsWidgets); // the effect value
   });
 }

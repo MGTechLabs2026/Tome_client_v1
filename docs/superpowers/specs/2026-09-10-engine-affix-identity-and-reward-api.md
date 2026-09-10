@@ -329,6 +329,42 @@ hardcoded number
 
 The engine-side design should avoid encoding UI concepts such as "prefix" or "suffix" as the fundamental identity model. Those may remain reward-presentation concepts if the engine design determines they are not fundamental domain identity.
 
+### 8.1 Non-stat affix mechanics
+
+> Canonical affix mechanics are not restricted to stat/value modifications. The engine model must represent every supported affix effect type, including non-stat effects such as immediate healing or progression banking, without requiring the client to infer semantics from labels, prefix/suffix names, or other presentation data.
+
+Both of these families must be representable through engine-owned canonical mechanics:
+
+```text
+Attack +3
+Defense +2
+Initiative +3
+```
+
+```text
+heal immediately
+bank progression
+other future non-stat effects
+```
+
+The implementation remains an engine design decision. Do **not** prescribe a new `AffixEffect` class or specific field layout unless the existing engine architecture requires it.
+
+The invariant is:
+
+```text
+canonical engine affix data
+        ↓
+canonical engine / application mechanics
+```
+
+and never:
+
+```text
+client label / name
+        ↓
+client interprets meaning
+```
+
 ---
 
 ## 9. Almanac Recording Contract
@@ -353,9 +389,29 @@ The client must not invent the `AffixSnapshot`. The snapshot must be derived fro
 
 ### 9.1 `affixEventId` ownership
 
-> `affixEventId` must originate from the engine / composition-layer reward-acquisition event and must represent the actual TAKE / acquisition event. The Tome client must not invent arbitrary event ids solely to satisfy Almanac persistence.
+> The engine defines the acquisition-event identity contract. The engine reward / run layer is authoritative for creation of the acquisition-event identity. The composition layer may transport or forward that identity to Almanac recording, but must not manufacture or replace it.
 
-Why: the engine Almanac is idempotent on `(affixId, affixEventId)`. The identity of the actual acquisition event must therefore itself be stable and authoritative. The contract must prevent this failure mode:
+```text
+Acquisition event identity
+    → build_engine reward / run layer
+
+Composition layer
+    → receives event identity → forwards it
+
+Tome client
+    → must not generate substitute affixEventIds
+```
+
+Explicitly prohibited as a replacement for the engine acquisition-event identity:
+
+```text
+client-generated UUID
+client-generated timestamp-based id
+client counter
+random id generated at TAKE
+```
+
+Why: the engine Almanac is idempotent on `(affixId, affixEventId)`. The event identity must therefore represent the actual canonical acquisition event, so it must be stable and authoritative. The contract must prevent this failure mode:
 
 ```text
 same affix acquired
@@ -366,8 +422,6 @@ Almanac sees different events
     ↓
 duplicate history
 ```
-
-The client may forward the canonical event identity into the Almanac boundary, but it must not manufacture a substitute identity.
 
 ### 9.2 Discovery timing
 
@@ -402,10 +456,12 @@ The composition layer receives the canonical engine affix result and performs th
 
 ### In either case
 
+The engine reward / run layer is authoritative for the acquisition-event identity. The composition layer may only transport that identity to Almanac recording; it must not manufacture or replace it.
+
 * the client does not define the affix
 * the client does not roll the affix
 * the client does not construct canonical mechanical values
-* the client does not fabricate `affixEventId`
+* the client does not create or substitute `affixEventId` — it forwards the engine's
 
 What must not happen:
 
@@ -430,8 +486,10 @@ Five distinct concerns, and where each is owned:
 | **Affix definition** — stable id, display metadata, mechanical payload | build_engine (canonical content) |
 | **Reward-selection policy** — rarity, affinity, context weighting, "no affix" chance | build_engine (canonical, may be separate content/config) |
 | **Reward offer** — the resolved candidate shown to the player, fixed at generation | build_engine reward layer |
-| **Acquisition event** — the TAKE, with its own stable `affixEventId` | build_engine / composition boundary |
+| **Acquisition event** — the canonical TAKE / acquisition event and its stable `affixEventId` | **build_engine reward / run layer** |
 | **Almanac observation** — the recorded `(affixId, affixEventId)` history entry | build_engine Almanac, fed at the composition boundary |
+
+> The composition boundary is responsible only for forwarding / recording the authoritative event; it is not the source of event identity. Almanac ownership stays in build_engine.
 
 ```text
                 BUILD ENGINE
@@ -486,12 +544,16 @@ The engine work is complete only when all are true:
 * affix selection uses `RngService`
 * mechanical values come from engine-owned canonical data
 * the selected affix can be applied without client-owned canonical data
+* **every supported affix mechanic, including non-stat mechanics (immediate heal, progression banking, future non-stat effects), is representable through engine-owned canonical data**
+* the client never infers affix mechanics from presentation labels, prefix/suffix names, or other display data
 * **engine-owned reward-selection logic can deterministically select valid affixes using canonical engine data and the applicable reward context** — physique/affinity/rarity weighting is owned by that logic rather than required to be a field directly on the affix model
 * affix reward offers have stable identity from generation through TAKE
 * previewing an offer does not reroll or mutate state
 * TAKE uses the already-resolved offered affix
-* `affixEventId` is authoritative and not client-fabricated
-* repeated TAKE / replay of the same acquisition event remains idempotent
+* the engine reward / run layer defines the canonical acquisition-event identity
+* the composition layer can forward that identity without creating a replacement
+* no client-generated event id is required for Almanac correctness
+* repeated processing of the same canonical acquisition event remains idempotent
 * a taken affix can be recorded using its engine definition
 * Almanac serialization / hydration preserves the record
 * duplicate `(affixId, affixEventId)` recording remains idempotent
@@ -513,9 +575,12 @@ This engine change does not require:
 * changing unrelated reward mechanics
 * redesigning item or technique systems beyond the minimum affix integration
 * prescribing the exact engine affix-definition class shape
+* prescribing the exact representation of non-stat affix mechanics
 * forcing physique / reward weighting into the affix model
 * requiring prefix / suffix to be fundamental affix-domain concepts
 * creating a parallel client-side reward-selection policy
+* allowing the composition layer to invent acquisition-event identities
+* deriving mechanics from display labels or reward-presentation terminology
 * introducing a second RNG path
 
 ---

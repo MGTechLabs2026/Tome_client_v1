@@ -311,6 +311,9 @@ class _TomeScreenState extends State<TomeScreen> {
               );
               final occ = cell.occupant;
               if (occ == null) return;
+              // Consumables aren't trained — they're a one-use effect the
+              // engine fires in combat.
+              if (occ.kind == GridComponentKind.consumable) return;
               context.read<RunBloc>().add(
                 TrainingRequested(
                   occ.contentId,

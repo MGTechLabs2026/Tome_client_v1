@@ -1,6 +1,7 @@
 import 'package:build_engine/affix_plugin.dart';
 import 'package:build_engine/build_engine.dart';
 import 'package:build_engine/combat_plugin.dart';
+import 'package:build_engine/consumable_plugin.dart';
 import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/martial_arts_plugin.dart';
 import 'package:build_engine/physique_plugin.dart';
@@ -59,6 +60,10 @@ class EngineSession {
     PhysiquePlugin().initialize(context);
     ItemPlugin().initialize(context);
     TechniquePlugin().initialize(context);
+    // ConsumablePlugin needs the Item / Technique content domains loaded
+    // first (its content shares their vocabulary); it in turn must be up
+    // before AffixPlugin — mirrors game_run.dart's plugin order.
+    ConsumablePlugin().initialize(context);
     AffixPlugin().initialize(context);
 
     _lineageSubscription = context.events.subscribe<TechniqueEvolved>((event) {

@@ -84,10 +84,13 @@ class _RewardCard extends StatelessWidget {
   final LootOptionView option;
   final VoidCallback onTake;
 
-  String get _chopId => switch (option.kind) {
-        LootKind.upgradePoints => 'reward:point',
-        LootKind.gridExpansion => 'reward:board',
-        LootKind.newComponent => 'reward:${option.title}',
+  String get _chopId => switch (option.contentKind) {
+        RewardContentKind.upgradePoint => 'reward:point',
+        RewardContentKind.tomeSlot => 'reward:board',
+        RewardContentKind.consumable => 'reward:consumable:${option.contentId}',
+        RewardContentKind.item ||
+        RewardContentKind.technique =>
+          'reward:${option.title}',
       };
 
   @override

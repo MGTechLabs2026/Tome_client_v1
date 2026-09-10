@@ -1,4 +1,4 @@
-enum GridComponentKind { item, technique }
+enum GridComponentKind { item, technique, consumable }
 
 class GridCellView {
   const GridCellView({

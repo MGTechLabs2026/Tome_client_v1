@@ -1,4 +1,5 @@
 import 'package:build_engine/build_engine.dart';
+import 'package:build_engine/consumable_plugin.dart';
 import 'package:build_engine/item_plugin.dart';
 import 'package:build_engine/martial_arts_plugin.dart';
 import 'package:build_engine/technique_plugin.dart';
@@ -120,6 +121,14 @@ class TomeAdapter {
         instanceEntityValue: ref.instanceEntityId?.value,
       );
     }
+    if (ref.referenceType == consumableReferenceType) {
+      final consumable = consumableDefinition(ref.contentId, _session.context);
+      return GridCellOccupant(
+        kind: GridComponentKind.consumable,
+        contentId: consumable.id,
+        displayName: consumable.id,
+      );
+    }
     final technique = techniqueDefinition(ref.contentId, _session.context);
     return GridCellOccupant(
       kind: GridComponentKind.technique,
@@ -191,6 +200,31 @@ class TomeAdapter {
         contentId: definitionId,
       ),
     );
+  }
+
+  /// Hangs a consumable straight into [slotId] — mirrors [insertTechnique]
+  /// (a `BuildComponentRef` with `consumableReferenceType`, no instanced
+  /// entity: a consumable's charges are a per-fight resource, not stored
+  /// state). Used by the reward flow; the effect fires later through the
+  /// engine's combat interpretation, never here.
+  void insertConsumable(String definitionId, String slotId) {
+    _session.context.tome.insert(
+      _session.character,
+      SlotId(slotId),
+      BuildComponentRef(
+        referenceType: consumableReferenceType,
+        contentId: definitionId,
+      ),
+    );
+  }
+
+  /// The first empty grid slot in row-major order, or `null` if the Tome
+  /// is full. Used to land a rewarded consumable somewhere sensible.
+  String? firstEmptySlot() {
+    for (final cell in inspect()) {
+      if (cell.isEmpty) return cell.slotId;
+    }
+    return null;
   }
 
   /// Swaps the technique in [slotId] for [definitionId] in place — used
